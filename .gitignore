@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# персональные данные (хранятся локально в data/)
+/data/portfolio.json
+/data/broker-report.html

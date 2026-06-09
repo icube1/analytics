@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "updatedAt": "2026-06-09T00:00:00.000Z",
+  "lastBrokerFileName": "portfolio.html",
+  "customAssets": {
+    "items": [
+      {
+        "id": "example-apartment",
+        "enabled": true,
+        "label": "Квартира",
+        "value": 8500000,
+        "debt": 3200000,
+        "monthlyDebtPayment": 85000,
+        "debtAnnualRate": 18,
+        "growsWithInflation": true,
+        "returnMode": "income",
+        "annualReturnPercent": 0,
+        "incomeAmount": 45000,
+        "incomePeriod": "monthly",
+        "generatesDividendTax": false,
+        "notes": "Пример: 2-комн., оценка рынка"
+      },
+      {
+        "id": "example-reit",
+        "enabled": true,
+        "label": "Паи ЗПИФ",
+        "value": 222000,
+        "debt": 0,
+        "monthlyDebtPayment": 0,
+        "debtAnnualRate": 0,
+        "growsWithInflation": false,
+        "returnMode": "percent",
+        "annualReturnPercent": 15.5,
+        "incomeAmount": 0,
+        "incomePeriod": "monthly",
+        "generatesDividendTax": true,
+        "notes": "Сберегательный"
+      },
+      {
+        "id": "example-gold",
+        "enabled": true,
+        "label": "Золото",
+        "value": 360000,
+        "debt": 0,
+        "monthlyDebtPayment": 0,
+        "debtAnnualRate": 0,
+        "growsWithInflation": false,
+        "returnMode": "percent",
+        "annualReturnPercent": 10,
+        "incomeAmount": 0,
+        "incomePeriod": "monthly",
+        "generatesDividendTax": false,
+        "notes": "Вне брокерского счёта"
+      }
+    ],
+    "otherDebts": []
+  },
+  "compoundParams": {
+    "initialCapital": 100000,
+    "monthlyContribution": 60000,
+    "annualReturnPercent": 12,
+    "inflationPercent": 6,
+    "years": 10,
+    "taxOnProfitPercent": 13,
+    "contributionGrowthPercent": 5,
+    "compoundFrequency": "monthly",
+    "monthlyRateMethod": "effective",
+    "adjustContributionsForInflation": false,
+    "reinvestReturns": true,
+    "withdrawAfterYears": null,
+    "monthlyWithdrawal": 0,
+    "taxDividends": false,
+    "taxableAssetShare": 0.5,
+    "dividendYieldPercent": 9.5,
+    "reinvestFreedDebtPayments": false
+  },
+  "brokerReport": null
+}

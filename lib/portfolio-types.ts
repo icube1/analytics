@@ -1,0 +1,216 @@
+export interface SecurityPosition {
+  id: string;
+  name: string;
+  isin: string;
+  currency: string;
+  quantityStart: number;
+  quantityEnd: number;
+  priceStart: number;
+  priceEnd: number;
+  valueStart: number;
+  valueEnd: number;
+  valueChange: number;
+}
+
+export interface CashPosition {
+  platform: string;
+  currency: string;
+  rateEnd: number;
+  start: number;
+  change: number;
+  end: number;
+}
+
+export interface BrokerTrade {
+  id: string;
+  date: string;
+  settlementDate: string;
+  name: string;
+  ticker: string;
+  side: string;
+  quantity: number;
+  price: number;
+  amount: number;
+  brokerFee: number;
+  exchangeFee: number;
+}
+
+export interface CashFlow {
+  id: string;
+  date: string;
+  description: string;
+  currency: string;
+  credit: number;
+  debit: number;
+}
+
+export interface BrokerReport {
+  periodStart: string;
+  periodEnd: string;
+  createdAt: string;
+  investor: string;
+  contract: string;
+  assetsStart: number;
+  assetsEnd: number;
+  assetsChange: number;
+  securitiesStart: number;
+  securitiesEnd: number;
+  cashStart: number;
+  cashEnd: number;
+  securities: SecurityPosition[];
+  cash: CashPosition[];
+  trades: BrokerTrade[];
+  cashFlows: CashFlow[];
+}
+
+export interface DebtObligation {
+  id: string;
+  enabled: boolean;
+  label: string;
+  balance: number;
+  monthlyPayment: number;
+  annualInterestRate: number;
+}
+
+export type AssetReturnMode = "none" | "percent" | "income";
+export type AssetIncomePeriod = "monthly" | "yearly";
+
+export interface CustomAssetItem {
+  id: string;
+  enabled: boolean;
+  label: string;
+  /** Оценочная / рыночная стоимость, ₽ */
+  value: number;
+  /** Привязанный долг (ипотека и т.п.), ₽ */
+  debt: number;
+  monthlyDebtPayment: number;
+  /** Годовая ставка по привязанному долгу, % */
+  debtAnnualRate: number;
+  /** Рост стоимости вместе с инфляцией */
+  growsWithInflation: boolean;
+  returnMode: AssetReturnMode;
+  /** Доходность в % годовых, если returnMode === "percent" */
+  annualReturnPercent: number;
+  /** Денежный доход (аренда и т.п.), если returnMode === "income" */
+  incomeAmount: number;
+  incomePeriod: AssetIncomePeriod;
+  /** Учитывать в доле облагаемых дивидендами активов (ПИФы) */
+  generatesDividendTax: boolean;
+  notes: string;
+}
+
+export interface CustomAssets {
+  items: CustomAssetItem[];
+  otherDebts: DebtObligation[];
+}
+
+/** @deprecated Только для миграции старых данных */
+export interface ApartmentAsset {
+  enabled: boolean;
+  label: string;
+  estimatedValue: number;
+  mortgageDebt: number;
+  monthlyMortgagePayment: number;
+  mortgageAnnualRate: number;
+  notes: string;
+}
+
+/** @deprecated Только для миграции старых данных */
+export interface ReitAsset {
+  enabled: boolean;
+  label: string;
+  fundName: string;
+  units: number;
+  pricePerUnit: number;
+  notes: string;
+}
+
+/** @deprecated Только для миграции старых данных */
+export interface GoldAsset {
+  enabled: boolean;
+  label: string;
+  weightGrams: number;
+  pricePerGram: number;
+  notes: string;
+}
+
+export interface CompoundParams {
+  initialCapital: number;
+  monthlyContribution: number;
+  annualReturnPercent: number;
+  inflationPercent: number;
+  years: number;
+  taxOnProfitPercent: number;
+  contributionGrowthPercent: number;
+  compoundFrequency: "monthly" | "quarterly" | "semiannual" | "yearly";
+  /**
+   * effective — (1 + годовая)^(1/12) − 1, математически точная капитализация;
+   * simple — годовая ÷ 12, как во многих банковских калькуляторах
+   */
+  monthlyRateMethod: "effective" | "simple";
+  adjustContributionsForInflation: boolean;
+  /** Реинвестировать доход в портфель (иначе выводится ежемесячно) */
+  reinvestReturns: boolean;
+  /** С какого года начать фиксированный ежемесячный вывод (null — не выводить) */
+  withdrawAfterYears: number | null;
+  /** Ежемесячный вывод после горизонта в рублях сегодня (покупательная способность) */
+  monthlyWithdrawal: number;
+  /** Учитывать налог на дивиденды по акциям и ПИФам (выкл. для ИИС и черновых расчётов) */
+  taxDividends: boolean;
+  /** Доля портфеля в акциях и ПИФах (облагаются дивидендами), 0–1 */
+  taxableAssetShare: number;
+  /** Ожидаемая дивидендная доходность на акции/ПИФы, % годовых */
+  dividendYieldPercent: number;
+  /** После погашения долгов инвестировать освободившиеся платежи */
+  reinvestFreedDebtPayments: boolean;
+}
+
+export interface PortfolioStorage {
+  customAssets: CustomAssets;
+  compoundParams: CompoundParams;
+  lastBrokerFileName: string;
+}
+
+export interface PortfolioDocument extends PortfolioStorage {
+  version: 1;
+  updatedAt: string;
+  brokerReport: BrokerReport | null;
+}
+
+export const DEFAULT_CUSTOM_ASSETS: CustomAssets = {
+  items: [],
+  otherDebts: [],
+};
+
+export const DEFAULT_COMPOUND_PARAMS: CompoundParams = {
+  initialCapital: 100_000,
+  monthlyContribution: 60_000,
+  annualReturnPercent: 12,
+  inflationPercent: 6,
+  years: 10,
+  taxOnProfitPercent: 13,
+  contributionGrowthPercent: 5,
+  compoundFrequency: "monthly",
+  monthlyRateMethod: "effective",
+  adjustContributionsForInflation: false,
+  reinvestReturns: true,
+  withdrawAfterYears: null,
+  monthlyWithdrawal: 0,
+  taxDividends: false,
+  taxableAssetShare: 0.5,
+  dividendYieldPercent: 9.5,
+  reinvestFreedDebtPayments: false,
+};
+
+export const DEFAULT_STORAGE: PortfolioStorage = {
+  customAssets: DEFAULT_CUSTOM_ASSETS,
+  compoundParams: DEFAULT_COMPOUND_PARAMS,
+  lastBrokerFileName: "portfolio.html",
+};
+
+export const DEFAULT_DOCUMENT: PortfolioDocument = {
+  version: 1,
+  updatedAt: new Date(0).toISOString(),
+  ...DEFAULT_STORAGE,
+  brokerReport: null,
+};
