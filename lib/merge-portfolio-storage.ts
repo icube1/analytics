@@ -1,4 +1,5 @@
 import { hasCustomAssetData, normalizeCustomAssets } from "./custom-assets";
+import { normalizeCompoundParams } from "./normalize-compound-params";
 import {
   DEFAULT_STORAGE,
   type PortfolioDocument,
@@ -12,10 +13,10 @@ export function mergePortfolioStorage(
     version: 1,
     updatedAt: new Date().toISOString(),
     customAssets: normalizeCustomAssets(partial.customAssets),
-    compoundParams: {
+    compoundParams: normalizeCompoundParams({
       ...DEFAULT_STORAGE.compoundParams,
       ...partial.compoundParams,
-    },
+    }),
     lastBrokerFileName:
       partial.lastBrokerFileName ?? DEFAULT_STORAGE.lastBrokerFileName,
     brokerReport:

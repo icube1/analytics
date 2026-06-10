@@ -13,6 +13,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { ChartMoneyTooltip, ChartPercentTooltip } from "@/components/chart-money-tooltip";
 import type { PortfolioAnalytics } from "@/lib/portfolio-analytics";
 import { StatCard } from "@/components/stat-card";
 import { formatMoney } from "@/lib/portfolio-wealth";
@@ -125,7 +126,7 @@ export function SummaryTab({ analytics, report }: SummaryTabProps) {
                     />
                   ))}
                 </Pie>
-                <Tooltip cursor={false} formatter={(v) => formatMoney(Number(v))} />
+                <Tooltip cursor={false} content={<ChartMoneyTooltip />} />
                 <Legend />
               </PieChart>
             </ResponsiveContainer>
@@ -152,13 +153,17 @@ export function SummaryTab({ analytics, report }: SummaryTabProps) {
               <YAxis tick={{ fontSize: 11 }} unit="%" />
               <Tooltip
                 cursor={false}
-                formatter={(value, name) =>
-                  name === "contribution"
-                    ? [`${Number(value).toFixed(2)} п.п.`, "Вклад в портфель"]
-                    : [`${value}%`, "Доходность класса"]
-                }
-                labelFormatter={(_, payload) =>
-                  payload?.[0]?.payload?.fullName ?? ""
+                content={
+                  <ChartPercentTooltip
+                    labelFormatter={(_, payload) =>
+                      String(payload?.[0]?.payload?.fullName ?? "")
+                    }
+                    formatter={(value, name) =>
+                      name === "contribution"
+                        ? [`${value.toFixed(2)} п.п.`, "Вклад в портфель"]
+                        : [`${value}%`, "Доходность класса"]
+                    }
+                  />
                 }
               />
               <Legend />

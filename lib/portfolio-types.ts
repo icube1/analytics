@@ -153,8 +153,12 @@ export interface CompoundParams {
   reinvestReturns: boolean;
   /** С какого года начать фиксированный ежемесячный вывод (null — не выводить) */
   withdrawAfterYears: number | null;
+  /** fixed — сумма в сегодняшних ₽; percent — доля портфеля в месяц */
+  withdrawalMode: "fixed" | "percent";
   /** Ежемесячный вывод после горизонта в рублях сегодня (покупательная способность) */
   monthlyWithdrawal: number;
+  /** Годовой вывод, % от доступного баланса (если withdrawalMode === percent; в месяц = годовой ÷ 12) */
+  annualWithdrawalPercent: number;
   /** Учитывать налог на дивиденды по акциям и ПИФам (выкл. для ИИС и черновых расчётов) */
   taxDividends: boolean;
   /** Доля портфеля в акциях и ПИФах (облагаются дивидендами), 0–1 */
@@ -195,7 +199,9 @@ export const DEFAULT_COMPOUND_PARAMS: CompoundParams = {
   adjustContributionsForInflation: false,
   reinvestReturns: true,
   withdrawAfterYears: null,
+  withdrawalMode: "fixed",
   monthlyWithdrawal: 0,
+  annualWithdrawalPercent: 4,
   taxDividends: false,
   taxableAssetShare: 0.5,
   dividendYieldPercent: 9.5,

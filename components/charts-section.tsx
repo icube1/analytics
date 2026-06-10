@@ -15,6 +15,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { ChartMoneyTooltip } from "@/components/chart-money-tooltip";
 import { CHART_COLORS, formatMoney } from "@/lib/stats";
 import type {
   CategoryBreakdown,
@@ -41,28 +42,6 @@ function ChartCard({
         {title}
       </h3>
       {children}
-    </div>
-  );
-}
-
-function MoneyTooltip({
-  active,
-  payload,
-  label,
-}: {
-  active?: boolean;
-  payload?: { value: number; name: string; color: string }[];
-  label?: string;
-}) {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
-      <p className="mb-1 font-medium text-zinc-900 dark:text-zinc-100">{label}</p>
-      {payload.map((entry, index) => (
-        <p key={`${entry.name}-${index}`} style={{ color: entry.color }}>
-          {entry.name}: {formatMoney(entry.value)}
-        </p>
-      ))}
     </div>
   );
 }
@@ -126,7 +105,7 @@ export function ChartsSection({
                   />
                 ))}
               </Pie>
-              <Tooltip cursor={false} formatter={(value) => formatMoney(Number(value))} />
+              <Tooltip cursor={false} content={<ChartMoneyTooltip />} />
               <Legend />
             </PieChart>
           </ResponsiveContainer>
@@ -149,7 +128,7 @@ export function ChartsSection({
                   v >= 1000 ? `${Math.round(v / 1000)}к` : String(v)
                 }
               />
-              <Tooltip cursor={false} content={<MoneyTooltip />} />
+              <Tooltip cursor={false} content={<ChartMoneyTooltip />} />
               <Legend />
               <Line
                 type="monotone"
@@ -194,9 +173,12 @@ export function ChartsSection({
               />
               <Tooltip
                 cursor={false}
-                formatter={(value) => formatMoney(Number(value))}
-                labelFormatter={(_, payload) =>
-                  payload?.[0]?.payload?.fullName ?? ""
+                content={
+                  <ChartMoneyTooltip
+                    labelFormatter={(_, payload) =>
+                      String(payload?.[0]?.payload?.fullName ?? "")
+                    }
+                  />
                 }
               />
               <Bar
@@ -230,7 +212,7 @@ export function ChartsSection({
                   v >= 1000 ? `${Math.round(v / 1000)}к` : String(v)
                 }
               />
-              <Tooltip cursor={false} formatter={(value) => formatMoney(Number(value))} />
+              <Tooltip cursor={false} content={<ChartMoneyTooltip />} />
               <Bar dataKey="amount" name="Сумма" radius={[4, 4, 0, 0]} activeBar={false}>
                 {categories.slice(0, 10).map((item, index) => (
                   <Cell

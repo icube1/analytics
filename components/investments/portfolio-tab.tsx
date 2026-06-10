@@ -8,6 +8,7 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from "recharts";
+import { ChartMoneyTooltip } from "@/components/chart-money-tooltip";
 import { CHART_COLORS } from "@/lib/stats";
 import { formatMoney } from "@/lib/portfolio-wealth";
 import type { BrokerReport } from "@/lib/portfolio-types";
@@ -127,7 +128,7 @@ export function PortfolioTab({ report, onUpload, fileName }: PortfolioTabProps) 
                   />
                 ))}
               </Pie>
-              <Tooltip cursor={false} formatter={(v) => formatMoney(Number(v))} />
+              <Tooltip cursor={false} content={<ChartMoneyTooltip />} />
               <Legend />
             </PieChart>
           </ResponsiveContainer>

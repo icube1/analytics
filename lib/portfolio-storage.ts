@@ -1,4 +1,5 @@
 import { normalizeCustomAssets } from "./custom-assets";
+import { normalizeCompoundParams } from "./normalize-compound-params";
 import {
   DEFAULT_DOCUMENT,
   type PortfolioDocument,
@@ -16,10 +17,10 @@ export async function fetchPortfolioDocument(): Promise<PortfolioDocument> {
     ...DEFAULT_DOCUMENT,
     ...data,
     customAssets: normalizeCustomAssets(data.customAssets),
-    compoundParams: {
+    compoundParams: normalizeCompoundParams({
       ...DEFAULT_DOCUMENT.compoundParams,
       ...data.compoundParams,
-    },
+    }),
   };
 }
 

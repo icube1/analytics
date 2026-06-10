@@ -28,6 +28,10 @@ export interface CompoundPoint {
   /** Номинальная стоимость, если капитал рос только на уровне инфляции */
   inflationHurdle: number;
   withdrawn: number;
+  /** Выплата в этом месяце, номинальные ₽ (0 вне фазы вывода) */
+  monthlyPayoutNominal: number;
+  /** Выплата в этом месяце в сегодняшних ₽ */
+  monthlyPayoutReal: number;
   totalDebt: number;
   profit: number;
   profitAfterTax: number;
@@ -54,6 +58,10 @@ export interface CompoundResult {
   monthlyIncomeRealAtEnd: number;
   finalTotalDebt: number;
   totalDebtPrincipalPaid: number;
+  /** Последняя ежемесячная выплата в фазе вывода, номинал */
+  withdrawalPayoutNominal: number;
+  /** Последняя ежемесячная выплата в фазе вывода, сегодняшние ₽ */
+  withdrawalPayoutReal: number;
 }
 
 function periodRateFromAnnual(
@@ -178,7 +186,6 @@ export function calculateCompoundInterest(
   const rateMethod = params.monthlyRateMethod ?? "effective";
   const monthlyInflation = monthlyRateFromAnnual(params.inflationPercent, rateMethod);
   const accrual = getAccrualPeriod(params.compoundFrequency, rateMethod);
-  const periodReturn = accrual.rate(params.annualReturnPercent);
   const monthlyReturnRate = monthlyRateFromAnnual(
     params.annualReturnPercent,
     rateMethod,
@@ -218,9 +225,16 @@ export function calculateCompoundInterest(
   let totalDebtPrincipalPaid = 0;
   let monthlyContribution = params.monthlyContribution;
   const monthlyWithdrawalReal = params.monthlyWithdrawal;
+  const withdrawalMode = params.withdrawalMode ?? "fixed";
+  const annualWithdrawalPercent = params.annualWithdrawalPercent ?? 0;
+  const monthlyWithdrawalFromAnnual = annualWithdrawalPercent / 12;
 
   const irrFlows: number[] = [-params.initialCapital];
+  let lastWithdrawalPayoutNominal = 0;
+  let lastWithdrawalPayoutReal = 0;
   const points: CompoundPoint[] = [];
+  let accruedIncome = 0;
+  let monthsInAccrualPeriod = 0;
 
   const pushIrrFlow = (month: number, amount: number) => {
     irrFlows[month] = (irrFlows[month] ?? 0) + amount;
@@ -244,7 +258,40 @@ export function calculateCompoundInterest(
     balance = value;
   };
 
-  const snapshot = (month: number) => {
+  const creditAccruedIncome = () => {
+    if (accruedIncome <= 0) return;
+
+    const income = accruedIncome;
+    accruedIncome = 0;
+    const periodMonths = monthsInAccrualPeriod;
+    monthsInAccrualPeriod = 0;
+
+    if (params.reinvestReturns) {
+      setInvestableBalance(getInvestableBalance() + income);
+      const divTax = dividendTax(
+        getInvestableBalance(),
+        params,
+        periodMonths,
+      );
+      if (divTax > 0) {
+        setInvestableBalance(getInvestableBalance() - divTax);
+        totalTaxPaid += divTax;
+        totalDividendTax += divTax;
+      }
+    } else {
+      const investable = getInvestableBalance();
+      const divTax = dividendTax(investable, params, periodMonths);
+      totalTaxPaid += divTax;
+      totalDividendTax += divTax;
+      totalWithdrawn += income - divTax;
+    }
+  };
+
+  const snapshot = (
+    month: number,
+    monthPayoutNominal: number,
+    monthPayoutReal: number,
+  ) => {
     const inflationFactor = (1 + monthlyInflation) ** month;
     const netWealth = balance + totalWithdrawn;
     const profit = netWealth - contributed;
@@ -264,19 +311,23 @@ export function calculateCompoundInterest(
       realContributed,
       inflationHurdle,
       withdrawn: totalWithdrawn,
+      monthlyPayoutNominal: monthPayoutNominal,
+      monthlyPayoutReal: monthPayoutReal,
       totalDebt,
       profit,
       profitAfterTax,
     };
   };
 
-  points.push(snapshot(0));
+  points.push(snapshot(0, 0, 0));
 
   const scheduledDebtService = context
     ? getMonthlyDebtService(context.customAssets)
     : 0;
 
   for (let month = 1; month <= months; month++) {
+    let monthPayoutNominal = 0;
+    let monthPayoutReal = 0;
     let debtPayment = 0;
     if (wealthState && context) {
       const debtStep = stepDebtsMonth(context.customAssets, wealthState);
@@ -298,74 +349,77 @@ export function calculateCompoundInterest(
       }
     }
 
-    const totalDebt = wealthState ? getTotalDebtFromState(wealthState) : 0;
-    let investContribution = wealthState
-      ? Math.max(0, monthlyContribution - debtPayment)
-      : monthlyContribution;
+    const inWithdrawalPhase =
+      withdrawalStartMonth !== null && month > withdrawalStartMonth;
 
-    if (
-      params.reinvestFreedDebtPayments &&
-      wealthState &&
-      totalDebt <= 0.01 &&
-      scheduledDebtService > 0
-    ) {
-      investContribution = monthlyContribution + scheduledDebtService;
+    const totalDebt = wealthState ? getTotalDebtFromState(wealthState) : 0;
+    let investContribution = 0;
+
+    if (!inWithdrawalPhase) {
+      investContribution = wealthState
+        ? Math.max(0, monthlyContribution - debtPayment)
+        : monthlyContribution;
+
+      if (
+        params.reinvestFreedDebtPayments &&
+        wealthState &&
+        totalDebt <= 0.01 &&
+        scheduledDebtService > 0
+      ) {
+        investContribution = monthlyContribution + scheduledDebtService;
+      }
+
+      contributed += monthlyContribution;
+      costBasis += investContribution;
+      realContributed += monthlyContribution / (1 + monthlyInflation) ** month;
+      pushIrrFlow(month, -monthlyContribution);
+
+      inflationHurdle =
+        (inflationHurdle + monthlyContribution) * (1 + monthlyInflation);
+    } else {
+      inflationHurdle *= 1 + monthlyInflation;
+      if (wealthState && debtPayment > 0) {
+        setInvestableBalance(
+          Math.max(0, getInvestableBalance() - debtPayment),
+        );
+      }
     }
 
     setInvestableBalance(getInvestableBalance() + investContribution);
 
-    contributed += monthlyContribution;
-    costBasis += investContribution;
-    realContributed += monthlyContribution / (1 + monthlyInflation) ** month;
-    pushIrrFlow(month, -monthlyContribution);
+    accruedIncome += getInvestableBalance() * monthlyReturnRate;
+    monthsInAccrualPeriod += 1;
 
-    inflationHurdle =
-      (inflationHurdle + monthlyContribution) * (1 + monthlyInflation);
-
-    if (month % accrual.intervalMonths === 0) {
-      const investable = getInvestableBalance();
-      const income = investable * periodReturn;
-
-      if (params.reinvestReturns) {
-        setInvestableBalance(investable + income);
-        const divTax = dividendTax(
-          getInvestableBalance(),
-          params,
-          accrual.intervalMonths,
-        );
-        if (divTax > 0) {
-          setInvestableBalance(getInvestableBalance() - divTax);
-          totalTaxPaid += divTax;
-          totalDividendTax += divTax;
-        }
-      } else {
-        const divTax = dividendTax(investable, params, accrual.intervalMonths);
-        totalTaxPaid += divTax;
-        totalDividendTax += divTax;
-        totalWithdrawn += income - divTax;
-      }
+    const accrualPeriodEnd =
+      month % accrual.intervalMonths === 0 || month === months;
+    if (accrualPeriodEnd) {
+      creditAccruedIncome();
     }
 
     syncBalance();
 
-    const inWithdrawalPhase =
-      withdrawalStartMonth !== null && month > withdrawalStartMonth;
+    const withdrawalConfigured =
+      withdrawalMode === "percent"
+        ? annualWithdrawalPercent > 0
+        : monthlyWithdrawalReal > 0;
 
-    if (inWithdrawalPhase && monthlyWithdrawalReal > 0) {
+    if (inWithdrawalPhase && withdrawalConfigured) {
       const inflationFactor = (1 + monthlyInflation) ** month;
-      const payout = Math.min(
-        monthlyWithdrawalReal * inflationFactor,
-        getInvestableBalance(),
-      );
+      const investableBefore = getInvestableBalance();
+      const targetPayout =
+        withdrawalMode === "percent"
+          ? investableBefore * (monthlyWithdrawalFromAnnual / 100)
+          : monthlyWithdrawalReal * inflationFactor;
+      const payout = Math.min(targetPayout, investableBefore);
+
       if (payout > 0) {
-        const investable = getInvestableBalance();
         const { tax, principalReturned } = withdrawalGainTax(
-          investable,
+          investableBefore,
           costBasis,
           payout,
           params.taxOnProfitPercent,
         );
-        setInvestableBalance(investable - payout);
+        setInvestableBalance(investableBefore - payout);
         if (tax > 0) {
           setInvestableBalance(getInvestableBalance() - tax);
           totalTaxPaid += tax;
@@ -375,14 +429,20 @@ export function calculateCompoundInterest(
         totalWithdrawn += netPayout;
         pushIrrFlow(month, netPayout);
         costBasis -= principalReturned;
+        monthPayoutNominal = netPayout;
+        monthPayoutReal = netPayout / inflationFactor;
+        lastWithdrawalPayoutNominal = monthPayoutNominal;
+        lastWithdrawalPayoutReal = monthPayoutReal;
         syncBalance();
       }
     }
 
-    if (params.adjustContributionsForInflation) {
-      monthlyContribution *= 1 + monthlyInflation;
-    } else if (month % 12 === 0) {
-      monthlyContribution *= 1 + params.contributionGrowthPercent / 100;
+    if (!inWithdrawalPhase) {
+      if (params.adjustContributionsForInflation) {
+        monthlyContribution *= 1 + monthlyInflation;
+      } else if (month % 12 === 0) {
+        monthlyContribution *= 1 + params.contributionGrowthPercent / 100;
+      }
     }
 
     if (month === months) {
@@ -391,7 +451,7 @@ export function calculateCompoundInterest(
 
     const step = Math.max(1, Math.floor(months / 48));
     if (month % step === 0 || month === months) {
-      points.push(snapshot(month));
+      points.push(snapshot(month, monthPayoutNominal, monthPayoutReal));
     }
   }
 
@@ -429,5 +489,7 @@ export function calculateCompoundInterest(
     monthlyIncomeRealAtEnd,
     finalTotalDebt: last.totalDebt,
     totalDebtPrincipalPaid,
+    withdrawalPayoutNominal: lastWithdrawalPayoutNominal,
+    withdrawalPayoutReal: lastWithdrawalPayoutReal,
   };
 }

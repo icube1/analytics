@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   CartesianGrid,
   Legend,
@@ -11,6 +11,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { ChartMoneyTooltip } from "@/components/chart-money-tooltip";
 import { FieldHelp } from "@/components/field-help";
 import { CalculatorChartsHelp } from "@/components/investments/calculator-charts-help";
 import {
@@ -56,6 +57,44 @@ function Field({
         </span>
       )}
     </label>
+  );
+}
+
+function WithdrawalModeToggle({
+  mode,
+  onChange,
+}: {
+  mode: CompoundParams["withdrawalMode"];
+  onChange: (mode: CompoundParams["withdrawalMode"]) => void;
+}) {
+  const options: { id: CompoundParams["withdrawalMode"]; label: string }[] = [
+    { id: "fixed", label: "Фикс. сумма" },
+    { id: "percent", label: "% портфеля" },
+  ];
+
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="flex items-center gap-1 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+        <span>Режим вывода</span>
+        <FieldHelp text="Фиксированная сумма — ежемесячно, в сегодняшних ₽ (удобно сравнивать с зарплатой); номинал растёт с инфляцией. Процент — доля портфеля в год; каждый месяц снимается годовой процент ÷ 12." />
+      </span>
+      <div className="flex rounded-md border border-zinc-200 p-0.5 dark:border-zinc-700">
+        {options.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            onClick={() => onChange(option.id)}
+            className={`flex-1 rounded px-2 py-1.5 text-xs font-medium transition-colors ${
+              mode === option.id
+                ? "bg-indigo-600 text-white shadow-sm"
+                : "text-zinc-600 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            }`}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -119,18 +158,72 @@ function CollapsibleBlock({
   );
 }
 
+const IRR_HELP =
+  "IRR (внутренняя норма доходности) — годовая доходность с учётом дат всех взносов и итогового баланса. Показывает, какой среднегодовой процент фактически получился на вложенные деньги за весь период.";
+
+function ChartLegend({
+  payload,
+  hidden,
+  onToggle,
+}: {
+  payload?: ReadonlyArray<{
+    value?: string;
+    dataKey?: string | number;
+    color?: string;
+  }>;
+  hidden: ReadonlySet<string>;
+  onToggle: (dataKey: string) => void;
+}) {
+  if (!payload?.length) return null;
+
+  return (
+    <ul className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-1.5 px-2">
+      {payload.map((entry) => {
+        const key = String(entry.dataKey ?? entry.value ?? "");
+        const isHidden = hidden.has(key);
+        return (
+          <li key={key}>
+            <button
+              type="button"
+              onClick={() => onToggle(key)}
+              className={`inline-flex items-center gap-1.5 rounded px-1 py-0.5 text-xs transition-opacity hover:bg-zinc-100 dark:hover:bg-zinc-800 ${
+                isHidden
+                  ? "opacity-40 line-through"
+                  : "opacity-100"
+              }`}
+              aria-pressed={!isHidden}
+            >
+              <span
+                className="inline-block h-0.5 w-4 shrink-0 rounded-full"
+                style={{ backgroundColor: entry.color }}
+                aria-hidden
+              />
+              <span className="text-zinc-600 dark:text-zinc-400">{entry.value}</span>
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 function MiniStat({
   label,
   value,
   hint,
+  help,
 }: {
   label: string;
   value: string;
   hint?: string;
+  help?: string;
 }) {
   return (
     <div className="min-w-[9.5rem] shrink-0 rounded-lg border border-zinc-200 bg-white px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900">
-      <p className="text-[10px] uppercase tracking-wide text-zinc-500">{label}</p>
+      <p className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-zinc-500">
+        <span>{label}</span>
+        {help && <FieldHelp text={help} />}
+      </p>
       <p className="mt-0.5 text-sm font-semibold tabular-nums">{value}</p>
       {hint && <p className="text-[10px] text-zinc-400">{hint}</p>}
     </div>
@@ -144,15 +237,31 @@ export function CalculatorTab({
   onChange,
 }: CalculatorTabProps) {
   const [chartsHelpOpen, setChartsHelpOpen] = useState(false);
+  const [hiddenChartLines, setHiddenChartLines] = useState<Set<string>>(
+    () => new Set(),
+  );
+
+  const toggleChartLine = useCallback((dataKey: string) => {
+    setHiddenChartLines((prev) => {
+      const next = new Set(prev);
+      if (next.has(dataKey)) next.delete(dataKey);
+      else next.add(dataKey);
+      return next;
+    });
+  }, []);
   const monthlyDebtService = getMonthlyDebtService(customAssets);
   const totalDebtBalance = getTotalDebtBalance(customAssets);
   const customMonthlyIncome = getCustomAssetsMonthlyIncome(customAssets);
 
   const contributionSplitHint = useMemo(() => {
     const contribution = params.monthlyContribution || 0;
+    const retirementNote =
+      params.withdrawAfterYears != null
+        ? " · после начала вывода пополнения прекращаются"
+        : "";
 
     if (monthlyDebtService <= 0) {
-      return `В инвестиции: ${formatMoney(contribution)}`;
+      return `В инвестиции: ${formatMoney(contribution)}${retirementNote}`;
     }
 
     if (totalDebtBalance > 0) {
@@ -162,17 +271,18 @@ export function CalculatorTab({
       if (monthlyDebtService > contribution) {
         hint += ` · не хватает ${formatMoney(monthlyDebtService - contribution)}`;
       }
-      return hint;
+      return hint + retirementNote;
     }
 
     if (params.reinvestFreedDebtPayments) {
-      return `Долги погашены · В инвестиции: ${formatMoney(contribution + monthlyDebtService)} (вкл. бывшие платежи)`;
+      return `Долги погашены · В инвестиции: ${formatMoney(contribution + monthlyDebtService)} (вкл. бывшие платежи)${retirementNote}`;
     }
 
-    return `Долги погашены · В инвестиции: ${formatMoney(contribution)}`;
+    return `Долги погашены · В инвестиции: ${formatMoney(contribution)}${retirementNote}`;
   }, [
     params.monthlyContribution,
     params.reinvestFreedDebtPayments,
+    params.withdrawAfterYears,
     monthlyDebtService,
     totalDebtBalance,
   ]);
@@ -186,6 +296,41 @@ export function CalculatorTab({
     [params, customAssets, brokerTotal],
   );
 
+  const withdrawalPayoutPreview = useMemo(() => {
+    if (params.withdrawAfterYears == null) return null;
+    const payoutPoints = result.points.filter((p) => p.monthlyPayoutNominal > 0);
+    if (payoutPoints.length === 0) return null;
+    return {
+      first: payoutPoints[0],
+      last: payoutPoints[payoutPoints.length - 1],
+    };
+  }, [result.points, params.withdrawAfterYears]);
+
+  const withdrawalPayoutHelp = useMemo(() => {
+    const inflationNote =
+      "i — месячная инфляция из поля «Инфляция», m — номер месяца от старта плана.";
+    if ((params.withdrawalMode ?? "fixed") === "percent") {
+      return (
+        "Формулы (% портфеля / год):\n\n" +
+        "списание = баланс × (% / год ÷ 12 ÷ 100)\n" +
+        "номинал на руки = списание − налог на прибыль\n" +
+        "сегодняшние ₽ = номинал ÷ (1 + i)^m\n\n" +
+        inflationNote +
+        " Баланс — ликвидная часть портфеля (брокер и доходы активов), без продажи квартиры."
+      );
+    }
+    return (
+      "Формулы (фикс. сумма):\n\n" +
+      "цель = S × (1 + i)^m\n" +
+      "списание = min(цель, баланс ликвидной части)\n" +
+      "номинал на руки = списание − налог на прибыль\n" +
+      "сегодняшние ₽ = номинал ÷ (1 + i)^m\n\n" +
+      "S — «Вывод / мес» в сегодняшних ₽. " +
+      inflationNote +
+      " Если баланса не хватает — выплата меньше цели."
+    );
+  }, [params.withdrawalMode]);
+
   const chartData = result.points.map((p) => ({
     label: p.label,
     nominal: p.balance,
@@ -195,15 +340,50 @@ export function CalculatorTab({
     totalDebt: p.totalDebt,
   }));
 
+  const showDebtLine = result.points.some((p) => p.totalDebt > 0);
+  const isChartLineHidden = (dataKey: string) => hiddenChartLines.has(dataKey);
+
   const set = <K extends keyof CompoundParams>(key: K, value: CompoundParams[K]) =>
     onChange({ ...params, [key]: value });
 
-  const allStats = [
+  const allStats: { label: string; value: string; help?: string }[] = [
     { label: "Итого (номинал)", value: formatMoney(result.finalBalance) },
     { label: "Итого (реальные ₽)", value: formatMoney(result.finalRealBalance) },
     { label: "Внесено (номинал)", value: formatMoney(result.totalContributed) },
     { label: "Внесено (реальные ₽)", value: formatMoney(result.finalRealContributed) },
     { label: "Выведено", value: formatMoney(result.totalWithdrawn) },
+    ...(result.withdrawalPayoutNominal > 0
+      ? (params.withdrawalMode ?? "fixed") === "percent"
+        ? [
+            {
+              label: "Ставка вывода",
+              value: `${params.annualWithdrawalPercent}% / год`,
+              help: "Годовая доля портфеля; в расчёте каждый месяц снимается годовой процент ÷ 12.",
+            },
+            {
+              label: "Вывод / год (номинал)",
+              value: formatMoney(result.withdrawalPayoutNominal * 12),
+              help: "Сумма на руки за год в рублях конца горизонта (после налога), при текущем балансе.",
+            },
+            {
+              label: "Вывод / мес (сегодня)",
+              value: formatMoney(result.withdrawalPayoutReal),
+              help: "Ежемесячная выплата в сегодняшних рублях — для сравнения с расходами.",
+            },
+          ]
+        : [
+            {
+              label: "Вывод / мес (номинал)",
+              value: formatMoney(result.withdrawalPayoutNominal),
+              help: "Сколько рублей того момента вы получите на руки в конце горизонта (после налога). Номинал растёт с инфляцией.",
+            },
+            {
+              label: "Вывод / мес (сегодня)",
+              value: formatMoney(result.withdrawalPayoutReal),
+              help: "Та же выплата в сегодняшних рублях — удобно сравнивать с зарплатой.",
+            },
+          ]
+      : []),
     { label: "Долг (остаток)", value: formatMoney(result.finalTotalDebt) },
     { label: "Погашено долга", value: formatMoney(result.totalDebtPrincipalPaid) },
     { label: "Налог (дивиденды)", value: formatMoney(result.totalDividendTax) },
@@ -211,7 +391,11 @@ export function CalculatorTab({
     { label: "Налог всего", value: formatMoney(result.totalTaxPaid) },
     { label: "Прибыль", value: formatMoney(result.totalProfit) },
     { label: "После налога", value: formatMoney(result.totalProfitAfterTax) },
-    { label: "Доходность (IRR)", value: `${result.effectiveAnnualReturn.toFixed(1)}%` },
+    {
+      label: "Доходность (IRR)",
+      value: `${result.effectiveAnnualReturn.toFixed(1)}%`,
+      help: IRR_HELP,
+    },
     { label: "Реальная доходность", value: `${result.realAnnualReturn.toFixed(1)}%` },
     {
       label: "Доход / мес (номинал)",
@@ -243,7 +427,7 @@ export function CalculatorTab({
           <Field
             label="Пополнение / мес, ₽"
             hint={contributionSplitHint}
-            help="Сколько вы планируете откладывать каждый месяц. Сначала из этой суммы оплачиваются долги (ипотека, кредиты), остаток идёт в инвестиции. Взнос добавляется в начале месяца."
+            help="Сколько откладываете каждый месяц на этапе накопления. Из суммы сначала платятся долги, остаток идёт в инвестиции. С года начала вывода пополнения прекращаются (сценарий ранней пенсии)."
           >
             <input
               type="number"
@@ -459,7 +643,7 @@ export function CalculatorTab({
           )}
           <CheckboxRow
             label="Вывод после горизонта накопления"
-            help="Включите, если после периода накопления планируете регулярно снимать фиксированную сумму с портфеля. До указанного года деньги только копятся."
+            help="Сценарий ранней пенсии: до указанного года только накопление и пополнения, затем регулярный вывод с портфеля без новых взносов."
             checked={params.withdrawAfterYears != null}
             onChange={(checked) =>
               set(
@@ -473,7 +657,7 @@ export function CalculatorTab({
             <>
               <Field
                 label="Вывод с года"
-                help="С какого года симуляции начинается ежемесячный вывод. Например, при сроке 20 лет и значении 10 — первые 10 лет только накопление, затем вывод."
+                help="С какого года начинается «пенсия»: пополнения прекращаются, портфель только растёт по доходности и уменьшается за счёт выплат. При сроке 20 лет и значении 10 — 10 лет копите, 10 лет живёте с выводом."
               >
                 <input
                   type="number"
@@ -492,23 +676,123 @@ export function CalculatorTab({
                   }
                 />
               </Field>
-              <Field
-                label="Вывод / мес, ₽"
-                hint="В ценах сегодня"
-                help="Сумма, которую хотите получать каждый месяц после фазы накопления, в рублях сегодняшней покупательной способности. В расчёте она индексируется по инфляции — номинальная выплата растёт со временем."
-              >
-                <input
-                  type="number"
-                  className={inputClass}
-                  value={params.monthlyWithdrawal || ""}
-                  onChange={(e) =>
-                    set(
-                      "monthlyWithdrawal",
-                      Number.parseFloat(e.target.value) || 0,
-                    )
-                  }
+              <div className="sm:col-span-2 lg:col-span-1">
+                <WithdrawalModeToggle
+                  mode={params.withdrawalMode ?? "fixed"}
+                  onChange={(mode) => set("withdrawalMode", mode)}
                 />
-              </Field>
+              </div>
+              {(params.withdrawalMode ?? "fixed") === "fixed" ? (
+                <Field
+                  label="Вывод / мес, ₽"
+                  hint="В ценах сегодня"
+                  help="Сумма, которую хотите получать каждый месяц после фазы накопления, в рублях сегодняшней покупательной способности. В расчёте она индексируется по инфляции — номинальная выплата на руки растёт со временем."
+                >
+                  <input
+                    type="number"
+                    className={inputClass}
+                    value={params.monthlyWithdrawal || ""}
+                    onChange={(e) =>
+                      set(
+                        "monthlyWithdrawal",
+                        Number.parseFloat(e.target.value) || 0,
+                      )
+                    }
+                  />
+                </Field>
+              ) : (
+                <Field
+                  label="Вывод, % портфеля / год"
+                  hint={`≈ ${((params.annualWithdrawalPercent || 0) / 12).toFixed(2)}% баланса в месяц`}
+                  help="Годовая доля портфеля, которую планируете снимать (правило 4% — классический ориентир для FIRE). Каждый месяц списывается годовой процент ÷ 12 от текущего баланса; номинальная сумма на руках меняется вместе с портфелем."
+                >
+                  <input
+                    type="number"
+                    step={0.1}
+                    min={0}
+                    className={inputClass}
+                    value={params.annualWithdrawalPercent || ""}
+                    onChange={(e) =>
+                      set(
+                        "annualWithdrawalPercent",
+                        Number.parseFloat(e.target.value) || 0,
+                      )
+                    }
+                  />
+                </Field>
+              )}
+              {withdrawalPayoutPreview && (
+                <div className="rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2 text-xs text-zinc-600 sm:col-span-2 lg:col-span-3 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
+                  <p className="flex items-center gap-1 font-medium text-zinc-700 dark:text-zinc-300">
+                    <span>
+                      Выплата на руки (после налога)
+                      {(params.withdrawalMode ?? "fixed") === "percent" && (
+                        <> · {params.annualWithdrawalPercent}% / год</>
+                      )}
+                    </span>
+                    <FieldHelp text={withdrawalPayoutHelp} />
+                  </p>
+                  <p className="mt-1">
+                    Старт вывода ({withdrawalPayoutPreview.first.label}):{" "}
+                    {(params.withdrawalMode ?? "fixed") === "percent" ? (
+                      <>
+                        <strong>
+                          {formatMoney(
+                            withdrawalPayoutPreview.first.monthlyPayoutNominal * 12,
+                          )}
+                        </strong>{" "}
+                        / год номинал ·{" "}
+                        <strong>
+                          {formatMoney(withdrawalPayoutPreview.first.monthlyPayoutReal)}
+                        </strong>{" "}
+                        / мес сегодняшние ₽
+                      </>
+                    ) : (
+                      <>
+                        <strong>
+                          {formatMoney(withdrawalPayoutPreview.first.monthlyPayoutNominal)}
+                        </strong>{" "}
+                        номинал ·{" "}
+                        <strong>
+                          {formatMoney(withdrawalPayoutPreview.first.monthlyPayoutReal)}
+                        </strong>{" "}
+                        сегодняшние ₽
+                      </>
+                    )}
+                  </p>
+                  {withdrawalPayoutPreview.first.month !==
+                    withdrawalPayoutPreview.last.month && (
+                    <p className="mt-1">
+                      Конец горизонта ({withdrawalPayoutPreview.last.label}):{" "}
+                      {(params.withdrawalMode ?? "fixed") === "percent" ? (
+                        <>
+                          <strong>
+                            {formatMoney(
+                              withdrawalPayoutPreview.last.monthlyPayoutNominal * 12,
+                            )}
+                          </strong>{" "}
+                          / год номинал ·{" "}
+                          <strong>
+                            {formatMoney(withdrawalPayoutPreview.last.monthlyPayoutReal)}
+                          </strong>{" "}
+                          / мес сегодняшние ₽
+                        </>
+                      ) : (
+                        <>
+                          <strong>
+                            {formatMoney(withdrawalPayoutPreview.last.monthlyPayoutNominal)}
+                          </strong>{" "}
+                          номинал ·{" "}
+                          <strong>
+                            {formatMoney(withdrawalPayoutPreview.last.monthlyPayoutReal)}
+                          </strong>{" "}
+                          сегодняшние ₽
+                        </>
+                      )}
+                    </p>
+                  )}
+                </div>
+              )}
             </>
           )}
         </div>
@@ -532,19 +816,58 @@ export function CalculatorTab({
         <MiniStat
           label="IRR"
           value={`${result.effectiveAnnualReturn.toFixed(1)}%`}
+          help={IRR_HELP}
         />
+        {result.withdrawalPayoutNominal > 0 &&
+          ((params.withdrawalMode ?? "fixed") === "percent" ? (
+            <>
+              <MiniStat
+                label="Ставка вывода"
+                value={`${params.annualWithdrawalPercent}% / год`}
+                hint="доля портфеля"
+              />
+              <MiniStat
+                label="Вывод / год"
+                value={formatMoney(result.withdrawalPayoutNominal * 12)}
+                hint="номинал · конец срока"
+              />
+              <MiniStat
+                label="На руки / мес"
+                value={formatMoney(result.withdrawalPayoutReal)}
+                hint="сегодняшние ₽"
+              />
+            </>
+          ) : (
+            <>
+              <MiniStat
+                label="Вывод / мес"
+                value={formatMoney(result.withdrawalPayoutNominal)}
+                hint="номинал · конец срока"
+              />
+              <MiniStat
+                label="На руки / мес"
+                value={formatMoney(result.withdrawalPayoutReal)}
+                hint="сегодняшние ₽"
+              />
+            </>
+          ))}
       </div>
 
       <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-sm font-semibold">Прогноз накоплений</h3>
-          <button
-            type="button"
-            onClick={() => setChartsHelpOpen(true)}
-            className="rounded-md border border-zinc-200 px-2.5 py-1 text-xs text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
-          >
-            Что означают линии?
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-[10px] text-zinc-400 dark:text-zinc-500">
+              Легенда — вкл/выкл линию
+            </p>
+            <button
+              type="button"
+              onClick={() => setChartsHelpOpen(true)}
+              className="rounded-md border border-zinc-200 px-2.5 py-1 text-xs text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            >
+              Что означают линии?
+            </button>
+          </div>
         </div>
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={chartData}>
@@ -560,8 +883,16 @@ export function CalculatorTab({
                     : String(v)
               }
             />
-            <Tooltip cursor={false} formatter={(v) => formatMoney(Number(v))} />
-            <Legend wrapperStyle={{ fontSize: 12 }} />
+            <Tooltip cursor={false} content={<ChartMoneyTooltip />} />
+            <Legend
+              content={(props) => (
+                <ChartLegend
+                  payload={props.payload}
+                  hidden={hiddenChartLines}
+                  onToggle={toggleChartLine}
+                />
+              )}
+            />
             <Line
               type="monotone"
               dataKey="nominal"
@@ -570,6 +901,7 @@ export function CalculatorTab({
               strokeWidth={2}
               dot={false}
               activeDot={false}
+              hide={isChartLineHidden("nominal")}
             />
             <Line
               type="monotone"
@@ -580,15 +912,17 @@ export function CalculatorTab({
               strokeDasharray="6 4"
               dot={false}
               activeDot={false}
+              hide={isChartLineHidden("inflationHurdle")}
             />
             <Line
               type="monotone"
               dataKey="realPortfolio"
-              name="Портфель (реальные ₽)"
+              name="Портфель (сегодняшние ₽)"
               stroke="#10b981"
               strokeWidth={2}
               dot={false}
               activeDot={false}
+              hide={isChartLineHidden("realPortfolio")}
             />
             <Line
               type="monotone"
@@ -599,8 +933,9 @@ export function CalculatorTab({
               strokeDasharray="5 5"
               dot={false}
               activeDot={false}
+              hide={isChartLineHidden("realContributed")}
             />
-            {result.points.some((p) => p.totalDebt > 0) && (
+            {showDebtLine && (
               <Line
                 type="monotone"
                 dataKey="totalDebt"
@@ -610,6 +945,7 @@ export function CalculatorTab({
                 strokeDasharray="4 4"
                 dot={false}
                 activeDot={false}
+                hide={isChartLineHidden("totalDebt")}
               />
             )}
           </LineChart>
@@ -628,7 +964,10 @@ export function CalculatorTab({
               key={item.label}
               className="rounded-lg border border-zinc-100 px-3 py-2 dark:border-zinc-800"
             >
-              <p className="text-[10px] text-zinc-500">{item.label}</p>
+              <p className="flex items-center gap-1 text-[10px] text-zinc-500">
+                <span>{item.label}</span>
+                {item.help && <FieldHelp text={item.help} />}
+              </p>
               <p className="mt-0.5 text-sm font-semibold tabular-nums">
                 {item.value}
               </p>
@@ -647,6 +986,8 @@ export function CalculatorTab({
                 <th className="px-3 py-1.5 text-right">Реально</th>
                 <th className="px-3 py-1.5 text-right">Внесено</th>
                 <th className="px-3 py-1.5 text-right">Выведено</th>
+                <th className="px-3 py-1.5 text-right">Выплата</th>
+                <th className="px-3 py-1.5 text-right">Выплата (сегодня)</th>
                 <th className="px-3 py-1.5 text-right">Долг</th>
                 <th className="px-3 py-1.5 text-right">Прибыль</th>
               </tr>
@@ -666,6 +1007,16 @@ export function CalculatorTab({
                   </td>
                   <td className="px-3 py-1.5 text-right tabular-nums">
                     {formatMoney(p.withdrawn)}
+                  </td>
+                  <td className="px-3 py-1.5 text-right tabular-nums">
+                    {p.monthlyPayoutNominal > 0
+                      ? formatMoney(p.monthlyPayoutNominal)
+                      : "—"}
+                  </td>
+                  <td className="px-3 py-1.5 text-right tabular-nums">
+                    {p.monthlyPayoutReal > 0
+                      ? formatMoney(p.monthlyPayoutReal)
+                      : "—"}
                   </td>
                   <td className="px-3 py-1.5 text-right tabular-nums">
                     {formatMoney(p.totalDebt)}
