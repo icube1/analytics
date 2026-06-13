@@ -32,6 +32,14 @@ export interface CompoundPoint {
   monthlyPayoutNominal: number;
   /** Выплата в этом месяце в сегодняшних ₽ */
   monthlyPayoutReal: number;
+  /** Целевая выплата в сегодняшних ₽ (фикс. — сумма из поля; % — доля ном. баланса / m) */
+  monthlyPayoutTargetReal: number;
+  /** Выплата урезана из‑за нехватки ликвидной части */
+  monthlyPayoutCapped: boolean;
+  /** Ликвидная часть (брокер + реинвестируемые доходы), доступная для вывода */
+  liquidityBalance: number;
+  /** Месяц в фазе вывода */
+  inWithdrawalPhase: boolean;
   totalDebt: number;
   profit: number;
   profitAfterTax: number;
@@ -62,6 +70,29 @@ export interface CompoundResult {
   withdrawalPayoutNominal: number;
   /** Последняя ежемесячная выплата в фазе вывода, сегодняшние ₽ */
   withdrawalPayoutReal: number;
+  /** Последний месяц с ненулевой выплатой (null — выплаты шли до конца горизонта) */
+  withdrawalLastPayoutMonth: number | null;
+  withdrawalLastPayoutLabel: string | null;
+  /** Выплаты прекратились до конца горизонта из‑за нехватки ликвидной части */
+  withdrawalEndedEarly: boolean;
+  /** Месяцев в фазе вывода без выплат после исчерпания */
+  withdrawalMonthsWithoutPayout: number;
+  /** Месяцев с нулевой (или почти нулевой) ликвидной частью в фазе вывода */
+  withdrawalMonthsLiquidityEmpty: number;
+  /** Первый месяц, когда ликвидная часть обнулилась */
+  withdrawalLiquidityDepletedFromLabel: string | null;
+  /** Ликвидная часть в первый месяц вывода (до списания) */
+  withdrawalStartLiquidity: number | null;
+  /** Первая выплата на руки, номинал и сегодняшние ₽ */
+  withdrawalStartPayoutNominal: number;
+  withdrawalStartPayoutReal: number;
+  withdrawalStartLabel: string | null;
+}
+
+const LIQUIDITY_EPS = 0.01;
+
+function formatMonthLabel(month: number): string {
+  return `${Math.floor(month / 12)}г ${month % 12}м`;
 }
 
 function periodRateFromAnnual(
@@ -232,6 +263,16 @@ export function calculateCompoundInterest(
   const irrFlows: number[] = [-params.initialCapital];
   let lastWithdrawalPayoutNominal = 0;
   let lastWithdrawalPayoutReal = 0;
+  let withdrawalLastPayoutMonth: number | null = null;
+  let withdrawalLastPayoutLabel: string | null = null;
+  let withdrawalMonthsWithoutPayout = 0;
+  let withdrawalMonthsLiquidityEmpty = 0;
+  let withdrawalLiquidityDepletedFromMonth: number | null = null;
+  let withdrawalLiquidityDepletedFromLabel: string | null = null;
+  let withdrawalStartLiquidity: number | null = null;
+  let withdrawalStartPayoutNominal = 0;
+  let withdrawalStartPayoutReal = 0;
+  let withdrawalStartLabel: string | null = null;
   const points: CompoundPoint[] = [];
   let accruedIncome = 0;
   let monthsInAccrualPeriod = 0;
@@ -291,12 +332,16 @@ export function calculateCompoundInterest(
     month: number,
     monthPayoutNominal: number,
     monthPayoutReal: number,
+    monthPayoutTargetReal: number,
+    inWithdrawalPhase: boolean,
+    monthPayoutCapped: boolean,
   ) => {
     const inflationFactor = (1 + monthlyInflation) ** month;
     const netWealth = balance + totalWithdrawn;
     const profit = netWealth - contributed;
     const profitAfterTax = profit;
     const totalDebt = wealthState ? getTotalDebtFromState(wealthState) : 0;
+    const liquidityBalance = getInvestableBalance();
 
     return {
       month,
@@ -313,13 +358,17 @@ export function calculateCompoundInterest(
       withdrawn: totalWithdrawn,
       monthlyPayoutNominal: monthPayoutNominal,
       monthlyPayoutReal: monthPayoutReal,
+      monthlyPayoutTargetReal: monthPayoutTargetReal,
+      liquidityBalance,
+      inWithdrawalPhase,
+      monthlyPayoutCapped: monthPayoutCapped,
       totalDebt,
       profit,
       profitAfterTax,
     };
   };
 
-  points.push(snapshot(0, 0, 0));
+  points.push(snapshot(0, 0, 0, 0, false, false));
 
   const scheduledDebtService = context
     ? getMonthlyDebtService(context.customAssets)
@@ -328,6 +377,8 @@ export function calculateCompoundInterest(
   for (let month = 1; month <= months; month++) {
     let monthPayoutNominal = 0;
     let monthPayoutReal = 0;
+    let monthPayoutTargetReal = 0;
+    let monthPayoutCapped = false;
     let debtPayment = 0;
     if (wealthState && context) {
       const debtStep = stepDebtsMonth(context.customAssets, wealthState);
@@ -406,13 +457,39 @@ export function calculateCompoundInterest(
     if (inWithdrawalPhase && withdrawalConfigured) {
       const inflationFactor = (1 + monthlyInflation) ** month;
       const investableBefore = getInvestableBalance();
+
+      if (withdrawalStartLiquidity === null) {
+        withdrawalStartLiquidity = investableBefore;
+      }
+
       const targetPayout =
         withdrawalMode === "percent"
           ? investableBefore * (monthlyWithdrawalFromAnnual / 100)
           : monthlyWithdrawalReal * inflationFactor;
+      monthPayoutTargetReal =
+        withdrawalMode === "percent"
+          ? targetPayout / inflationFactor
+          : monthlyWithdrawalReal;
       const payout = Math.min(targetPayout, investableBefore);
+      monthPayoutCapped =
+        withdrawalMode === "percent"
+          ? targetPayout > investableBefore + LIQUIDITY_EPS
+          : targetPayout > LIQUIDITY_EPS && payout <= LIQUIDITY_EPS;
 
-      if (payout > 0) {
+      if (investableBefore <= LIQUIDITY_EPS) {
+        withdrawalMonthsLiquidityEmpty += 1;
+        if (withdrawalLiquidityDepletedFromMonth === null) {
+          withdrawalLiquidityDepletedFromMonth = month;
+          withdrawalLiquidityDepletedFromLabel = formatMonthLabel(month);
+        }
+      }
+
+      const withdrawalFailed =
+        withdrawalMode === "fixed"
+          ? targetPayout > LIQUIDITY_EPS && payout <= LIQUIDITY_EPS
+          : investableBefore <= LIQUIDITY_EPS;
+
+      if (payout > LIQUIDITY_EPS) {
         const { tax, principalReturned } = withdrawalGainTax(
           investableBefore,
           costBasis,
@@ -433,8 +510,24 @@ export function calculateCompoundInterest(
         monthPayoutReal = netPayout / inflationFactor;
         lastWithdrawalPayoutNominal = monthPayoutNominal;
         lastWithdrawalPayoutReal = monthPayoutReal;
+        withdrawalLastPayoutMonth = month;
+        withdrawalLastPayoutLabel = formatMonthLabel(month);
         syncBalance();
+      } else if (withdrawalFailed) {
+        withdrawalMonthsWithoutPayout += 1;
       }
+
+      if (withdrawalStartLabel === null) {
+        withdrawalStartLabel = formatMonthLabel(month);
+        withdrawalStartPayoutNominal = monthPayoutNominal;
+        withdrawalStartPayoutReal = monthPayoutReal;
+      }
+    } else if (inWithdrawalPhase) {
+      if (withdrawalStartLiquidity === null) {
+        withdrawalStartLiquidity = getInvestableBalance();
+        withdrawalStartLabel = formatMonthLabel(month);
+      }
+      withdrawalMonthsWithoutPayout += 1;
     }
 
     if (!inWithdrawalPhase) {
@@ -450,10 +543,36 @@ export function calculateCompoundInterest(
     }
 
     const step = Math.max(1, Math.floor(months / 48));
-    if (month % step === 0 || month === months) {
-      points.push(snapshot(month, monthPayoutNominal, monthPayoutReal));
+    const firstMonthWithoutPayout =
+      withdrawalLastPayoutMonth !== null ? withdrawalLastPayoutMonth + 1 : null;
+    const firstWithdrawalMonth =
+      withdrawalStartMonth !== null ? withdrawalStartMonth + 1 : null;
+    if (
+      month % step === 0 ||
+      month === months ||
+      month === withdrawalLastPayoutMonth ||
+      month === firstMonthWithoutPayout ||
+      month === withdrawalLiquidityDepletedFromMonth ||
+      month === firstWithdrawalMonth
+    ) {
+      points.push(
+        snapshot(
+          month,
+          monthPayoutNominal,
+          monthPayoutReal,
+          monthPayoutTargetReal,
+          inWithdrawalPhase,
+          monthPayoutCapped,
+        ),
+      );
     }
   }
+
+  const withdrawalEndedEarly =
+    withdrawalMonthsLiquidityEmpty > 0 ||
+    (withdrawalMonthsWithoutPayout > 0 &&
+      withdrawalLastPayoutMonth !== null &&
+      withdrawalLastPayoutMonth < months);
 
   const last = points[points.length - 1];
   const endInflationFactor = (1 + monthlyInflation) ** months;
@@ -491,5 +610,15 @@ export function calculateCompoundInterest(
     totalDebtPrincipalPaid,
     withdrawalPayoutNominal: lastWithdrawalPayoutNominal,
     withdrawalPayoutReal: lastWithdrawalPayoutReal,
+    withdrawalLastPayoutMonth,
+    withdrawalLastPayoutLabel,
+    withdrawalEndedEarly,
+    withdrawalMonthsWithoutPayout,
+    withdrawalMonthsLiquidityEmpty,
+    withdrawalLiquidityDepletedFromLabel,
+    withdrawalStartLiquidity,
+    withdrawalStartPayoutNominal,
+    withdrawalStartPayoutReal,
+    withdrawalStartLabel,
   };
 }
