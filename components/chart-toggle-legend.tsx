@@ -1,13 +1,23 @@
 "use client";
 
+type LegendEntry = {
+  value?: string;
+  dataKey?: string | number | ((obj: unknown) => unknown);
+  color?: string;
+};
+
 interface ChartToggleLegendProps {
-  payload?: ReadonlyArray<{
-    value?: string;
-    dataKey?: string | number;
-    color?: string;
-  }>;
+  payload?: ReadonlyArray<LegendEntry>;
   hidden: ReadonlySet<string>;
   onToggle: (dataKey: string) => void;
+}
+
+function legendEntryKey(entry: LegendEntry): string {
+  const { dataKey } = entry;
+  if (typeof dataKey === "string" || typeof dataKey === "number") {
+    return String(dataKey);
+  }
+  return String(entry.value ?? "");
 }
 
 export function ChartToggleLegend({
@@ -20,7 +30,7 @@ export function ChartToggleLegend({
   return (
     <ul className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-1.5 px-2">
       {payload.map((entry) => {
-        const key = String(entry.dataKey ?? entry.value ?? "");
+        const key = legendEntryKey(entry);
         const isHidden = hidden.has(key);
         return (
           <li key={key}>

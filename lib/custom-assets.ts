@@ -119,9 +119,10 @@ export function normalizeCustomAssets(raw: LegacyCustomAssets | CustomAssets | n
     };
   }
 
-  if (raw.apartment || raw.reit || raw.gold) {
+  const legacy = raw as LegacyCustomAssets;
+  if (legacy.apartment || legacy.reit || legacy.gold) {
     return {
-      items: migrateFromLegacy(raw),
+      items: migrateFromLegacy(legacy),
       otherDebts,
     };
   }
