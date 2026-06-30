@@ -129,7 +129,7 @@ export function Dashboard() {
   });
 
   const handleDeleteFile = async (fileName: string) => {
-    if (!window.confirm(`Удалить ${fileName} из statements/?`)) return;
+    if (!window.confirm(`Удалить ${fileName}?`)) return;
 
     setUploading(true);
     setError(null);
@@ -201,7 +201,7 @@ export function Dashboard() {
         visible={isDragging}
         title="Импорт выписки"
         acceptLabel="CSV-файлы Сбера"
-        hint="Файлы сохранятся в statements/"
+        hint="Файлы сохранятся в браузере (IndexedDB)"
       />
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-8 sm:px-6">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -221,7 +221,7 @@ export function Dashboard() {
             )}
           </p>
           <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
-            Хранение: <code>statements/</code> · можно перетащить CSV в окно
+            Хранение: браузер (IndexedDB) · можно перетащить CSV в окно
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -297,8 +297,7 @@ export function Dashboard() {
           </p>
           <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
             Загрузите CSV через кнопку или перетащите файл в окно браузера — он
-            сохранится в <code>statements/</code> и подгрузится при следующем
-            открытии.
+            сохранится локально и подгрузится при следующем открытии.
           </p>
           <label className="mt-6 inline-flex cursor-pointer rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-indigo-700">
             <input

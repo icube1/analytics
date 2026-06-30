@@ -1,59 +1,44 @@
-export async function fetchStatements() {
-  const res = await fetch("/api/statements");
-  const data = await res.json();
+import {
+  deleteStatementFromDb,
+  listStatementsFromDb,
+  saveStatementToDb,
+} from "./browser-idb";
+import {
+  loadStatementsFromRecords,
+  sanitizeStatementFileName,
+} from "./statements-core";
 
-  if (!res.ok) {
-    throw new Error(
-      (data as { error?: string }).error ?? "Не удалось загрузить выписки",
-    );
-  }
+export type StatementsPayload = ReturnType<
+  typeof loadStatementsFromRecords
+> & {
+  savedFiles?: string[];
+};
 
-  return data as {
-    transactions: import("./serialize").SerializedTransaction[];
-    meta: {
-      files: string[];
-      directories: string[];
-      totalRaw: number;
-      totalUnique: number;
-      duplicatesRemoved: number;
-    };
-    savedFiles?: string[];
-  };
+async function loadFromBrowser() {
+  const records = await listStatementsFromDb();
+  return loadStatementsFromRecords(records);
+}
+
+export async function fetchStatements(): Promise<StatementsPayload> {
+  return loadFromBrowser();
 }
 
 export async function uploadStatementFiles(files: FileList | File[]) {
-  const form = new FormData();
+  const savedFiles: string[] = [];
+
   for (const file of [...files]) {
-    form.append("file", file);
+    const content = await file.text();
+    const fileName = sanitizeStatementFileName(file.name);
+    await saveStatementToDb({ fileName, content });
+    savedFiles.push(fileName);
   }
 
-  const res = await fetch("/api/statements", {
-    method: "POST",
-    body: form,
-  });
-  const data = await res.json();
-
-  if (!res.ok) {
-    throw new Error(
-      (data as { error?: string }).error ?? "Не удалось сохранить выписки",
-    );
-  }
-
-  return data as Awaited<ReturnType<typeof fetchStatements>>;
+  const payload = await loadFromBrowser();
+  return { ...payload, savedFiles };
 }
 
 export async function deleteStatementFile(fileName: string) {
-  const res = await fetch(
-    `/api/statements?file=${encodeURIComponent(fileName)}`,
-    { method: "DELETE" },
-  );
-  const data = await res.json();
-
-  if (!res.ok) {
-    throw new Error(
-      (data as { error?: string }).error ?? "Не удалось удалить файл",
-    );
-  }
-
-  return data as Awaited<ReturnType<typeof fetchStatements>>;
+  const safeName = sanitizeStatementFileName(fileName);
+  await deleteStatementFromDb(safeName);
+  return loadFromBrowser();
 }

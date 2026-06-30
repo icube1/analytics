@@ -1,5 +1,8 @@
 import { normalizeCustomAssets } from "./custom-assets";
+import { mergePortfolioStorage, isEmptyDocument } from "./merge-portfolio-storage";
 import { normalizeCompoundParams } from "./normalize-compound-params";
+import { parsePortfolioHtml } from "./parse-portfolio-html";
+import { readPortfolioFromDb, writePortfolioToDb } from "./browser-idb";
 import {
   DEFAULT_DOCUMENT,
   type PortfolioDocument,
@@ -7,64 +10,117 @@ import {
 
 const LEGACY_STORAGE_KEY = "analytics-portfolio-v1";
 
-export async function fetchPortfolioDocument(): Promise<PortfolioDocument> {
-  const res = await fetch("/api/portfolio");
-  if (!res.ok) {
-    throw new Error("Не удалось загрузить сохранённые данные");
-  }
-  const data = (await res.json()) as PortfolioDocument;
+function normalizeDocument(data: Partial<PortfolioDocument>): PortfolioDocument {
   return {
     ...DEFAULT_DOCUMENT,
     ...data,
+    version: 1,
     customAssets: normalizeCustomAssets(data.customAssets),
     compoundParams: normalizeCompoundParams({
       ...DEFAULT_DOCUMENT.compoundParams,
       ...data.compoundParams,
     }),
+    brokerReport: data.brokerReport ?? null,
+    lastBrokerFileName:
+      data.lastBrokerFileName ?? DEFAULT_DOCUMENT.lastBrokerFileName,
+    updatedAt: data.updatedAt ?? DEFAULT_DOCUMENT.updatedAt,
   };
+}
+
+async function readStoredDocument(): Promise<PortfolioDocument | null> {
+  const stored = await readPortfolioFromDb<PortfolioDocument>();
+  if (!stored) return null;
+  return normalizeDocument(stored);
+}
+
+async function writeStoredDocument(doc: PortfolioDocument): Promise<PortfolioDocument> {
+  const payload: PortfolioDocument = {
+    ...doc,
+    version: 1,
+    updatedAt: new Date().toISOString(),
+  };
+  await writePortfolioToDb(payload);
+  return payload;
+}
+
+async function migrateLegacyLocalStorage(): Promise<PortfolioDocument | null> {
+  const legacy = readLegacyLocalStorage();
+  if (!legacy) return null;
+
+  const doc = normalizeDocument(legacy);
+  await writeStoredDocument(doc);
+  clearLegacyLocalStorage();
+  return doc;
+}
+
+async function migrateFromServerIfEmpty(): Promise<PortfolioDocument | null> {
+  try {
+    const res = await fetch("/api/portfolio");
+    if (!res.ok) return null;
+
+    const data = (await res.json()) as PortfolioDocument;
+    const doc = normalizeDocument(data);
+    if (isEmptyDocument(doc)) return null;
+
+    await writeStoredDocument(doc);
+    return doc;
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchPortfolioDocument(): Promise<PortfolioDocument> {
+  let doc = await readStoredDocument();
+
+  if (!doc || isEmptyDocument(doc)) {
+    doc = (await migrateLegacyLocalStorage()) ?? doc;
+  }
+
+  if (!doc || isEmptyDocument(doc)) {
+    doc = (await migrateFromServerIfEmpty()) ?? doc;
+  }
+
+  return doc ?? { ...DEFAULT_DOCUMENT };
 }
 
 export async function savePortfolioDocument(
   patch: Partial<PortfolioDocument>,
 ): Promise<PortfolioDocument> {
-  const res = await fetch("/api/portfolio", {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(patch),
+  const current = await fetchPortfolioDocument();
+  const next = normalizeDocument({
+    ...mergePortfolioStorage({
+      ...current,
+      customAssets: patch.customAssets ?? current.customAssets,
+      compoundParams: patch.compoundParams ?? current.compoundParams,
+      lastBrokerFileName:
+        patch.lastBrokerFileName ?? current.lastBrokerFileName,
+    }),
+    brokerReport:
+      patch.brokerReport !== undefined
+        ? patch.brokerReport
+        : current.brokerReport,
   });
 
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(
-      (data as { error?: string }).error ?? "Не удалось сохранить данные",
-    );
-  }
-
-  return (await res.json()) as PortfolioDocument;
+  return writeStoredDocument(next);
 }
 
 export async function uploadBrokerReport(
   file: File,
 ): Promise<{ report: PortfolioDocument["brokerReport"]; fileName: string }> {
-  const form = new FormData();
-  form.append("file", file);
+  const html = await file.text();
+  const report = parsePortfolioHtml(html);
 
-  const res = await fetch("/api/portfolio/broker", {
-    method: "POST",
-    body: form,
-  });
-
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(
-      (data as { error?: string }).error ?? "Не удалось сохранить отчёт",
-    );
+  if (report.securities.length === 0 && report.assetsEnd === 0) {
+    throw new Error("Не удалось распознать данные в отчёте");
   }
 
-  return (await res.json()) as {
-    report: PortfolioDocument["brokerReport"];
-    fileName: string;
-  };
+  const fileName = file.name || "broker-report.html";
+  await savePortfolioDocument({
+    lastBrokerFileName: fileName,
+    brokerReport: report,
+  });
+
+  return { report, fileName };
 }
 
 export function readLegacyLocalStorage(): Partial<PortfolioDocument> | null {

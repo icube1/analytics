@@ -1,20 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
-import { parseCsv } from "./csv";
-import { mergeTransactions } from "./merge";
 import { ensureStatementsDir, getStatementsDir } from "./project-paths";
-import { serializeTransaction } from "./serialize";
+import {
+  loadStatementsFromRecords,
+  sanitizeStatementFileName,
+} from "./statements-core";
 
-export function sanitizeStatementFileName(fileName: string): string {
-  const base = path.basename(fileName.trim());
-  if (!base || base.startsWith(".")) {
-    throw new Error("Недопустимое имя файла");
-  }
-  if (!/\.csv$/i.test(base)) {
-    throw new Error("Допустимы только CSV-файлы");
-  }
-  return base;
-}
+export { sanitizeStatementFileName } from "./statements-core";
 
 export function listStatementFiles(): string[] {
   const dir = getStatementsDir();
@@ -43,35 +35,19 @@ export function deleteStatementFile(fileName: string): void {
 }
 
 export function loadStatementsFromDisk() {
-  const dir = getStatementsDir();
   ensureStatementsDir();
 
-  const batches: { sourceFile: string; transactions: ReturnType<typeof parseCsv> }[] =
-    [];
+  const files = listStatementFiles().map((fileName) => ({
+    fileName,
+    content: fs.readFileSync(path.join(getStatementsDir(), fileName), "utf-8"),
+  }));
 
-  for (const fileName of listStatementFiles()) {
-    const fullPath = path.join(dir, fileName);
-    const text = fs.readFileSync(fullPath, "utf-8");
-    const sourceFile = `statements/${fileName}`;
-    batches.push({
-      sourceFile,
-      transactions: parseCsv(text, sourceFile),
-    });
-  }
-
-  const rawCount = batches.reduce((sum, b) => sum + b.transactions.length, 0);
-  const { transactions, duplicatesRemoved, sourceFiles } =
-    mergeTransactions(batches);
-
+  const result = loadStatementsFromRecords(files);
   return {
-    transactions: transactions.map(serializeTransaction),
+    ...result,
     meta: {
-      files: sourceFiles,
-      fileNames: listStatementFiles(),
+      ...result.meta,
       directories: ["statements"],
-      totalRaw: rawCount,
-      totalUnique: transactions.length,
-      duplicatesRemoved,
     },
   };
 }

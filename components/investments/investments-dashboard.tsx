@@ -10,11 +10,8 @@ import {
   computePortfolioAnalytics,
   getCalculatorDefaultsFromPortfolio,
 } from "@/lib/portfolio-analytics";
-import { isEmptyDocument } from "@/lib/merge-portfolio-storage";
 import {
-  clearLegacyLocalStorage,
   fetchPortfolioDocument,
-  readLegacyLocalStorage,
   savePortfolioDocument,
   uploadBrokerReport,
 } from "@/lib/portfolio-storage";
@@ -60,15 +57,7 @@ export function InvestmentsDashboard() {
 
     async function init() {
       try {
-        let doc = await fetchPortfolioDocument();
-
-        if (isEmptyDocument(doc)) {
-          const legacy = readLegacyLocalStorage();
-          if (legacy) {
-            doc = await savePortfolioDocument(legacy);
-            clearLegacyLocalStorage();
-          }
-        }
+        const doc = await fetchPortfolioDocument();
 
         if (cancelled) return;
 
@@ -134,7 +123,7 @@ export function InvestmentsDashboard() {
         } catch (err) {
           setSaveState("error");
           setError(
-            err instanceof Error ? err.message : "Ошибка сохранения в файл",
+            err instanceof Error ? err.message : "Ошибка сохранения",
           );
         }
       }, 600);
@@ -225,7 +214,7 @@ export function InvestmentsDashboard() {
   if (loading || !customAssets || !compoundParams || !wealth || !analytics) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center text-zinc-500 dark:text-zinc-400">
-        Загрузка данных из data/portfolio.json...
+        Загрузка сохранённых данных...
       </div>
     );
   }
@@ -245,7 +234,7 @@ export function InvestmentsDashboard() {
         visible={isBrokerDragging}
         title="Импорт отчёта брокера"
         acceptLabel="HTML-файл СберИнвестиций"
-        hint="Сохранится в data/broker-report.html"
+        hint="Сохранится в браузере (IndexedDB)"
       />
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-8 sm:px-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
@@ -257,11 +246,11 @@ export function InvestmentsDashboard() {
             Капитал и прогноз
           </h1>
           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-            Данные: <code>data/portfolio.json</code>
+            Данные хранятся в браузере (IndexedDB)
             {report ? (
               <>
                 {" "}
-                · отчёт: <code>data/broker-report.html</code>
+                · отчёт: <span className="font-mono">{fileName}</span>
               </>
             ) : (
               <> · отчёт брокера не загружен · перетащите HTML в окно</>
