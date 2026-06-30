@@ -2,46 +2,61 @@ import fs from "node:fs";
 import path from "node:path";
 import { parseCsv } from "./csv";
 import { mergeTransactions } from "./merge";
+import { ensureStatementsDir, getStatementsDir } from "./project-paths";
 import { serializeTransaction } from "./serialize";
 
-function getStatementsDirs(): string[] {
-  const cwd = process.cwd();
-  const candidates = [
-    path.join(cwd, "statements"),
-    path.join(cwd, "..", "statements"),
-    path.join(cwd, "public", "statements"),
-  ];
+export function sanitizeStatementFileName(fileName: string): string {
+  const base = path.basename(fileName.trim());
+  if (!base || base.startsWith(".")) {
+    throw new Error("Недопустимое имя файла");
+  }
+  if (!/\.csv$/i.test(base)) {
+    throw new Error("Допустимы только CSV-файлы");
+  }
+  return base;
+}
 
-  return [...new Set(candidates)].filter((dir) => fs.existsSync(dir));
+export function listStatementFiles(): string[] {
+  const dir = getStatementsDir();
+  if (!fs.existsSync(dir)) return [];
+
+  return fs
+    .readdirSync(dir)
+    .filter((name) => /\.csv$/i.test(name))
+    .sort((a, b) => a.localeCompare(b, "ru"));
+}
+
+export function saveStatementFile(fileName: string, content: string): string {
+  const safeName = sanitizeStatementFileName(fileName);
+  const dir = ensureStatementsDir();
+  fs.writeFileSync(path.join(dir, safeName), content, "utf-8");
+  return safeName;
+}
+
+export function deleteStatementFile(fileName: string): void {
+  const safeName = sanitizeStatementFileName(fileName);
+  const fullPath = path.join(getStatementsDir(), safeName);
+  if (!fs.existsSync(fullPath)) {
+    throw new Error(`Файл не найден: ${safeName}`);
+  }
+  fs.unlinkSync(fullPath);
 }
 
 export function loadStatementsFromDisk() {
-  const dirs = getStatementsDirs();
+  const dir = getStatementsDir();
+  ensureStatementsDir();
+
   const batches: { sourceFile: string; transactions: ReturnType<typeof parseCsv> }[] =
     [];
-  const seenFileNames = new Set<string>();
 
-  for (const dir of dirs) {
-    const entries = fs
-      .readdirSync(dir)
-      .filter((name) => /\.csv$/i.test(name))
-      .sort((a, b) => a.localeCompare(b, "ru"));
-
-    for (const fileName of entries) {
-      const normalizedName = fileName.toLowerCase();
-      if (seenFileNames.has(normalizedName)) continue;
-      seenFileNames.add(normalizedName);
-
-      const fullPath = path.join(dir, fileName);
-
-      const text = fs.readFileSync(fullPath, "utf-8");
-      const relativeDir = path.relative(process.cwd(), dir) || "statements";
-      const sourceFile = `${relativeDir}/${fileName}`;
-      batches.push({
-        sourceFile,
-        transactions: parseCsv(text, sourceFile),
-      });
-    }
+  for (const fileName of listStatementFiles()) {
+    const fullPath = path.join(dir, fileName);
+    const text = fs.readFileSync(fullPath, "utf-8");
+    const sourceFile = `statements/${fileName}`;
+    batches.push({
+      sourceFile,
+      transactions: parseCsv(text, sourceFile),
+    });
   }
 
   const rawCount = batches.reduce((sum, b) => sum + b.transactions.length, 0);
@@ -52,7 +67,8 @@ export function loadStatementsFromDisk() {
     transactions: transactions.map(serializeTransaction),
     meta: {
       files: sourceFiles,
-      directories: dirs.map((d) => path.relative(process.cwd(), d) || d),
+      fileNames: listStatementFiles(),
+      directories: ["statements"],
       totalRaw: rawCount,
       totalUnique: transactions.length,
       duplicatesRemoved,

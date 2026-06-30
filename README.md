@@ -1,36 +1,146 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+<div align="center">
 
-## Getting Started
+# 📊 Analytics
 
-First, run the development server:
+**Личный дашборд для анализа банковских выписок и инвестиционного портфеля**
+
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js&logoColor=white)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+[![License](https://img.shields.io/badge/License-Private-lightgrey)](#)
+
+[Возможности](#-возможности) · [Быстрый старт](#-быстрый-старт) · [Структура проекта](#-структура-проекта) · [Конфиденциальность](#-конфиденциальность)
+
+</div>
+
+---
+
+## О проекте
+
+**Analytics** — локальное веб-приложение на Next.js для визуализации личных финансов. Загружайте CSV-выписки банка и HTML-отчёты брокера Сбера, фильтруйте транзакции, смотрите графики расходов и моделируйте рост капитала с учётом налогов, инфляции и долгов.
+
+> Все данные хранятся на вашем компьютере — ничего не отправляется на внешние серверы.
+
+---
+
+## ✨ Возможности
+
+### 💳 Выписка
+
+| Функция | Описание |
+|--------|----------|
+| **Импорт CSV** | Drag-and-drop или выбор файлов; автоматическое объединение и дедупликация |
+| **Фильтры** | По дате, категории, мерчанту, сумме и типу операции |
+| **Графики** | Расходы по категориям, дневной денежный поток, топ мерчантов |
+| **Таблица** | Полный список транзакций с сортировкой |
+
+### 📈 Инвестиции
+
+| Функция | Описание |
+|--------|----------|
+| **Портфель Сбера** | Парсинг HTML-отчёта брокера: позиции, доходность, аллокация |
+| **Другие активы** | Недвижимость, депозиты, крипто и прочие внеброкерские активы |
+| **Сводка** | Общий капитал, структура активов, ключевые метрики |
+| **Сложный процент** | Симуляция роста капитала: взносы, налоги, инфляция, IRR, безопасное снятие |
+
+### 🎨 Интерфейс
+
+- Тёмная и светлая тема
+- Адаптивная вёрстка
+- Drag-and-drop загрузка файлов на обеих страницах
+
+---
+
+## 🚀 Быстрый старт
+
+### Требования
+
+- **Node.js** 20+
+- **npm** (или pnpm / yarn / bun)
+
+### Установка
+
+```bash
+git clone https://github.com/icube1/analytics.git
+cd analytics
+npm install
+```
+
+### Запуск
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Откройте [http://localhost:3000](http://localhost:3000) в браузере.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Сборка и тесты
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build    # production-сборка
+npm run start    # запуск production-сервера
+npm test         # unit-тесты (Jest)
+npm run lint     # ESLint
+```
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## 📁 Структура проекта
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+analytics/
+├── app/                    # Next.js App Router (страницы и API)
+│   ├── page.tsx            # Дашборд выписки
+│   ├── investments/        # Дашборд инвестиций
+│   └── api/                # REST API для файлов и данных
+├── components/             # React-компоненты UI
+├── lib/                    # Бизнес-логика
+│   ├── compound-interest/  # Симулятор сложного процента
+│   ├── parse-portfolio-html.ts
+│   └── ...
+├── data/                   # Локальное хранилище портфеля (gitignore)
+├── statements/             # Загруженные CSV-выписки (gitignore)
+└── __tests__/              # Тесты
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## 🔒 Конфиденциальность
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Персональные финансовые данные **не попадают в репозиторий**:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Путь | Содержимое |
+|------|------------|
+| `data/portfolio.json` | Сохранённый портфель и настройки |
+| `data/broker-report.html` | HTML-отчёт брокера |
+| `statements/*.csv` | Банковские выписки |
+
+Пример конфигурации портфеля: `data/portfolio.example.json`.
+
+---
+
+## 🛠 Стек
+
+| Слой | Технологии |
+|------|------------|
+| Framework | Next.js 16, React 19 |
+| Язык | TypeScript 5 |
+| Стили | Tailwind CSS 4 |
+| Графики | Recharts |
+| HTML-парсинг | linkedom |
+| Тесты | Jest, ts-jest |
+
+---
+
+## 📄 Лицензия
+
+Приватный проект. Все права защищены.
+
+---
+
+<div align="center">
+
+Сделано с ❤️ для личной финансовой аналитики
+
+</div>

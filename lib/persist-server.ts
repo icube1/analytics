@@ -5,35 +5,17 @@ import {
   DEFAULT_DOCUMENT,
   type PortfolioDocument,
 } from "./portfolio-types";
+import { ensureDataDir, getDataDir } from "./project-paths";
 
 const DOC_FILE = "portfolio.json";
 const BROKER_HTML = "broker-report.html";
 
-export function getDataDirs(): string[] {
-  const cwd = process.cwd();
-  const candidates = [
-    path.join(cwd, "data"),
-    path.join(cwd, "..", "data"),
-  ];
-  return [...new Set(candidates)];
-}
-
-export function getPrimaryDataDir(): string {
-  const dirs = getDataDirs();
-  const existing = dirs.find((dir) => fs.existsSync(dir));
-  if (existing) return existing;
-
-  const primary = dirs[0];
-  fs.mkdirSync(primary, { recursive: true });
-  return primary;
-}
-
 function getDocPath(): string {
-  return path.join(getPrimaryDataDir(), DOC_FILE);
+  return path.join(getDataDir(), DOC_FILE);
 }
 
 export function getBrokerHtmlPath(): string {
-  return path.join(getPrimaryDataDir(), BROKER_HTML);
+  return path.join(getDataDir(), BROKER_HTML);
 }
 
 export function readPortfolioDocument(): PortfolioDocument {
@@ -59,8 +41,7 @@ export function readPortfolioDocument(): PortfolioDocument {
 }
 
 export function writePortfolioDocument(doc: PortfolioDocument): void {
-  const dir = getPrimaryDataDir();
-  fs.mkdirSync(dir, { recursive: true });
+  ensureDataDir();
 
   const payload: PortfolioDocument = {
     ...doc,
@@ -72,8 +53,7 @@ export function writePortfolioDocument(doc: PortfolioDocument): void {
 }
 
 export function writeBrokerHtml(html: string): void {
-  const dir = getPrimaryDataDir();
-  fs.mkdirSync(dir, { recursive: true });
+  ensureDataDir();
   fs.writeFileSync(getBrokerHtmlPath(), html, "utf-8");
 }
 

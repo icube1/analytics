@@ -1,4 +1,4 @@
-import { calculateCompoundInterest } from "../lib/compound-interest.ts";
+import { calculateCompoundInterest } from "../lib/compound-interest/index.ts";
 import { DEFAULT_COMPOUND_PARAMS } from "../lib/portfolio-types.ts";
 
 const base = {

@@ -40,6 +40,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# персональные данные (хранятся локально в data/)
+# персональные данные (хранятся локально в data/ и statements/)
 /data/portfolio.json
 /data/broker-report.html
+/statements/*.csv
+/statements/*.CSV

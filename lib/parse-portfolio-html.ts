@@ -135,6 +135,40 @@ function parseSecuritiesTable(table: Element): SecurityPosition[] {
   return positions;
 }
 
+function mergeSecurityPositions(positions: SecurityPosition[]): SecurityPosition[] {
+  const byIsin = new Map<string, SecurityPosition>();
+
+  for (const pos of positions) {
+    const existing = byIsin.get(pos.isin);
+    if (!existing) {
+      byIsin.set(pos.isin, { ...pos });
+      continue;
+    }
+
+    const quantityStart = existing.quantityStart + pos.quantityStart;
+    const quantityEnd = existing.quantityEnd + pos.quantityEnd;
+    const valueStart = existing.valueStart + pos.valueStart;
+    const valueEnd = existing.valueEnd + pos.valueEnd;
+
+    byIsin.set(pos.isin, {
+      ...existing,
+      quantityStart,
+      quantityEnd,
+      valueStart,
+      valueEnd,
+      valueChange: existing.valueChange + pos.valueChange,
+      priceStart:
+        quantityStart > 0
+          ? valueStart / quantityStart
+          : existing.priceStart || pos.priceStart,
+      priceEnd:
+        quantityEnd > 0 ? valueEnd / quantityEnd : existing.priceEnd || pos.priceEnd,
+    });
+  }
+
+  return [...byIsin.values()];
+}
+
 function parseCashTable(table: Element): CashPosition[] {
   const items: CashPosition[] = [];
 
@@ -197,9 +231,15 @@ function parseTradesTable(table: Element): BrokerTrade[] {
     const date = cellText(row, 0);
     if (!/^\d{2}\.\d{2}\.\d{4}$/.test(date)) continue;
 
-    const dealId = cellText(row, 13) || `${date}-${cellText(row, 3)}`;
+    const dealId = cellText(row, 13);
+    const side = cellText(row, 6);
+    const quantity = cellText(row, 7);
+    const ticker = cellText(row, 4);
+    const id =
+      dealId ||
+      `${date}-${ticker}-${side}-${quantity}-${trades.length}`;
     trades.push({
-      id: dealId,
+      id,
       date,
       settlementDate: cellText(row, 1),
       name: cellText(row, 3),
@@ -239,7 +279,9 @@ export function parsePortfolioHtml(html: string): BrokerReport {
     securitiesEnd: rating.securitiesEnd ?? 0,
     cashStart: rating.cashStart ?? 0,
     cashEnd: rating.cashEnd ?? 0,
-    securities: securitiesTable ? parseSecuritiesTable(securitiesTable) : [],
+    securities: securitiesTable
+      ? mergeSecurityPositions(parseSecuritiesTable(securitiesTable))
+      : [],
     cash: cashTable ? parseCashTable(cashTable) : [],
     cashFlows: cashFlowsTable ? parseCashFlowsTable(cashFlowsTable) : [],
     trades: tradesTable ? parseTradesTable(tradesTable) : [],

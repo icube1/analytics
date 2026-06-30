@@ -26,6 +26,9 @@ export function PortfolioTab({ report, onUpload, fileName }: PortfolioTabProps) 
         <p className="text-zinc-500 dark:text-zinc-400">
           Загрузите отчёт брокера СберИнвестиций (HTML)
         </p>
+        <p className="mt-2 text-xs text-zinc-400 dark:text-zinc-500">
+          Кнопка ниже или перетащите файл в окно браузера
+        </p>
         <label className="mt-4 inline-flex cursor-pointer rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white">
           <input
             type="file"
@@ -44,6 +47,7 @@ export function PortfolioTab({ report, onUpload, fileName }: PortfolioTabProps) 
   }
 
   const allocation = report.securities.map((s) => ({
+    id: s.id,
     name: s.name,
     value: s.valueEnd,
   }));
@@ -122,7 +126,7 @@ export function PortfolioTab({ report, onUpload, fileName }: PortfolioTabProps) 
               >
                 {allocation.map((item, index) => (
                   <Cell
-                    key={item.name}
+                    key={item.id}
                     fill={CHART_COLORS[index % CHART_COLORS.length]}
                     stroke="none"
                   />

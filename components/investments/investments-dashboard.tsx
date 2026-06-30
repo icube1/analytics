@@ -18,6 +18,8 @@ import {
   savePortfolioDocument,
   uploadBrokerReport,
 } from "@/lib/portfolio-storage";
+import { FileDropOverlay } from "@/components/file-drop-overlay";
+import { usePageFileDrop } from "@/lib/use-page-file-drop";
 import { getTotalWealth } from "@/lib/portfolio-wealth";
 import {
   DEFAULT_COMPOUND_PARAMS,
@@ -36,6 +38,8 @@ const tabs: { id: TabId; label: string }[] = [
   { id: "calculator", label: "Сложный процент" },
 ];
 
+const BROKER_HTML_ACCEPT = [".html", ".htm"];
+
 export function InvestmentsDashboard() {
   const [activeTab, setActiveTab] = useState<TabId>("summary");
   const [report, setReport] = useState<BrokerReport | null>(null);
@@ -51,22 +55,6 @@ export function InvestmentsDashboard() {
   const readyRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const bootstrapBrokerFromPublic = useCallback(async () => {
-    const res = await fetch("/portfolio.html");
-    if (!res.ok) return false;
-    const html = await res.text();
-    const uploadRes = await fetch("/api/portfolio/broker", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ html, fileName: "portfolio.html" }),
-    });
-    if (!uploadRes.ok) return false;
-    const data = await uploadRes.json();
-    setReport(data.report as BrokerReport);
-    setFileName(data.fileName as string);
-    return true;
-  }, []);
-
   useEffect(() => {
     let cancelled = false;
 
@@ -80,11 +68,6 @@ export function InvestmentsDashboard() {
             doc = await savePortfolioDocument(legacy);
             clearLegacyLocalStorage();
           }
-        }
-
-        if (!doc.brokerReport) {
-          await bootstrapBrokerFromPublic();
-          doc = await fetchPortfolioDocument();
         }
 
         if (cancelled) return;
@@ -131,7 +114,7 @@ export function InvestmentsDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [bootstrapBrokerFromPublic]);
+  }, []);
 
   const persist = useCallback(
     (patch: {
@@ -175,7 +158,7 @@ export function InvestmentsDashboard() {
     [persist],
   );
 
-  const handleUpload = async (file: File) => {
+  const handleUpload = useCallback(async (file: File) => {
     setSaveState("saving");
     try {
       const data = await uploadBrokerReport(file);
@@ -191,7 +174,21 @@ export function InvestmentsDashboard() {
         err instanceof Error ? err.message : "Не удалось сохранить отчёт",
       );
     }
-  };
+  }, []);
+
+  const handleBrokerDrop = useCallback(
+    async (files: File[]) => {
+      if (files[0]) await handleUpload(files[0]);
+    },
+    [handleUpload],
+  );
+
+  const { isDragging: isBrokerDragging } = usePageFileDrop({
+    enabled: !loading && saveState !== "saving",
+    accept: BROKER_HTML_ACCEPT,
+    onDrop: handleBrokerDrop,
+    onReject: (reason) => setError(reason),
+  });
 
   const wealth = useMemo(() => {
     if (!customAssets) return null;
@@ -243,7 +240,14 @@ export function InvestmentsDashboard() {
           : "Готово";
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-8 sm:px-6">
+    <>
+      <FileDropOverlay
+        visible={isBrokerDragging}
+        title="Импорт отчёта брокера"
+        acceptLabel="HTML-файл СберИнвестиций"
+        hint="Сохранится в data/broker-report.html"
+      />
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-8 sm:px-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-sm font-medium text-indigo-600 dark:text-indigo-400">
@@ -253,12 +257,14 @@ export function InvestmentsDashboard() {
             Капитал и прогноз
           </h1>
           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-            Файл: <code>data/portfolio.json</code>
-            {report && (
+            Данные: <code>data/portfolio.json</code>
+            {report ? (
               <>
                 {" "}
                 · отчёт: <code>data/broker-report.html</code>
               </>
+            ) : (
+              <> · отчёт брокера не загружен · перетащите HTML в окно</>
             )}
           </p>
         </div>
@@ -323,6 +329,7 @@ export function InvestmentsDashboard() {
           onChange={handleParamsChange}
         />
       )}
-    </div>
+      </div>
+    </>
   );
 }

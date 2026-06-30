@@ -144,4 +144,55 @@ describe("calculateCompoundInterest", () => {
 
     expect(result.withdrawalEndedEarly).toBe(false);
   });
+
+  it("tracks per-asset breakdown when custom assets are provided", () => {
+    const result = calculateCompoundInterest(
+      {
+        ...baseParams,
+        years: 5,
+        annualReturnPercent: 8,
+        inflationPercent: 6,
+      },
+      {
+        brokerTotal: 400_000,
+        customAssets: {
+          items: [
+            {
+              id: "apt",
+              enabled: true,
+              label: "Квартира",
+              value: 3_000_000,
+              debt: 2_000_000,
+              monthlyDebtPayment: 0,
+              debtAnnualRate: 0,
+              growsWithInflation: true,
+              returnMode: "none",
+              annualReturnPercent: 0,
+              incomeAmount: 0,
+              incomePeriod: "monthly",
+              generatesDividendTax: false,
+              notes: "",
+            },
+          ],
+          otherDebts: [],
+        },
+      },
+    );
+
+    const last = result.points[result.points.length - 1];
+    expect(last.assetBreakdown.length).toBe(2);
+    expect(last.assetBreakdown.find((a) => a.id === "apt")?.label).toBe(
+      "Квартира",
+    );
+    expect(last.assetBreakdown.find((a) => a.id === "__liquid")?.netEquity).toBe(
+      last.liquidityBalance,
+    );
+    const assetNet = last.assetBreakdown.reduce((sum, a) => sum + a.netEquity, 0);
+    expect(assetNet).toBeCloseTo(last.balance, 0);
+
+    const start = result.points[0];
+    const aptStart = start.assetBreakdown.find((a) => a.id === "apt")?.netEquity ?? 0;
+    const aptEnd = last.assetBreakdown.find((a) => a.id === "apt")?.netEquity ?? 0;
+    expect(aptEnd).toBeGreaterThan(aptStart);
+  });
 });
