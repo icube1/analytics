@@ -4,6 +4,7 @@ import { mergePortfolioStorage, isEmptyDocument } from "./merge-portfolio-storag
 import { normalizeCompoundParams } from "./normalize-compound-params";
 import { parsePortfolioHtml } from "./parse-portfolio-html";
 import { readPortfolioFromDb, writePortfolioToDb } from "./browser-idb";
+import { scheduleServerBackupSync } from "./backup-sync";
 import {
   DEFAULT_DOCUMENT,
   type PortfolioDocument,
@@ -44,6 +45,7 @@ async function writeStoredDocument(doc: PortfolioDocument): Promise<PortfolioDoc
     updatedAt: new Date().toISOString(),
   };
   await writePortfolioToDb(payload);
+  scheduleServerBackupSync();
   return payload;
 }
 

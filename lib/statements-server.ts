@@ -34,6 +34,20 @@ export function deleteStatementFile(fileName: string): void {
   fs.unlinkSync(fullPath);
 }
 
+export function replaceAllStatementsOnDisk(
+  records: { fileName: string; content: string }[],
+): void {
+  const dir = ensureStatementsDir();
+
+  for (const existing of listStatementFiles()) {
+    fs.unlinkSync(path.join(dir, existing));
+  }
+
+  for (const record of records) {
+    saveStatementFile(record.fileName, record.content);
+  }
+}
+
 export function loadStatementsFromDisk() {
   ensureStatementsDir();
 
