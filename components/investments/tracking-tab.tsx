@@ -57,6 +57,21 @@ export function TrackingTab({
   );
   const [showDeposits, setShowDeposits] = useState(false);
 
+  useEffect(() => {
+    setVisiblePlanIds((prev) => {
+      const next = new Set(prev);
+      for (const plan of forecastPlans) {
+        next.add(plan.id);
+      }
+      for (const id of prev) {
+        if (!forecastPlans.some((plan) => plan.id === id)) {
+          next.delete(id);
+        }
+      }
+      return next;
+    });
+  }, [forecastPlans]);
+
   const latestSnapshot = useMemo(
     () => getLatestSnapshot(brokerSnapshots),
     [brokerSnapshots],
