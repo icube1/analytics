@@ -179,6 +179,60 @@ export interface PortfolioDocument extends PortfolioStorage {
   version: 1;
   updatedAt: string;
   brokerReport: BrokerReport | null;
+  /** История загрузок отчётов брокера для трекинга */
+  brokerSnapshots: BrokerBalanceSnapshot[];
+  /** Сохранённые сценарии прогноза */
+  forecastPlans: SavedForecastPlan[];
+}
+
+/** Пополнение брокерского счёта из отчёта */
+export interface BrokerDepositFlow {
+  id: string;
+  date: string;
+  amount: number;
+  description: string;
+}
+
+/** Снимок баланса при загрузке HTML-отчёта */
+export interface BrokerBalanceSnapshot {
+  id: string;
+  uploadedAt: string;
+  fileName: string;
+  periodStart: string;
+  periodEnd: string;
+  brokerTotal: number;
+  customAssetsTotal: number;
+  totalDebt: number;
+  grandTotal: number;
+  deposits: BrokerDepositFlow[];
+}
+
+export interface ForecastPlanPoint {
+  month: number;
+  label: string;
+  balance: number;
+  realBalance: number;
+  monthlyTotalContribution: number;
+  monthlyBrokerInvest: number;
+  monthlyDebtPayment: number;
+  totalDebt: number;
+}
+
+export interface SavedForecastPlan {
+  id: string;
+  name: string;
+  savedAt: string;
+  params: CompoundParams;
+  brokerTotal: number;
+  customAssets: CustomAssets;
+  points: ForecastPlanPoint[];
+  summary: {
+    finalBalance: number;
+    finalRealBalance: number;
+    totalContributed: number;
+    effectiveAnnualReturn: number;
+    finalTotalDebt: number;
+  };
 }
 
 export const DEFAULT_CUSTOM_ASSETS: CustomAssets = {
@@ -219,4 +273,6 @@ export const DEFAULT_DOCUMENT: PortfolioDocument = {
   updatedAt: new Date(0).toISOString(),
   ...DEFAULT_STORAGE,
   brokerReport: null,
+  brokerSnapshots: [],
+  forecastPlans: [],
 };

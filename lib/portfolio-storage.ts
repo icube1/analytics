@@ -1,4 +1,5 @@
 import { normalizeCustomAssets } from "./custom-assets";
+import { createBrokerSnapshot } from "./tracking";
 import { mergePortfolioStorage, isEmptyDocument } from "./merge-portfolio-storage";
 import { normalizeCompoundParams } from "./normalize-compound-params";
 import { parsePortfolioHtml } from "./parse-portfolio-html";
@@ -6,6 +7,7 @@ import { readPortfolioFromDb, writePortfolioToDb } from "./browser-idb";
 import {
   DEFAULT_DOCUMENT,
   type PortfolioDocument,
+  type SavedForecastPlan,
 } from "./portfolio-types";
 
 const LEGACY_STORAGE_KEY = "analytics-portfolio-v1";
@@ -21,6 +23,8 @@ function normalizeDocument(data: Partial<PortfolioDocument>): PortfolioDocument 
       ...data.compoundParams,
     }),
     brokerReport: data.brokerReport ?? null,
+    brokerSnapshots: data.brokerSnapshots ?? [],
+    forecastPlans: data.forecastPlans ?? [],
     lastBrokerFileName:
       data.lastBrokerFileName ?? DEFAULT_DOCUMENT.lastBrokerFileName,
     updatedAt: data.updatedAt ?? DEFAULT_DOCUMENT.updatedAt,
@@ -99,9 +103,35 @@ export async function savePortfolioDocument(
       patch.brokerReport !== undefined
         ? patch.brokerReport
         : current.brokerReport,
+    brokerSnapshots:
+      patch.brokerSnapshots !== undefined
+        ? patch.brokerSnapshots
+        : current.brokerSnapshots,
+    forecastPlans:
+      patch.forecastPlans !== undefined
+        ? patch.forecastPlans
+        : current.forecastPlans,
   });
 
   return writeStoredDocument(next);
+}
+
+export async function addForecastPlan(
+  plan: SavedForecastPlan,
+): Promise<PortfolioDocument> {
+  const current = await fetchPortfolioDocument();
+  return savePortfolioDocument({
+    forecastPlans: [...current.forecastPlans, plan],
+  });
+}
+
+export async function removeForecastPlan(
+  planId: string,
+): Promise<PortfolioDocument> {
+  const current = await fetchPortfolioDocument();
+  return savePortfolioDocument({
+    forecastPlans: current.forecastPlans.filter((plan) => plan.id !== planId),
+  });
 }
 
 export async function uploadBrokerReport(
@@ -115,9 +145,17 @@ export async function uploadBrokerReport(
   }
 
   const fileName = file.name || "broker-report.html";
+  const current = await fetchPortfolioDocument();
+  const snapshot = createBrokerSnapshot(
+    report,
+    fileName,
+    current.customAssets,
+  );
+
   await savePortfolioDocument({
     lastBrokerFileName: fileName,
     brokerReport: report,
+    brokerSnapshots: [...current.brokerSnapshots, snapshot],
   });
 
   return { report, fileName };

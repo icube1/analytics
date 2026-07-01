@@ -5,6 +5,7 @@ import { AssetsTab } from "@/components/investments/assets-tab";
 import { CalculatorTab } from "@/components/investments/calculator-tab";
 import { PortfolioTab } from "@/components/investments/portfolio-tab";
 import { SummaryTab } from "@/components/investments/summary-tab";
+import { TrackingTab } from "@/components/investments/tracking-tab";
 import { WealthSummary } from "@/components/investments/wealth-summary";
 import {
   computePortfolioAnalytics,
@@ -13,19 +14,24 @@ import {
 import {
   fetchPortfolioDocument,
   savePortfolioDocument,
+  addForecastPlan,
+  removeForecastPlan,
   uploadBrokerReport,
 } from "@/lib/portfolio-storage";
 import { FileDropOverlay } from "@/components/file-drop-overlay";
 import { usePageFileDrop } from "@/lib/use-page-file-drop";
 import { getTotalWealth } from "@/lib/portfolio-wealth";
+import { getTotalDebtBalance } from "@/lib/debt-amortization";
 import {
   DEFAULT_COMPOUND_PARAMS,
   type BrokerReport,
+  type BrokerBalanceSnapshot,
   type CompoundParams,
   type CustomAssets,
+  type SavedForecastPlan,
 } from "@/lib/portfolio-types";
 
-type TabId = "summary" | "portfolio" | "assets" | "calculator";
+type TabId = "summary" | "portfolio" | "assets" | "calculator" | "tracking";
 type SaveState = "idle" | "saving" | "saved" | "error";
 
 const tabs: { id: TabId; label: string }[] = [
@@ -33,6 +39,7 @@ const tabs: { id: TabId; label: string }[] = [
   { id: "portfolio", label: "Портфель Сбера" },
   { id: "assets", label: "Другие активы" },
   { id: "calculator", label: "Сложный процент" },
+  { id: "tracking", label: "Трекинг" },
 ];
 
 const BROKER_HTML_ACCEPT = [".html", ".htm"];
@@ -45,6 +52,10 @@ export function InvestmentsDashboard() {
   const [compoundParams, setCompoundParams] = useState<CompoundParams | null>(
     null,
   );
+  const [forecastPlans, setForecastPlans] = useState<SavedForecastPlan[]>([]);
+  const [brokerSnapshots, setBrokerSnapshots] = useState<
+    BrokerBalanceSnapshot[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>("idle");
@@ -84,6 +95,8 @@ export function InvestmentsDashboard() {
         });
         setFileName(doc.lastBrokerFileName);
         setReport(doc.brokerReport);
+        setForecastPlans(doc.forecastPlans);
+        setBrokerSnapshots(doc.brokerSnapshots);
         setLastSavedAt(doc.updatedAt);
         readyRef.current = true;
       } catch (err) {
@@ -154,6 +167,7 @@ export function InvestmentsDashboard() {
       setReport(data.report);
       setFileName(data.fileName);
       const doc = await fetchPortfolioDocument();
+      setBrokerSnapshots(doc.brokerSnapshots);
       setLastSavedAt(doc.updatedAt);
       setSaveState("saved");
       setError(null);
@@ -164,6 +178,41 @@ export function InvestmentsDashboard() {
       );
     }
   }, []);
+
+  const handleSavePlan = useCallback(async (plan: SavedForecastPlan) => {
+    setSaveState("saving");
+    try {
+      const doc = await addForecastPlan(plan);
+      setForecastPlans(doc.forecastPlans);
+      setLastSavedAt(doc.updatedAt);
+      setSaveState("saved");
+    } catch (err) {
+      setSaveState("error");
+      setError(
+        err instanceof Error ? err.message : "Не удалось сохранить сценарий",
+      );
+    }
+  }, []);
+
+  const handleDeletePlan = useCallback(async (planId: string) => {
+    setSaveState("saving");
+    try {
+      const doc = await removeForecastPlan(planId);
+      setForecastPlans(doc.forecastPlans);
+      setLastSavedAt(doc.updatedAt);
+      setSaveState("saved");
+    } catch (err) {
+      setSaveState("error");
+      setError(
+        err instanceof Error ? err.message : "Не удалось удалить сценарий",
+      );
+    }
+  }, []);
+
+  const currentTotalDebt = useMemo(() => {
+    if (!customAssets) return 0;
+    return getTotalDebtBalance(customAssets);
+  }, [customAssets]);
 
   const handleBrokerDrop = useCallback(
     async (files: File[]) => {
@@ -315,7 +364,17 @@ export function InvestmentsDashboard() {
           params={compoundParams}
           customAssets={customAssets}
           brokerTotal={wealth.brokerTotal}
+          forecastPlans={forecastPlans}
           onChange={handleParamsChange}
+          onSavePlan={handleSavePlan}
+          onDeletePlan={handleDeletePlan}
+        />
+      )}
+      {activeTab === "tracking" && (
+        <TrackingTab
+          forecastPlans={forecastPlans}
+          brokerSnapshots={brokerSnapshots}
+          currentTotalDebt={currentTotalDebt}
         />
       )}
       </div>

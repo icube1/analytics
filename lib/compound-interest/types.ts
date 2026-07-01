@@ -40,6 +40,12 @@ export interface CompoundPoint {
   /** Разбивка капитала по активам (номинал, чистая стоимость) */
   assetBreakdown: AssetBreakdownEntry[];
   totalDebt: number;
+  /** Пополнение в брокера в этом месяце, ₽ */
+  monthlyBrokerInvest: number;
+  /** Платёж по долгам в этом месяце, ₽ */
+  monthlyDebtPayment: number;
+  /** Общий бюджет пополнения в этом месяце, ₽ */
+  monthlyTotalContribution: number;
   profit: number;
   profitAfterTax: number;
 }
