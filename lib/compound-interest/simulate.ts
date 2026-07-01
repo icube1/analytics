@@ -144,6 +144,9 @@ export function calculateCompoundInterest(
     monthPayoutTargetReal: number,
     inWithdrawalPhase: boolean,
     monthPayoutCapped: boolean,
+    monthlyBrokerInvest: number,
+    monthlyDebtPayment: number,
+    monthlyTotalContribution: number,
   ) =>
     buildSnapshot({
       month,
@@ -158,12 +161,15 @@ export function calculateCompoundInterest(
       monthPayoutTargetReal,
       inWithdrawalPhase,
       monthPayoutCapped,
+      monthlyBrokerInvest,
+      monthlyDebtPayment,
+      monthlyTotalContribution,
       getInvestableBalance,
       wealthState,
       customAssets: context?.customAssets ?? null,
     });
 
-  points.push(takeSnapshot(0, 0, 0, 0, false, false));
+  points.push(takeSnapshot(0, 0, 0, 0, false, false, 0, 0, 0));
 
   const scheduledDebtService = context
     ? getMonthlyDebtService(context.customAssets)
@@ -175,6 +181,9 @@ export function calculateCompoundInterest(
     let monthPayoutTargetReal = 0;
     let monthPayoutCapped = false;
     let debtPayment = 0;
+    let monthBrokerInvest = 0;
+    let monthDebtPayment = 0;
+    let monthTotalContribution = 0;
 
     if (wealthState && context) {
       const debtStep = stepDebtsMonth(context.customAssets, wealthState);
@@ -215,6 +224,10 @@ export function calculateCompoundInterest(
       ) {
         investContribution = monthlyContribution + scheduledDebtService;
       }
+
+      monthBrokerInvest = investContribution;
+      monthDebtPayment = debtPayment;
+      monthTotalContribution = monthlyContribution;
 
       contributed += monthlyContribution;
       costBasis += investContribution;
@@ -372,6 +385,9 @@ export function calculateCompoundInterest(
           monthPayoutTargetReal,
           inWithdrawalPhase,
           monthPayoutCapped,
+          monthBrokerInvest,
+          monthDebtPayment,
+          monthTotalContribution,
         ),
       );
     }

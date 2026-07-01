@@ -21,6 +21,10 @@ export function mergePortfolioStorage(
       partial.lastBrokerFileName ?? DEFAULT_STORAGE.lastBrokerFileName,
     brokerReport:
       "brokerReport" in partial ? (partial.brokerReport ?? null) : null,
+    brokerSnapshots:
+      "brokerSnapshots" in partial ? (partial.brokerSnapshots ?? []) : [],
+    forecastPlans:
+      "forecastPlans" in partial ? (partial.forecastPlans ?? []) : [],
   };
 }
 

@@ -34,6 +34,8 @@ export function readPortfolioDocument(): PortfolioDocument {
       version: 1,
       updatedAt: parsed.updatedAt ?? merged.updatedAt,
       brokerReport: parsed.brokerReport ?? null,
+      brokerSnapshots: parsed.brokerSnapshots ?? [],
+      forecastPlans: parsed.forecastPlans ?? [],
     };
   } catch {
     return { ...DEFAULT_DOCUMENT };

@@ -1,0 +1,438 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import {
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { ChartMoneyTooltip } from "@/components/chart-money-tooltip";
+import { formatMoney } from "@/lib/portfolio-wealth";
+import type { BrokerBalanceSnapshot, SavedForecastPlan } from "@/lib/portfolio-types";
+import { CHART_COLORS } from "@/lib/stats";
+import {
+  buildTrackingChartData,
+  buildTrackingMonths,
+  getLatestSnapshot,
+} from "@/lib/tracking";
+
+interface TrackingTabProps {
+  forecastPlans: SavedForecastPlan[];
+  brokerSnapshots: BrokerBalanceSnapshot[];
+  currentTotalDebt: number;
+}
+
+function DeltaCell({ delta }: { delta: number | null }) {
+  if (delta == null) {
+    return <span className="text-zinc-400">—</span>;
+  }
+  const positive = delta >= 0;
+  return (
+    <span
+      className={
+        positive
+          ? "text-emerald-600 dark:text-emerald-400"
+          : "text-rose-600 dark:text-rose-400"
+      }
+    >
+      {positive ? "+" : ""}
+      {formatMoney(delta)}
+    </span>
+  );
+}
+
+export function TrackingTab({
+  forecastPlans,
+  brokerSnapshots,
+  currentTotalDebt,
+}: TrackingTabProps) {
+  const [useRealBalance, setUseRealBalance] = useState(false);
+  const [visiblePlanIds, setVisiblePlanIds] = useState<Set<string>>(() =>
+    new Set(forecastPlans.map((plan) => plan.id)),
+  );
+  const [showDeposits, setShowDeposits] = useState(false);
+
+  useEffect(() => {
+    setVisiblePlanIds((prev) => {
+      const next = new Set(prev);
+      for (const plan of forecastPlans) {
+        next.add(plan.id);
+      }
+      for (const id of prev) {
+        if (!forecastPlans.some((plan) => plan.id === id)) {
+          next.delete(id);
+        }
+      }
+      return next;
+    });
+  }, [forecastPlans]);
+
+  const latestSnapshot = useMemo(
+    () => getLatestSnapshot(brokerSnapshots),
+    [brokerSnapshots],
+  );
+
+  const rows = useMemo(
+    () =>
+      buildTrackingMonths(
+        forecastPlans,
+        brokerSnapshots,
+        currentTotalDebt,
+      ),
+    [forecastPlans, brokerSnapshots, currentTotalDebt],
+  );
+
+  const currentMonth = useMemo(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  }, []);
+
+  const currentRow = rows.find((row) => row.calendarMonth === currentMonth);
+
+  const activePlanIds = forecastPlans
+    .map((plan) => plan.id)
+    .filter((id) => visiblePlanIds.has(id));
+
+  const chartData = useMemo(
+    () => buildTrackingChartData(rows, activePlanIds, useRealBalance),
+    [rows, activePlanIds, useRealBalance],
+  );
+
+  const planColors = useMemo(() => {
+    const map = new Map<string, string>();
+    forecastPlans.forEach((plan, index) => {
+      map.set(plan.id, CHART_COLORS[index % CHART_COLORS.length]);
+    });
+    return map;
+  }, [forecastPlans]);
+
+  if (forecastPlans.length === 0) {
+    return (
+      <div className="rounded-2xl border border-dashed border-zinc-300 p-8 text-center dark:border-zinc-700">
+        <p className="text-zinc-600 dark:text-zinc-300">
+          Сохраните хотя бы один сценарий на вкладке «Сложный процент»
+        </p>
+        <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+          Можно зафиксировать несколько вариантов — оптимистичный, средний,
+          консервативный — и сравнить их с фактом по отчётам Сбера.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      {latestSnapshot ? (
+        <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+            Актуальный срез
+          </p>
+          <div className="mt-2 flex flex-wrap items-end gap-6">
+            <div>
+              <p className="text-2xl font-bold tabular-nums">
+                {formatMoney(latestSnapshot.grandTotal)}
+              </p>
+              <p className="text-xs text-zinc-500">
+                капитал · брокер {formatMoney(latestSnapshot.brokerTotal)}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm tabular-nums text-zinc-600 dark:text-zinc-300">
+                Отчёт до {latestSnapshot.periodEnd}
+              </p>
+              <p className="text-xs text-zinc-400">
+                загружен{" "}
+                {new Date(latestSnapshot.uploadedAt).toLocaleString("ru-RU")}
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+          Загрузите отчёт Сбера на вкладке «Портфель Сбера» — баланс и
+          пополнения подтянутся автоматически.
+        </div>
+      )}
+
+      {currentRow && (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {forecastPlans.map((plan) => {
+            const planData = currentRow.plans[plan.id];
+            const factBalance = currentRow.fact.grandTotal;
+            if (!planData || factBalance == null) {
+              return (
+                <div
+                  key={plan.id}
+                  className="rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900"
+                >
+                  <p className="text-xs font-medium text-zinc-500">{plan.name}</p>
+                  <p className="mt-1 text-sm text-zinc-400">Нет данных за месяц</p>
+                </div>
+              );
+            }
+            const delta = factBalance - planData.balance;
+            return (
+              <div
+                key={plan.id}
+                className="rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900"
+              >
+                <p className="text-xs font-medium text-zinc-500">{plan.name}</p>
+                <p className="mt-1 text-lg font-semibold tabular-nums">
+                  <DeltaCell delta={delta} />
+                </p>
+                <p className="text-[10px] text-zinc-400">
+                  факт {formatMoney(factBalance)} · план{" "}
+                  {formatMoney(planData.balance)}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-sm font-semibold">Динамика капитала</h3>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setUseRealBalance(false)}
+              className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
+                !useRealBalance
+                  ? "bg-indigo-600 text-white"
+                  : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+              }`}
+            >
+              Номинал
+            </button>
+            <button
+              type="button"
+              onClick={() => setUseRealBalance(true)}
+              className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
+                useRealBalance
+                  ? "bg-indigo-600 text-white"
+                  : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+              }`}
+            >
+              Реально
+            </button>
+          </div>
+        </div>
+
+        <div className="mb-3 flex flex-wrap gap-2">
+          {forecastPlans.map((plan) => {
+            const active = visiblePlanIds.has(plan.id);
+            const color = planColors.get(plan.id) ?? CHART_COLORS[0];
+            return (
+              <button
+                key={plan.id}
+                type="button"
+                onClick={() => {
+                  setVisiblePlanIds((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(plan.id)) next.delete(plan.id);
+                    else next.add(plan.id);
+                    return next;
+                  });
+                }}
+                className={`rounded-full border px-3 py-1 text-xs font-medium transition-opacity ${
+                  active ? "opacity-100" : "opacity-40"
+                }`}
+                style={{ borderColor: color, color }}
+              >
+                {plan.name}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="h-72 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-zinc-200 dark:stroke-zinc-700" />
+              <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+              <YAxis
+                tick={{ fontSize: 11 }}
+                tickFormatter={(v) =>
+                  v >= 1_000_000
+                    ? `${(v / 1_000_000).toFixed(1)}M`
+                    : v >= 1000
+                      ? `${Math.round(v / 1000)}k`
+                      : String(v)
+                }
+              />
+              <Tooltip content={<ChartMoneyTooltip />} />
+              <Legend />
+              <Line
+                type="monotone"
+                dataKey="fact"
+                name="Факт"
+                stroke="#10b981"
+                strokeWidth={2.5}
+                dot={false}
+                connectNulls={false}
+              />
+              {activePlanIds.map((planId) => {
+                const plan = forecastPlans.find((p) => p.id === planId);
+                if (!plan) return null;
+                return (
+                  <Line
+                    key={planId}
+                    type="monotone"
+                    dataKey={`plan_${planId}`}
+                    name={plan.name}
+                    stroke={planColors.get(planId)}
+                    strokeWidth={2}
+                    dot={false}
+                    connectNulls
+                    strokeDasharray="6 4"
+                  />
+                );
+              })}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold">Помесячная сводка</h3>
+          <label className="flex items-center gap-2 text-xs text-zinc-500">
+            <input
+              type="checkbox"
+              checked={showDeposits}
+              onChange={(e) => setShowDeposits(e.target.checked)}
+              className="size-3.5 rounded"
+            />
+            Показать пополнения в брокера
+          </label>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[720px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-zinc-200 text-xs text-zinc-500 dark:border-zinc-700">
+                <th className="px-2 py-2 font-medium">Месяц</th>
+                <th className="px-2 py-2 font-medium">Факт</th>
+                {forecastPlans.map((plan) => (
+                  <th key={plan.id} className="px-2 py-2 font-medium">
+                    {plan.name}
+                  </th>
+                ))}
+                {showDeposits && (
+                  <>
+                    <th className="px-2 py-2 font-medium">В брокера факт</th>
+                    {forecastPlans.map((plan) => (
+                      <th key={`${plan.id}-dep`} className="px-2 py-2 font-medium">
+                        {plan.name} (взнос)
+                      </th>
+                    ))}
+                  </>
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr
+                  key={row.calendarMonth}
+                  className={`border-b border-zinc-100 dark:border-zinc-800 ${
+                    row.calendarMonth === currentMonth
+                      ? "bg-indigo-50/50 dark:bg-indigo-950/20"
+                      : ""
+                  }`}
+                >
+                  <td className="px-2 py-2 font-medium">{row.label}</td>
+                  <td className="px-2 py-2 tabular-nums">
+                    {row.fact.grandTotal != null ? (
+                      <span>
+                        {formatMoney(row.fact.grandTotal)}
+                        {row.fact.balanceSource && (
+                          <span className="ml-1 text-[10px] text-zinc-400">
+                            ({row.fact.balanceSource})
+                          </span>
+                        )}
+                      </span>
+                    ) : (
+                      <span className="text-zinc-400">—</span>
+                    )}
+                  </td>
+                  {forecastPlans.map((plan) => {
+                    const planData = row.plans[plan.id];
+                    const fact = row.fact.grandTotal;
+                    return (
+                      <td key={plan.id} className="px-2 py-2 tabular-nums">
+                        {planData ? (
+                          <div>
+                            <div>{formatMoney(planData.balance)}</div>
+                            {fact != null && (
+                              <div className="text-[10px]">
+                                <DeltaCell delta={fact - planData.balance} />
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-zinc-400">—</span>
+                        )}
+                      </td>
+                    );
+                  })}
+                  {showDeposits && (
+                    <>
+                      <td className="px-2 py-2 tabular-nums">
+                        {row.fact.brokerDeposits > 0
+                          ? formatMoney(row.fact.brokerDeposits)
+                          : "—"}
+                      </td>
+                      {forecastPlans.map((plan) => {
+                        const planData = row.plans[plan.id];
+                        const deposits = row.fact.brokerDeposits;
+                        return (
+                          <td
+                            key={`${plan.id}-dep`}
+                            className="px-2 py-2 tabular-nums"
+                          >
+                            {planData ? (
+                              <div>
+                                <div>
+                                  {formatMoney(planData.monthlyBrokerInvest)}
+                                </div>
+                                {deposits > 0 && (
+                                  <div className="text-[10px]">
+                                    <DeltaCell
+                                      delta={
+                                        deposits - planData.monthlyBrokerInvest
+                                      }
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-zinc-400">—</span>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-xs text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
+        <p>
+          Фактический баланс берётся из последнего отчёта за месяц (или самого
+          свежего для текущего месяца). Пополнения в брокера — из раздела
+          «Движение денежных средств». Долг — из вкладки «Другие активы» на
+          момент загрузки отчёта.
+        </p>
+      </div>
+    </div>
+  );
+}

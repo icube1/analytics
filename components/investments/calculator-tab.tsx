@@ -22,17 +22,25 @@ import {
   getTotalDebtBalance,
 } from "@/lib/debt-amortization";
 import { calculateCompoundInterest } from "@/lib/compound-interest";
+import { buildForecastPlan } from "@/lib/forecast-plans";
 import { getCustomAssetsMonthlyIncome } from "@/lib/custom-assets";
 import { formatMoney } from "@/lib/portfolio-wealth";
 import { computeSafeWithdrawalAdvice } from "@/lib/safe-withdrawal";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
-import type { CompoundParams, CustomAssets } from "@/lib/portfolio-types";
+import type {
+  CompoundParams,
+  CustomAssets,
+  SavedForecastPlan,
+} from "@/lib/portfolio-types";
 
 interface CalculatorTabProps {
   params: CompoundParams;
   customAssets: CustomAssets;
   brokerTotal: number;
+  forecastPlans: SavedForecastPlan[];
   onChange: (params: CompoundParams) => void;
+  onSavePlan: (plan: SavedForecastPlan) => void;
+  onDeletePlan: (planId: string) => void;
 }
 
 const inputClass =
@@ -193,9 +201,14 @@ export function CalculatorTab({
   params: savedParams,
   customAssets,
   brokerTotal,
+  forecastPlans,
   onChange,
+  onSavePlan,
+  onDeletePlan,
 }: CalculatorTabProps) {
   const [draft, setDraft] = useState(savedParams);
+  const [planName, setPlanName] = useState("");
+  const [showSavePlan, setShowSavePlan] = useState(false);
   const skipPersistRef = useRef(true);
   const { debounced: simParams, isPending: isSimPending } = useDebouncedValue(
     draft,
@@ -1016,6 +1029,104 @@ export function CalculatorTab({
         className={`flex flex-col gap-6 transition-opacity duration-150 ${isSimPending ? "opacity-60" : "opacity-100"}`}
         aria-busy={isSimPending}
       >
+      <div className="flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-semibold">Сценарии прогноза</h3>
+            <p className="text-xs text-zinc-500">
+              Сохраните вариант для сравнения с фактом на вкладке «Трекинг»
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setPlanName(
+                forecastPlans.length === 0
+                  ? "Базовый"
+                  : `Сценарий ${forecastPlans.length + 1}`,
+              );
+              setShowSavePlan(true);
+            }}
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
+          >
+            Сохранить сценарий
+          </button>
+        </div>
+        {forecastPlans.length > 0 && (
+          <ul className="flex flex-col gap-2">
+            {forecastPlans.map((plan) => (
+              <li
+                key={plan.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-100 px-3 py-2 text-sm dark:border-zinc-800"
+              >
+                <div>
+                  <p className="font-medium">{plan.name}</p>
+                  <p className="text-xs text-zinc-500">
+                    {new Date(plan.savedAt).toLocaleString("ru-RU")} · итого{" "}
+                    {formatMoney(plan.summary.finalBalance)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onDeletePlan(plan.id)}
+                  className="text-xs text-rose-600 hover:underline dark:text-rose-400"
+                >
+                  Удалить
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {showSavePlan && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-5 shadow-xl dark:border-zinc-700 dark:bg-zinc-900">
+            <h3 className="text-lg font-semibold">Сохранить сценарий</h3>
+            <p className="mt-1 text-sm text-zinc-500">
+              Отсчёт месяцев пойдёт от сегодняшней даты
+            </p>
+            <label className="mt-4 flex flex-col gap-1">
+              <span className="text-xs font-medium text-zinc-500">Название</span>
+              <input
+                type="text"
+                value={planName}
+                onChange={(e) => setPlanName(e.target.value)}
+                className={inputClass}
+                placeholder="Оптимистичный"
+                autoFocus
+              />
+            </label>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowSavePlan(false)}
+                className="rounded-lg border border-zinc-200 px-4 py-2 text-sm dark:border-zinc-700"
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const plan = buildForecastPlan(
+                    planName,
+                    simParams,
+                    customAssets,
+                    brokerTotal,
+                    result,
+                  );
+                  onSavePlan(plan);
+                  setShowSavePlan(false);
+                }}
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white"
+              >
+                Сохранить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex gap-2 overflow-x-auto pb-1">
         <MiniStat
           label="Итого"
