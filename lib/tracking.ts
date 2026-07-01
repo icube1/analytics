@@ -1,11 +1,10 @@
 import { getCustomAssetsTotal } from "./custom-assets";
 import { getTotalDebtBalance } from "./debt-amortization";
 import {
-  calendarMonthFromPlanMonth,
   calendarMonthFromRuDate,
   extractBrokerDeposits,
 } from "./broker-deposits";
-import { findPlanPointForCalendarMonth } from "./forecast-plans";
+import { findPlanPointForCalendarMonth, resolvePlanPointCalendarMonth } from "./forecast-plans";
 import type {
   BrokerBalanceSnapshot,
   BrokerReport,
@@ -127,8 +126,8 @@ export function buildTrackingMonths(
   for (const month of balancesByMonth.keys()) monthSet.add(month);
   for (const plan of plans) {
     for (const point of plan.points) {
-      if (point.month === 0) continue;
-      monthSet.add(calendarMonthFromPlanMonth(plan.savedAt, point.month));
+      if (point.month <= 0) continue;
+      monthSet.add(resolvePlanPointCalendarMonth(plan, point));
     }
   }
 

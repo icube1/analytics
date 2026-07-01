@@ -1113,7 +1113,6 @@ export function CalculatorTab({
                     simParams,
                     customAssets,
                     brokerTotal,
-                    result,
                   );
                   onSavePlan(plan);
                   setShowSavePlan(false);

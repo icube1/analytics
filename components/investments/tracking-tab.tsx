@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Brush,
   CartesianGrid,
   Legend,
   Line,
@@ -25,6 +26,43 @@ interface TrackingTabProps {
   forecastPlans: SavedForecastPlan[];
   brokerSnapshots: BrokerBalanceSnapshot[];
   currentTotalDebt: number;
+}
+
+const ZOOM_PRESETS = [
+  { id: "1y", label: "1 год", months: 12 },
+  { id: "3y", label: "3 года", months: 36 },
+  { id: "5y", label: "5 лет", months: 60 },
+  { id: "all", label: "Всё", months: null },
+] as const;
+
+const DEFAULT_FOCUS_MONTHS = 36;
+
+function collectChartValues(
+  row: Record<string, string | number | null>,
+  planIds: string[],
+): number[] {
+  const values: number[] = [];
+  if (typeof row.fact === "number") values.push(row.fact);
+  for (const planId of planIds) {
+    const value = row[`plan_${planId}`];
+    if (typeof value === "number") values.push(value);
+  }
+  return values;
+}
+
+function computeYDomain(
+  data: Record<string, string | number | null>[],
+  planIds: string[],
+): [number, number] | undefined {
+  const values = data.flatMap((row) => collectChartValues(row, planIds));
+  if (values.length === 0) return undefined;
+
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const span = max - min;
+  const padding = span > 0 ? span * 0.1 : Math.max(max * 0.05, 10_000);
+
+  return [Math.max(0, min - padding), max + padding];
 }
 
 function DeltaCell({ delta }: { delta: number | null }) {
@@ -56,6 +94,11 @@ export function TrackingTab({
     new Set(forecastPlans.map((plan) => plan.id)),
   );
   const [showDeposits, setShowDeposits] = useState(false);
+  const [brushRange, setBrushRange] = useState<{
+    startIndex: number;
+    endIndex: number;
+  } | null>(null);
+  const [activePreset, setActivePreset] = useState<string>("3y");
 
   useEffect(() => {
     setVisiblePlanIds((prev) => {
@@ -102,6 +145,43 @@ export function TrackingTab({
     () => buildTrackingChartData(rows, activePlanIds, useRealBalance),
     [rows, activePlanIds, useRealBalance],
   );
+
+  const defaultBrushRange = useMemo(() => {
+    const endIndex = Math.max(0, chartData.length - 1);
+    if (endIndex === 0) return { startIndex: 0, endIndex: 0 };
+    const focusEnd = Math.min(DEFAULT_FOCUS_MONTHS - 1, endIndex);
+    return { startIndex: 0, endIndex: focusEnd };
+  }, [chartData.length]);
+
+  const activeBrushRange = brushRange ?? defaultBrushRange;
+
+  const visibleChartData = useMemo(() => {
+    const { startIndex, endIndex } = activeBrushRange;
+    return chartData.slice(startIndex, endIndex + 1);
+  }, [chartData, activeBrushRange]);
+
+  const yDomain = useMemo(
+    () => computeYDomain(visibleChartData, activePlanIds),
+    [visibleChartData, activePlanIds],
+  );
+
+  const applyZoomPreset = useCallback(
+    (presetId: string, months: number | null) => {
+      const endIndex = Math.max(0, chartData.length - 1);
+      if (months == null) {
+        setBrushRange({ startIndex: 0, endIndex });
+      } else {
+        setBrushRange({ startIndex: 0, endIndex: Math.min(months - 1, endIndex) });
+      }
+      setActivePreset(presetId);
+    },
+    [chartData.length],
+  );
+
+  useEffect(() => {
+    setBrushRange(null);
+    setActivePreset(chartData.length > DEFAULT_FOCUS_MONTHS ? "3y" : "all");
+  }, [chartData.length, useRealBalance, activePlanIds.join(",")]);
 
   const planColors = useMemo(() => {
     const map = new Map<string, string>();
@@ -197,8 +277,28 @@ export function TrackingTab({
 
       <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-sm font-semibold">Динамика капитала</h3>
+          <div>
+            <h3 className="text-sm font-semibold">Динамика капитала</h3>
+            <p className="text-xs text-zinc-500">
+              Масштаб по вертикали подстраивается под выбранный период
+            </p>
+          </div>
           <div className="flex flex-wrap items-center gap-2">
+            {ZOOM_PRESETS.map((preset) => (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => applyZoomPreset(preset.id, preset.months)}
+                className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
+                  activePreset === preset.id
+                    ? "bg-zinc-800 text-white dark:bg-zinc-200 dark:text-zinc-900"
+                    : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+                }`}
+              >
+                {preset.label}
+              </button>
+            ))}
+            <span className="hidden h-5 w-px bg-zinc-200 sm:block dark:bg-zinc-700" />
             <button
               type="button"
               onClick={() => setUseRealBalance(false)}
@@ -251,12 +351,17 @@ export function TrackingTab({
           })}
         </div>
 
-        <div className="h-72 w-full">
+        <div className="h-80 w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData}>
+            <LineChart
+              data={visibleChartData}
+              margin={{ top: 8, right: 12, left: 4, bottom: 4 }}
+            >
               <CartesianGrid strokeDasharray="3 3" className="stroke-zinc-200 dark:stroke-zinc-700" />
               <XAxis dataKey="label" tick={{ fontSize: 11 }} />
               <YAxis
+                domain={yDomain}
+                allowDataOverflow
                 tick={{ fontSize: 11 }}
                 tickFormatter={(v) =>
                   v >= 1_000_000
@@ -297,6 +402,51 @@ export function TrackingTab({
             </LineChart>
           </ResponsiveContainer>
         </div>
+
+        {chartData.length > 1 && (
+          <div className="mt-2 h-14 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={chartData}
+                margin={{ top: 0, right: 12, left: 4, bottom: 0 }}
+              >
+                <XAxis dataKey="label" hide />
+                <YAxis hide domain={["dataMin", "dataMax"]} />
+                <Line
+                  type="monotone"
+                  dataKey="fact"
+                  stroke="#10b981"
+                  strokeWidth={1}
+                  dot={false}
+                  connectNulls={false}
+                  isAnimationActive={false}
+                />
+                <Brush
+                  dataKey="label"
+                  height={24}
+                  stroke="#6366f1"
+                  fill="rgba(99, 102, 241, 0.08)"
+                  travellerWidth={10}
+                  startIndex={activeBrushRange.startIndex}
+                  endIndex={activeBrushRange.endIndex}
+                  onChange={(range) => {
+                    if (range.startIndex == null || range.endIndex == null) {
+                      return;
+                    }
+                    setBrushRange({
+                      startIndex: range.startIndex,
+                      endIndex: range.endIndex,
+                    });
+                    setActivePreset("custom");
+                  }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+        <p className="mt-1 text-[11px] text-zinc-400">
+          Кнопки — быстрый период · ползунки внизу — произвольный диапазон
+        </p>
       </div>
 
       <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
@@ -309,7 +459,7 @@ export function TrackingTab({
               onChange={(e) => setShowDeposits(e.target.checked)}
               className="size-3.5 rounded"
             />
-            Показать пополнения в брокера
+            Показать взносы (бюджет и в брокера)
           </label>
         </div>
         <div className="overflow-x-auto">
@@ -328,7 +478,7 @@ export function TrackingTab({
                     <th className="px-2 py-2 font-medium">В брокера факт</th>
                     {forecastPlans.map((plan) => (
                       <th key={`${plan.id}-dep`} className="px-2 py-2 font-medium">
-                        {plan.name} (взнос)
+                        {plan.name} (план)
                       </th>
                     ))}
                   </>
@@ -398,6 +548,10 @@ export function TrackingTab({
                             {planData ? (
                               <div>
                                 <div>
+                                  {formatMoney(planData.monthlyTotalContribution)}
+                                </div>
+                                <div className="text-[10px] text-zinc-400">
+                                  в брокера{" "}
                                   {formatMoney(planData.monthlyBrokerInvest)}
                                 </div>
                                 {deposits > 0 && (
@@ -429,8 +583,9 @@ export function TrackingTab({
         <p>
           Фактический баланс берётся из последнего отчёта за месяц (или самого
           свежего для текущего месяца). Пополнения в брокера — из раздела
-          «Движение денежных средств». Долг — из вкладки «Другие активы» на
-          момент загрузки отчёта.
+          «Движение денежных средств». В плане крупная цифра — общий бюджет
+          пополнения (как в калькуляторе), подпись «в брокера» — после вычета
+          долгов. Долг — из вкладки «Другие активы» на момент загрузки отчёта.
         </p>
       </div>
     </div>

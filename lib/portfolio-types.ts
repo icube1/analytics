@@ -209,6 +209,8 @@ export interface BrokerBalanceSnapshot {
 
 export interface ForecastPlanPoint {
   month: number;
+  /** Календарный месяц (YYYY-MM), к которому относится конец этого периода */
+  calendarMonth?: string;
   label: string;
   balance: number;
   realBalance: number;
