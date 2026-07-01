@@ -5,7 +5,6 @@ import {
   isBrokerDepositFlow,
 } from "@/lib/broker-deposits";
 import { buildForecastPlan } from "@/lib/forecast-plans";
-import { calculateCompoundInterest } from "@/lib/compound-interest";
 import {
   aggregateBrokerDepositsByMonth,
   buildTrackingMonths,
@@ -137,22 +136,41 @@ describe("tracking snapshots", () => {
     expect(balances.get("2026-07")?.grandTotal).toBe(150_000);
   });
 
-  it("builds tracking rows with plan and fact", () => {
-    const result = calculateCompoundInterest({
-      ...DEFAULT_COMPOUND_PARAMS,
-      initialCapital: 100_000,
-      monthlyContribution: 60_000,
-      years: 2,
-      contributionGrowthPercent: 0,
-    });
+  it("stores full monthly contributions starting at budget amount", () => {
     const plan = buildForecastPlan(
       "Базовый",
-      DEFAULT_COMPOUND_PARAMS,
+      {
+        ...DEFAULT_COMPOUND_PARAMS,
+        monthlyContribution: 60_000,
+        years: 2,
+        contributionGrowthPercent: 0,
+        adjustContributionsForInflation: false,
+      },
       { items: [], otherDebts: [] },
       100_000,
-      result,
     );
-  plan.savedAt = "2026-07-01T00:00:00.000Z";
+    plan.savedAt = "2026-07-01T00:00:00.000Z";
+
+    const first = plan.points.find((p) => p.calendarMonth === "2026-07");
+    expect(first).toBeDefined();
+    expect(first!.monthlyTotalContribution).toBe(60_000);
+    expect(plan.points.length).toBeGreaterThanOrEqual(24);
+  });
+
+  it("builds tracking rows with plan and fact", () => {
+    const plan = buildForecastPlan(
+      "Базовый",
+      {
+        ...DEFAULT_COMPOUND_PARAMS,
+        initialCapital: 100_000,
+        monthlyContribution: 60_000,
+        years: 2,
+        contributionGrowthPercent: 0,
+      },
+      { items: [], otherDebts: [] },
+      100_000,
+    );
+    plan.savedAt = "2026-07-01T00:00:00.000Z";
 
     const snapshot = createBrokerSnapshot(
       report,
@@ -164,6 +182,7 @@ describe("tracking snapshots", () => {
     const july = rows.find((row) => row.calendarMonth === "2026-07");
     expect(july?.fact.grandTotal).toBe(150_000);
     expect(july?.fact.brokerDeposits).toBe(50_000);
+    expect(july?.plans[plan.id]?.monthlyTotalContribution).toBe(60_000);
     expect(july?.plans[plan.id]?.balance).toBeDefined();
   });
 });

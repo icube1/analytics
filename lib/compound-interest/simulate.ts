@@ -19,9 +19,15 @@ import {
   type WithdrawalState,
 } from "./withdrawal";
 
+export interface CalculateCompoundInterestOptions {
+  /** Сохранять снимок каждого месяца (для трекинга), а не ~48 точек */
+  allMonths?: boolean;
+}
+
 export function calculateCompoundInterest(
   params: CompoundParams,
   context?: CompoundContext,
+  options?: CalculateCompoundInterestOptions,
 ): CompoundResult {
   const months = Math.max(1, Math.round(params.years * 12));
   const rateMethod = params.monthlyRateMethod ?? "effective";
@@ -369,14 +375,15 @@ export function calculateCompoundInterest(
       withdrawalLastPayoutMonth !== null ? withdrawalLastPayoutMonth + 1 : null;
     const firstWithdrawalMonth =
       withdrawalStartMonth !== null ? withdrawalStartMonth + 1 : null;
-    if (
+    const shouldSnapshot =
+      options?.allMonths ||
       month % step === 0 ||
       month === months ||
       month === withdrawalLastPayoutMonth ||
       month === firstMonthWithoutPayout ||
       month === withdrawalLiquidityDepletedFromMonth ||
-      month === firstWithdrawalMonth
-    ) {
+      month === firstWithdrawalMonth;
+    if (shouldSnapshot) {
       points.push(
         takeSnapshot(
           month,

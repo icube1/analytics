@@ -309,7 +309,7 @@ export function TrackingTab({
               onChange={(e) => setShowDeposits(e.target.checked)}
               className="size-3.5 rounded"
             />
-            Показать пополнения в брокера
+            Показать взносы (бюджет и в брокера)
           </label>
         </div>
         <div className="overflow-x-auto">
@@ -328,7 +328,7 @@ export function TrackingTab({
                     <th className="px-2 py-2 font-medium">В брокера факт</th>
                     {forecastPlans.map((plan) => (
                       <th key={`${plan.id}-dep`} className="px-2 py-2 font-medium">
-                        {plan.name} (взнос)
+                        {plan.name} (план)
                       </th>
                     ))}
                   </>
@@ -398,6 +398,10 @@ export function TrackingTab({
                             {planData ? (
                               <div>
                                 <div>
+                                  {formatMoney(planData.monthlyTotalContribution)}
+                                </div>
+                                <div className="text-[10px] text-zinc-400">
+                                  в брокера{" "}
                                   {formatMoney(planData.monthlyBrokerInvest)}
                                 </div>
                                 {deposits > 0 && (
@@ -429,8 +433,9 @@ export function TrackingTab({
         <p>
           Фактический баланс берётся из последнего отчёта за месяц (или самого
           свежего для текущего месяца). Пополнения в брокера — из раздела
-          «Движение денежных средств». Долг — из вкладки «Другие активы» на
-          момент загрузки отчёта.
+          «Движение денежных средств». В плане крупная цифра — общий бюджет
+          пополнения (как в калькуляторе), подпись «в брокера» — после вычета
+          долгов. Долг — из вкладки «Другие активы» на момент загрузки отчёта.
         </p>
       </div>
     </div>
