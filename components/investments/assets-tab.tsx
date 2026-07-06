@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createCustomAsset, getAssetNetValue } from "@/lib/custom-assets";
-import { estimatePayoffMonths, getMonthlyDebtService } from "@/lib/debt-amortization";
+import { amortizeDebtMonth, estimatePayoffMonths, getMonthlyDebtService } from "@/lib/debt-amortization";
 import { formatMoney, getTotalWealth } from "@/lib/portfolio-wealth";
 import type {
   AssetIncomePeriod,
@@ -79,6 +79,10 @@ function AssetCard({
   const debtPayoff =
     item.debt > 0
       ? estimatePayoffMonths(item.debt, item.monthlyDebtPayment, item.debtAnnualRate)
+      : null;
+  const debtPaymentSplit =
+    item.debt > 0 && item.monthlyDebtPayment > 0
+      ? amortizeDebtMonth(item.debt, item.monthlyDebtPayment, item.debtAnnualRate)
       : null;
 
   return (
@@ -172,6 +176,14 @@ function AssetCard({
               <p className="text-xs text-zinc-500 sm:col-span-2">
                 Погашение при текущем платеже:{" "}
                 <strong>{formatPayoff(debtPayoff)}</strong>
+                {debtPaymentSplit && (
+                  <>
+                    {" "}
+                    · из платежа: тело{" "}
+                    <strong>{formatMoney(debtPaymentSplit.principal)}</strong>, проценты{" "}
+                    <strong>{formatMoney(debtPaymentSplit.interest)}</strong>
+                  </>
+                )}
               </p>
             </div>
           )}
@@ -302,6 +314,10 @@ function DebtCard({
     debt.monthlyPayment,
     debt.annualInterestRate,
   );
+  const paymentSplit =
+    debt.balance > 0 && debt.monthlyPayment > 0
+      ? amortizeDebtMonth(debt.balance, debt.monthlyPayment, debt.annualInterestRate)
+      : null;
 
   return (
     <div id={`debt-${debt.id}`} className={debtCardClass(highlighted)}>
@@ -371,6 +387,14 @@ function DebtCard({
       {debt.balance > 0 && (
         <p className="mt-2 text-xs text-zinc-500">
           Погашение: <strong>{formatPayoff(payoff)}</strong>
+          {paymentSplit && (
+            <>
+              {" "}
+              · из платежа: тело{" "}
+              <strong>{formatMoney(paymentSplit.principal)}</strong>, проценты{" "}
+              <strong>{formatMoney(paymentSplit.interest)}</strong>
+            </>
+          )}
         </p>
       )}
     </div>

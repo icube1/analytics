@@ -31,6 +31,10 @@ export function buildForecastPlan(
       monthlyTotalContribution: point.monthlyTotalContribution,
       monthlyBrokerInvest: point.monthlyBrokerInvest,
       monthlyDebtPayment: point.monthlyDebtPayment,
+      monthlyDebtPrincipal: point.monthlyDebtPrincipal,
+      monthlyDebtInterest: point.monthlyDebtInterest,
+      monthlyWealthBuilding: point.monthlyWealthBuilding,
+      monthlyCashOutflow: point.monthlyCashOutflow,
       totalDebt: point.totalDebt,
     }));
 

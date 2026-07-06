@@ -44,7 +44,15 @@ export interface CompoundPoint {
   monthlyBrokerInvest: number;
   /** Платёж по долгам в этом месяце, ₽ */
   monthlyDebtPayment: number;
-  /** Общий бюджет пополнения в этом месяце, ₽ */
+  /** Часть платежа по долгам, ушедшая в тело, ₽ */
+  monthlyDebtPrincipal: number;
+  /** Часть платежа по долгам, ушедшая в проценты, ₽ */
+  monthlyDebtInterest: number;
+  /** Реальный прирост капитала от взносов: брокер + тело долга, ₽ */
+  monthlyWealthBuilding: number;
+  /** Денежный отток на капитал (брокер + полный платёж по долгам), ₽ */
+  monthlyCashOutflow: number;
+  /** Общий бюджет пополнения в этом месяце, ₽ (= monthlyCashOutflow) */
   monthlyTotalContribution: number;
   profit: number;
   profitAfterTax: number;

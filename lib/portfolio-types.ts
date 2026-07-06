@@ -222,6 +222,10 @@ export interface ForecastPlanPoint {
   monthlyTotalContribution: number;
   monthlyBrokerInvest: number;
   monthlyDebtPayment: number;
+  monthlyDebtPrincipal?: number;
+  monthlyDebtInterest?: number;
+  monthlyWealthBuilding?: number;
+  monthlyCashOutflow?: number;
   totalDebt: number;
 }
 

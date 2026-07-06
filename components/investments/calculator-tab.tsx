@@ -18,6 +18,7 @@ import { FieldHelp } from "@/components/field-help";
 import { CalculatorAssetChart } from "@/components/investments/calculator-asset-chart";
 import { CalculatorChartsHelp } from "@/components/investments/calculator-charts-help";
 import {
+  estimateCurrentDebtPaymentBreakdown,
   getMonthlyDebtService,
   getTotalDebtBalance,
 } from "@/lib/debt-amortization";
@@ -263,6 +264,7 @@ export function CalculatorTab({
   const contributionSplitHint = useMemo(() => {
     const contribution = draft.monthlyContribution || 0;
     const separate = draft.debtPaymentsSeparateFromContribution ?? false;
+    const debtBreakdown = estimateCurrentDebtPaymentBreakdown(customAssets);
     const retirementNote =
       draft.withdrawAfterYears != null
         ? " · после начала вывода пополнения прекращаются"
@@ -272,9 +274,15 @@ export function CalculatorTab({
       return `В брокера: ${formatMoney(contribution)}${retirementNote}`;
     }
 
+    const debtSplitNote =
+      debtBreakdown.totalPayment > 0
+        ? ` (тело ${formatMoney(debtBreakdown.totalPrincipal)}, проценты ${formatMoney(debtBreakdown.totalInterest)})`
+        : "";
+
     if (separate) {
       const total = contribution + monthlyDebtService;
-      let hint = `В брокера: ${formatMoney(contribution)} · Долг отдельно: ${formatMoney(monthlyDebtService)} · Всего: ${formatMoney(total)}`;
+      const wealthBuilding = contribution + debtBreakdown.totalPrincipal;
+      let hint = `В брокера: ${formatMoney(contribution)} · Долг: ${formatMoney(monthlyDebtService)}${debtSplitNote} · Бюджет: ${formatMoney(total)} · В рост капитала: ${formatMoney(wealthBuilding)}`;
       if (totalDebtBalance <= 0 && draft.reinvestFreedDebtPayments) {
         hint = `Долги погашены · В брокера: ${formatMoney(contribution + monthlyDebtService)} (вкл. бывшие платежи)`;
       }
@@ -284,7 +292,8 @@ export function CalculatorTab({
     if (totalDebtBalance > 0) {
       const toInvest = Math.max(0, contribution - monthlyDebtService);
       const fromContributionToDebt = Math.min(contribution, monthlyDebtService);
-      let hint = `По долгам: ${formatMoney(fromContributionToDebt)} · В брокера: ${formatMoney(toInvest)}`;
+      const wealthBuilding = toInvest + debtBreakdown.totalPrincipal;
+      let hint = `По долгам: ${formatMoney(fromContributionToDebt)}${debtSplitNote} · В брокера: ${formatMoney(toInvest)} · В рост капитала: ${formatMoney(wealthBuilding)}`;
       if (monthlyDebtService > contribution) {
         hint += ` · не хватает ${formatMoney(monthlyDebtService - contribution)}`;
       }
@@ -303,6 +312,7 @@ export function CalculatorTab({
     draft.withdrawAfterYears,
     monthlyDebtService,
     totalDebtBalance,
+    customAssets,
   ]);
 
   const result = useMemo(

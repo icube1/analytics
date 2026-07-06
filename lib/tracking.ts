@@ -28,6 +28,7 @@ export interface TrackingMonthRow {
     brokerTotal: number | null;
     brokerDeposits: number;
     totalDebt: number | null;
+    debtPrincipalPaid: number | null;
     balanceSource: string | null;
   };
   plans: Record<
@@ -37,6 +38,10 @@ export interface TrackingMonthRow {
       realBalance: number;
       monthlyBrokerInvest: number;
       monthlyTotalContribution: number;
+      monthlyDebtPrincipal: number | null;
+      monthlyDebtInterest: number | null;
+      monthlyWealthBuilding: number | null;
+      monthlyCashOutflow: number | null;
       totalDebt: number;
     } | null
   >;
@@ -143,6 +148,8 @@ export function buildTrackingMonths(
 
   const months = [...monthSet].sort((a, b) => a.localeCompare(b));
 
+  let prevFactDebt: number | null = null;
+
   return months.map((calendarMonth) => {
     const balanceFact = balancesByMonth.get(calendarMonth);
     const isCurrent = calendarMonth === currentMonth;
@@ -168,9 +175,26 @@ export function buildTrackingMonths(
             realBalance: point.realBalance,
             monthlyBrokerInvest: point.monthlyBrokerInvest,
             monthlyTotalContribution: point.monthlyTotalContribution,
+            monthlyDebtPrincipal: point.monthlyDebtPrincipal ?? null,
+            monthlyDebtInterest: point.monthlyDebtInterest ?? null,
+            monthlyWealthBuilding: point.monthlyWealthBuilding ?? null,
+            monthlyCashOutflow: point.monthlyCashOutflow ?? null,
             totalDebt: point.totalDebt,
           }
         : null;
+    }
+
+    const factDebt =
+      isCurrent ? currentCustomDebt : totalDebt;
+    let debtPrincipalPaid: number | null = null;
+    if (factDebt != null && prevFactDebt != null) {
+      const reduction = prevFactDebt - factDebt;
+      if (reduction > 0) {
+        debtPrincipalPaid = reduction;
+      }
+    }
+    if (factDebt != null) {
+      prevFactDebt = factDebt;
     }
 
     return {
@@ -180,8 +204,8 @@ export function buildTrackingMonths(
         grandTotal,
         brokerTotal,
         brokerDeposits: depositsByMonth.get(calendarMonth) ?? 0,
-        totalDebt:
-          isCurrent ? currentCustomDebt : totalDebt,
+        totalDebt: factDebt,
+        debtPrincipalPaid,
         balanceSource,
       },
       plans: plansData,

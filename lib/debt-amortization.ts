@@ -143,6 +143,19 @@ export function getNetWorth(state: WealthSimulationState): number {
   return state.investmentBalance + trackedNet - otherDebt;
 }
 
+/** Разбивка текущего платежа по долгам (тело / проценты) без изменения состояния */
+export function estimateCurrentDebtPaymentBreakdown(
+  assets: CustomAssets,
+): Pick<DebtMonthResult, "totalPayment" | "totalPrincipal" | "totalInterest"> {
+  const state = initWealthSimulationState(assets, 0);
+  const result = stepDebtsMonth(assets, state);
+  return {
+    totalPayment: result.totalPayment,
+    totalPrincipal: result.totalPrincipal,
+    totalInterest: result.totalInterest,
+  };
+}
+
 export function stepDebtsMonth(
   assets: CustomAssets,
   state: WealthSimulationState,

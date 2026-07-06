@@ -152,6 +152,10 @@ export function calculateCompoundInterest(
     monthPayoutCapped: boolean,
     monthlyBrokerInvest: number,
     monthlyDebtPayment: number,
+    monthlyDebtPrincipal: number,
+    monthlyDebtInterest: number,
+    monthlyWealthBuilding: number,
+    monthlyCashOutflow: number,
     monthlyTotalContribution: number,
   ) =>
     buildSnapshot({
@@ -169,13 +173,19 @@ export function calculateCompoundInterest(
       monthPayoutCapped,
       monthlyBrokerInvest,
       monthlyDebtPayment,
+      monthlyDebtPrincipal,
+      monthlyDebtInterest,
+      monthlyWealthBuilding,
+      monthlyCashOutflow,
       monthlyTotalContribution,
       getInvestableBalance,
       wealthState,
       customAssets: context?.customAssets ?? null,
     });
 
-  points.push(takeSnapshot(0, 0, 0, 0, false, false, 0, 0, 0));
+  points.push(
+    takeSnapshot(0, 0, 0, 0, false, false, 0, 0, 0, 0, 0, 0, 0),
+  );
 
   const scheduledDebtService = context
     ? getMonthlyDebtService(context.customAssets)
@@ -187,13 +197,21 @@ export function calculateCompoundInterest(
     let monthPayoutTargetReal = 0;
     let monthPayoutCapped = false;
     let debtPayment = 0;
+    let debtPrincipal = 0;
+    let debtInterest = 0;
     let monthBrokerInvest = 0;
     let monthDebtPayment = 0;
+    let monthDebtPrincipal = 0;
+    let monthDebtInterest = 0;
+    let monthWealthBuilding = 0;
+    let monthCashOutflow = 0;
     let monthTotalContribution = 0;
 
     if (wealthState && context) {
       const debtStep = stepDebtsMonth(context.customAssets, wealthState);
       debtPayment = debtStep.totalPayment;
+      debtPrincipal = debtStep.totalPrincipal;
+      debtInterest = debtStep.totalInterest;
       totalDebtPrincipalPaid += debtStep.totalPrincipal;
       growCustomAssets(
         context.customAssets,
@@ -232,6 +250,10 @@ export function calculateCompoundInterest(
         const totalOutflow = monthlyContribution + debtPayment;
         monthBrokerInvest = investContribution;
         monthDebtPayment = debtPayment;
+        monthDebtPrincipal = debtPrincipal;
+        monthDebtInterest = debtInterest;
+        monthWealthBuilding = investContribution + debtPrincipal;
+        monthCashOutflow = totalOutflow;
         monthTotalContribution = totalOutflow;
         contributed += totalOutflow;
         costBasis += investContribution;
@@ -255,6 +277,10 @@ export function calculateCompoundInterest(
 
         monthBrokerInvest = investContribution;
         monthDebtPayment = debtPayment;
+        monthDebtPrincipal = debtPrincipal;
+        monthDebtInterest = debtInterest;
+        monthWealthBuilding = investContribution + debtPrincipal;
+        monthCashOutflow = monthlyContribution;
         monthTotalContribution = monthlyContribution;
 
         contributed += monthlyContribution;
@@ -417,6 +443,10 @@ export function calculateCompoundInterest(
           monthPayoutCapped,
           monthBrokerInvest,
           monthDebtPayment,
+          monthDebtPrincipal,
+          monthDebtInterest,
+          monthWealthBuilding,
+          monthCashOutflow,
           monthTotalContribution,
         ),
       );

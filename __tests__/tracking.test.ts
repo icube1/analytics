@@ -185,6 +185,81 @@ describe("tracking snapshots", () => {
     expect(july?.plans[plan.id]?.monthlyTotalContribution).toBe(60_000);
     expect(july?.plans[plan.id]?.balance).toBeDefined();
   });
+
+  it("tracks debt principal paid from month-over-month debt reduction", () => {
+    const customAssets = {
+      items: [
+        {
+          id: "apt",
+          enabled: true,
+          label: "Квартира",
+          value: 3_000_000,
+          debt: 2_000_000,
+          monthlyDebtPayment: 55_000,
+          debtAnnualRate: 10,
+          growsWithInflation: false,
+          returnMode: "none" as const,
+          annualReturnPercent: 0,
+          incomeAmount: 0,
+          incomePeriod: "monthly" as const,
+          generatesDividendTax: false,
+          notes: "",
+        },
+      ],
+      otherDebts: [],
+    };
+
+    const plan = buildForecastPlan(
+      "С долгом",
+      {
+        ...DEFAULT_COMPOUND_PARAMS,
+        monthlyContribution: 60_000,
+        debtPaymentsSeparateFromContribution: true,
+        years: 1,
+        contributionGrowthPercent: 0,
+      },
+      customAssets,
+      100_000,
+    );
+    plan.savedAt = "2026-07-01T00:00:00.000Z";
+
+    const julySnapshot = createBrokerSnapshot(
+      {
+        ...report,
+        periodEnd: "30.06.2026",
+        assetsEnd: 100_000,
+      },
+      "june.html",
+      { ...customAssets, items: [{ ...customAssets.items[0], debt: 2_000_000 }] },
+    );
+    julySnapshot.uploadedAt = "2026-07-05T12:00:00.000Z";
+
+    const augustSnapshot = createBrokerSnapshot(
+      {
+        ...report,
+        periodEnd: "31.07.2026",
+        assetsEnd: 160_000,
+      },
+      "july.html",
+      {
+        ...customAssets,
+        items: [{ ...customAssets.items[0], debt: 1_961_666 }],
+      },
+    );
+    augustSnapshot.uploadedAt = "2026-08-05T12:00:00.000Z";
+
+    const rows = buildTrackingMonths(
+      [plan],
+      [julySnapshot, augustSnapshot],
+      1_961_666,
+      3_000_000 - 1_961_666,
+    );
+
+    const july = rows.find((row) => row.calendarMonth === "2026-07");
+    expect(july?.fact.debtPrincipalPaid).toBeCloseTo(38_334, 0);
+    expect(july?.plans[plan.id]?.monthlyDebtPrincipal).toBeCloseTo(38_333.33, 0);
+    expect(july?.plans[plan.id]?.monthlyWealthBuilding).toBeCloseTo(98_333.33, 0);
+  });
 });
 
 describe("extractBrokerDeposits", () => {

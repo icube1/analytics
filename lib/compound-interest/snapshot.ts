@@ -21,6 +21,10 @@ export interface SnapshotInput {
   monthPayoutCapped: boolean;
   monthlyBrokerInvest: number;
   monthlyDebtPayment: number;
+  monthlyDebtPrincipal: number;
+  monthlyDebtInterest: number;
+  monthlyWealthBuilding: number;
+  monthlyCashOutflow: number;
   monthlyTotalContribution: number;
   getInvestableBalance: () => number;
   wealthState: WealthSimulationState | null;
@@ -64,6 +68,10 @@ export function buildSnapshot(input: SnapshotInput): CompoundPoint {
     totalDebt,
     monthlyBrokerInvest: input.monthlyBrokerInvest,
     monthlyDebtPayment: input.monthlyDebtPayment,
+    monthlyDebtPrincipal: input.monthlyDebtPrincipal,
+    monthlyDebtInterest: input.monthlyDebtInterest,
+    monthlyWealthBuilding: input.monthlyWealthBuilding,
+    monthlyCashOutflow: input.monthlyCashOutflow,
     monthlyTotalContribution: input.monthlyTotalContribution,
     profit,
     profitAfterTax: profit,

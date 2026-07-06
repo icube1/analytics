@@ -471,7 +471,7 @@ export function TrackingTab({
               onChange={(e) => setShowDeposits(e.target.checked)}
               className="size-3.5 rounded"
             />
-            Показать взносы (бюджет и в брокера)
+            Показать взносы (рост капитала и долг)
           </label>
         </div>
         <div className="overflow-x-auto">
@@ -488,6 +488,7 @@ export function TrackingTab({
                 {showDeposits && (
                   <>
                     <th className="px-2 py-2 font-medium">В брокера факт</th>
+                    <th className="px-2 py-2 font-medium">Тело долга факт</th>
                     {forecastPlans.map((plan) => (
                       <th key={`${plan.id}-dep`} className="px-2 py-2 font-medium">
                         {plan.name} (план)
@@ -549,9 +550,21 @@ export function TrackingTab({
                           ? formatMoney(row.fact.brokerDeposits)
                           : "—"}
                       </td>
+                      <td className="px-2 py-2 tabular-nums">
+                        {row.fact.debtPrincipalPaid != null &&
+                        row.fact.debtPrincipalPaid > 0
+                          ? formatMoney(row.fact.debtPrincipalPaid)
+                          : "—"}
+                      </td>
                       {forecastPlans.map((plan) => {
                         const planData = row.plans[plan.id];
                         const deposits = row.fact.brokerDeposits;
+                        const wealthBuilding =
+                          planData?.monthlyWealthBuilding ??
+                          (planData
+                            ? planData.monthlyBrokerInvest +
+                              (planData.monthlyDebtPrincipal ?? 0)
+                            : null);
                         return (
                           <td
                             key={`${plan.id}-dep`}
@@ -560,11 +573,30 @@ export function TrackingTab({
                             {planData ? (
                               <div>
                                 <div>
-                                  {formatMoney(planData.monthlyTotalContribution)}
+                                  {wealthBuilding != null
+                                    ? formatMoney(wealthBuilding)
+                                    : formatMoney(planData.monthlyTotalContribution)}
                                 </div>
                                 <div className="text-[10px] text-zinc-400">
-                                  в брокера{" "}
-                                  {formatMoney(planData.monthlyBrokerInvest)}
+                                  бюджет {formatMoney(planData.monthlyTotalContribution)}
+                                </div>
+                                <div className="text-[10px] text-zinc-400">
+                                  брокер {formatMoney(planData.monthlyBrokerInvest)}
+                                  {planData.monthlyDebtPrincipal != null && (
+                                    <>
+                                      {" "}
+                                      · тело долга{" "}
+                                      {formatMoney(planData.monthlyDebtPrincipal)}
+                                    </>
+                                  )}
+                                  {planData.monthlyDebtInterest != null &&
+                                    planData.monthlyDebtInterest > 0 && (
+                                      <>
+                                        {" "}
+                                        · проценты{" "}
+                                        {formatMoney(planData.monthlyDebtInterest)}
+                                      </>
+                                    )}
                                 </div>
                                 {deposits > 0 && (
                                   <div className="text-[10px]">
@@ -575,6 +607,19 @@ export function TrackingTab({
                                     />
                                   </div>
                                 )}
+                                {row.fact.debtPrincipalPaid != null &&
+                                  row.fact.debtPrincipalPaid > 0 &&
+                                  planData.monthlyDebtPrincipal != null && (
+                                    <div className="text-[10px]">
+                                      тело:{" "}
+                                      <DeltaCell
+                                        delta={
+                                          row.fact.debtPrincipalPaid -
+                                          planData.monthlyDebtPrincipal
+                                        }
+                                      />
+                                    </div>
+                                  )}
                               </div>
                             ) : (
                               <span className="text-zinc-400">—</span>
@@ -596,10 +641,11 @@ export function TrackingTab({
           Фактический баланс берётся из последнего отчёта за месяц (или самого
           свежего для текущего месяца). Для текущего месяца капитал пересчитывается
           с актуальными «Другими активами» и долгом. Пополнения в брокера — из
-          раздела «Движение денежных средств». В плане крупная цифра — общий
-          бюджет пополнения (как в калькуляторе), подпись «в брокера» — после
-          вычета долгов. После платежа по ипотеке обновите остаток долга в
-          «Других активах», иначе факт не учтёт погашение.
+          раздела «Движение денежных средств». В плане крупная цифра — реальный
+          прирост капитала (брокер + тело долга), «бюджет» — ваш отток на капитал
+          (115 000 ₽ при отдельном долге). Тело долга по факту — снижение остатка
+          долга относительно прошлого месяца. Старые сценарии без разбивки нужно
+          пересохранить на вкладке «Сложный процент».
         </p>
       </div>
     </div>
