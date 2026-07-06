@@ -218,30 +218,53 @@ export function calculateCompoundInterest(
     let investContribution = 0;
 
     if (!inWithdrawalPhase) {
-      investContribution = wealthState
-        ? Math.max(0, monthlyContribution - debtPayment)
-        : monthlyContribution;
+      const debtSeparate = params.debtPaymentsSeparateFromContribution ?? false;
 
-      if (
-        params.reinvestFreedDebtPayments &&
-        wealthState &&
-        totalDebt <= 0.01 &&
-        scheduledDebtService > 0
-      ) {
-        investContribution = monthlyContribution + scheduledDebtService;
+      if (debtSeparate && wealthState) {
+        investContribution = monthlyContribution;
+        if (
+          params.reinvestFreedDebtPayments &&
+          totalDebt <= 0.01 &&
+          scheduledDebtService > 0
+        ) {
+          investContribution = monthlyContribution + scheduledDebtService;
+        }
+        const totalOutflow = monthlyContribution + debtPayment;
+        monthBrokerInvest = investContribution;
+        monthDebtPayment = debtPayment;
+        monthTotalContribution = totalOutflow;
+        contributed += totalOutflow;
+        costBasis += investContribution;
+        realContributed += totalOutflow / (1 + monthlyInflation) ** month;
+        pushIrrFlow(month, -totalOutflow);
+        inflationHurdle =
+          (inflationHurdle + totalOutflow) * (1 + monthlyInflation);
+      } else {
+        investContribution = wealthState
+          ? Math.max(0, monthlyContribution - debtPayment)
+          : monthlyContribution;
+
+        if (
+          params.reinvestFreedDebtPayments &&
+          wealthState &&
+          totalDebt <= 0.01 &&
+          scheduledDebtService > 0
+        ) {
+          investContribution = monthlyContribution + scheduledDebtService;
+        }
+
+        monthBrokerInvest = investContribution;
+        monthDebtPayment = debtPayment;
+        monthTotalContribution = monthlyContribution;
+
+        contributed += monthlyContribution;
+        costBasis += investContribution;
+        realContributed += monthlyContribution / (1 + monthlyInflation) ** month;
+        pushIrrFlow(month, -monthlyContribution);
+
+        inflationHurdle =
+          (inflationHurdle + monthlyContribution) * (1 + monthlyInflation);
       }
-
-      monthBrokerInvest = investContribution;
-      monthDebtPayment = debtPayment;
-      monthTotalContribution = monthlyContribution;
-
-      contributed += monthlyContribution;
-      costBasis += investContribution;
-      realContributed += monthlyContribution / (1 + monthlyInflation) ** month;
-      pushIrrFlow(month, -monthlyContribution);
-
-      inflationHurdle =
-        (inflationHurdle + monthlyContribution) * (1 + monthlyInflation);
     } else {
       inflationHurdle *= 1 + monthlyInflation;
       if (wealthState && debtPayment > 0) {

@@ -262,19 +262,29 @@ export function CalculatorTab({
 
   const contributionSplitHint = useMemo(() => {
     const contribution = draft.monthlyContribution || 0;
+    const separate = draft.debtPaymentsSeparateFromContribution ?? false;
     const retirementNote =
       draft.withdrawAfterYears != null
         ? " · после начала вывода пополнения прекращаются"
         : "";
 
     if (monthlyDebtService <= 0) {
-      return `В инвестиции: ${formatMoney(contribution)}${retirementNote}`;
+      return `В брокера: ${formatMoney(contribution)}${retirementNote}`;
+    }
+
+    if (separate) {
+      const total = contribution + monthlyDebtService;
+      let hint = `В брокера: ${formatMoney(contribution)} · Долг отдельно: ${formatMoney(monthlyDebtService)} · Всего: ${formatMoney(total)}`;
+      if (totalDebtBalance <= 0 && draft.reinvestFreedDebtPayments) {
+        hint = `Долги погашены · В брокера: ${formatMoney(contribution + monthlyDebtService)} (вкл. бывшие платежи)`;
+      }
+      return hint + retirementNote;
     }
 
     if (totalDebtBalance > 0) {
       const toInvest = Math.max(0, contribution - monthlyDebtService);
       const fromContributionToDebt = Math.min(contribution, monthlyDebtService);
-      let hint = `По долгам: ${formatMoney(fromContributionToDebt)} · В инвестиции: ${formatMoney(toInvest)}`;
+      let hint = `По долгам: ${formatMoney(fromContributionToDebt)} · В брокера: ${formatMoney(toInvest)}`;
       if (monthlyDebtService > contribution) {
         hint += ` · не хватает ${formatMoney(monthlyDebtService - contribution)}`;
       }
@@ -282,12 +292,13 @@ export function CalculatorTab({
     }
 
     if (draft.reinvestFreedDebtPayments) {
-      return `Долги погашены · В инвестиции: ${formatMoney(contribution + monthlyDebtService)} (вкл. бывшие платежи)${retirementNote}`;
+      return `Долги погашены · В брокера: ${formatMoney(contribution + monthlyDebtService)} (вкл. бывшие платежи)${retirementNote}`;
     }
 
-    return `Долги погашены · В инвестиции: ${formatMoney(contribution)}${retirementNote}`;
+    return `Долги погашены · В брокера: ${formatMoney(contribution)}${retirementNote}`;
   }, [
     draft.monthlyContribution,
+    draft.debtPaymentsSeparateFromContribution,
     draft.reinvestFreedDebtPayments,
     draft.withdrawAfterYears,
     monthlyDebtService,
@@ -518,9 +529,13 @@ export function CalculatorTab({
             />
           </Field>
           <Field
-            label="Пополнение / мес, ₽"
+            label="Пополнение в брокера / мес, ₽"
             hint={contributionSplitHint}
-            help="Сколько откладываете каждый месяц на этапе накопления. Из суммы сначала платятся долги, остаток идёт в инвестиции. С года начала вывода пополнения прекращаются (сценарий ранней пенсии)."
+            help={
+              draft.debtPaymentsSeparateFromContribution
+                ? "Сколько каждый месяц переводите на брокерский счёт. Платежи по долгам из «Других активов» идут сверху этой суммы и не уменьшают взнос в брокера."
+                : "Сколько откладываете каждый месяц на этапе накопления. Из суммы сначала платятся долги, остаток идёт в брокера. С года начала вывода пополнения прекращаются."
+            }
           >
             <input
               type="number"
@@ -683,13 +698,24 @@ export function CalculatorTab({
             onChange={(checked) => set("taxDividends", checked)}
           />
           {monthlyDebtService > 0 && (
-            <CheckboxRow
-              label="Инвестировать платежи по долгу после погашения"
-              help="Когда все долги погашены, сумма ежемесячных платежей по ним (ипотека, кредиты) автоматически добавляется к инвестируемой части пополнения — как будто вы перенаправили освободившиеся деньги в портфель."
-              checked={draft.reinvestFreedDebtPayments}
-              onChange={(checked) => set("reinvestFreedDebtPayments", checked)}
-              className="sm:col-span-2 lg:col-span-3"
-            />
+            <>
+              <CheckboxRow
+                label="Долг платится отдельно от пополнения брокера"
+                help="Включите, если ипотека и другие долги гасите сверх суммы, которую переводите на брокера. Например: 60 000 ₽ в брокера + 55 000 ₽ по ипотеке = 115 000 ₽ общий отток, а не вычет долга из одной суммы."
+                checked={draft.debtPaymentsSeparateFromContribution ?? false}
+                onChange={(checked) =>
+                  set("debtPaymentsSeparateFromContribution", checked)
+                }
+                className="sm:col-span-2 lg:col-span-3"
+              />
+              <CheckboxRow
+                label="Инвестировать платежи по долгу после погашения"
+                help="Когда все долги погашены, сумма ежемесячных платежей по ним (ипотека, кредиты) автоматически добавляется к инвестируемой части пополнения — как будто вы перенаправили освободившиеся деньги в портфель."
+                checked={draft.reinvestFreedDebtPayments}
+                onChange={(checked) => set("reinvestFreedDebtPayments", checked)}
+                className="sm:col-span-2 lg:col-span-3"
+              />
+            </>
           )}
           {draft.taxDividends && (
             <>

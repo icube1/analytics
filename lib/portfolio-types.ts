@@ -167,6 +167,11 @@ export interface CompoundParams {
   dividendYieldPercent: number;
   /** После погашения долгов инвестировать освободившиеся платежи */
   reinvestFreedDebtPayments: boolean;
+  /**
+   * true — пополнение / мес идёт целиком в брокера, платежи по долгам сверху;
+   * false — из пополнения сначала вычитаются долги, остаток в брокера
+   */
+  debtPaymentsSeparateFromContribution: boolean;
 }
 
 export interface PortfolioStorage {
@@ -262,6 +267,7 @@ export const DEFAULT_COMPOUND_PARAMS: CompoundParams = {
   taxableAssetShare: 0.5,
   dividendYieldPercent: 9.5,
   reinvestFreedDebtPayments: false,
+  debtPaymentsSeparateFromContribution: false,
 };
 
 export const DEFAULT_STORAGE: PortfolioStorage = {

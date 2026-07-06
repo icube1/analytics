@@ -195,4 +195,46 @@ describe("calculateCompoundInterest", () => {
     const aptEnd = last.assetBreakdown.find((a) => a.id === "apt")?.netEquity ?? 0;
     expect(aptEnd).toBeGreaterThan(aptStart);
   });
+
+  it("treats broker contribution and debt payments as separate outflows", () => {
+    const result = calculateCompoundInterest(
+      {
+        ...baseParams,
+        monthlyContribution: 60_000,
+        debtPaymentsSeparateFromContribution: true,
+        years: 2,
+        contributionGrowthPercent: 0,
+      },
+      {
+        brokerTotal: 100_000,
+        customAssets: {
+          items: [
+            {
+              id: "apt",
+              enabled: true,
+              label: "Квартира",
+              value: 3_000_000,
+              debt: 2_000_000,
+              monthlyDebtPayment: 55_000,
+              debtAnnualRate: 10,
+              growsWithInflation: false,
+              returnMode: "none",
+              annualReturnPercent: 0,
+              incomeAmount: 0,
+              incomePeriod: "monthly",
+              generatesDividendTax: false,
+              notes: "",
+            },
+          ],
+          otherDebts: [],
+        },
+      },
+      { allMonths: true },
+    );
+
+    const month1 = result.points.find((point) => point.month === 1);
+    expect(month1?.monthlyBrokerInvest).toBe(60_000);
+    expect(month1?.monthlyDebtPayment).toBe(55_000);
+    expect(month1?.monthlyTotalContribution).toBe(115_000);
+  });
 });
