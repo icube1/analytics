@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Brush,
   CartesianGrid,
-  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -26,6 +25,7 @@ interface TrackingTabProps {
   forecastPlans: SavedForecastPlan[];
   brokerSnapshots: BrokerBalanceSnapshot[];
   currentTotalDebt: number;
+  currentCustomAssetsTotal: number;
 }
 
 const ZOOM_PRESETS = [
@@ -88,6 +88,7 @@ export function TrackingTab({
   forecastPlans,
   brokerSnapshots,
   currentTotalDebt,
+  currentCustomAssetsTotal,
 }: TrackingTabProps) {
   const [useRealBalance, setUseRealBalance] = useState(false);
   const [visiblePlanIds, setVisiblePlanIds] = useState<Set<string>>(() =>
@@ -115,20 +116,26 @@ export function TrackingTab({
     });
   }, [forecastPlans]);
 
-  const latestSnapshot = useMemo(
-    () => getLatestSnapshot(brokerSnapshots),
-    [brokerSnapshots],
-  );
-
   const rows = useMemo(
     () =>
       buildTrackingMonths(
         forecastPlans,
         brokerSnapshots,
         currentTotalDebt,
+        currentCustomAssetsTotal,
       ),
-    [forecastPlans, brokerSnapshots, currentTotalDebt],
+    [forecastPlans, brokerSnapshots, currentTotalDebt, currentCustomAssetsTotal],
   );
+
+  const latestSnapshot = useMemo(() => {
+    const snapshot = getLatestSnapshot(brokerSnapshots);
+    if (!snapshot) return null;
+    return {
+      ...snapshot,
+      grandTotal: snapshot.brokerTotal + currentCustomAssetsTotal,
+      totalDebt: currentTotalDebt,
+    };
+  }, [brokerSnapshots, currentCustomAssetsTotal, currentTotalDebt]);
 
   const currentMonth = useMemo(() => {
     const now = new Date();
@@ -324,7 +331,10 @@ export function TrackingTab({
           </div>
         </div>
 
-        <div className="mb-3 flex flex-wrap gap-2">
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <span className="rounded-full border border-emerald-500 px-3 py-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+            Факт
+          </span>
           {forecastPlans.map((plan) => {
             const active = visiblePlanIds.has(plan.id);
             const color = planColors.get(plan.id) ?? CHART_COLORS[0];
@@ -372,15 +382,16 @@ export function TrackingTab({
                 }
               />
               <Tooltip content={<ChartMoneyTooltip />} />
-              <Legend />
               <Line
                 type="monotone"
                 dataKey="fact"
                 name="Факт"
                 stroke="#10b981"
                 strokeWidth={2.5}
-                dot={false}
+                dot={{ fill: "#10b981", r: 3, strokeWidth: 0 }}
+                activeDot={{ r: 5 }}
                 connectNulls={false}
+                isAnimationActive={false}
               />
               {activePlanIds.map((planId) => {
                 const plan = forecastPlans.find((p) => p.id === planId);
@@ -396,6 +407,7 @@ export function TrackingTab({
                     dot={false}
                     connectNulls
                     strokeDasharray="6 4"
+                    isAnimationActive={false}
                   />
                 );
               })}
@@ -582,10 +594,12 @@ export function TrackingTab({
       <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-xs text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
         <p>
           Фактический баланс берётся из последнего отчёта за месяц (или самого
-          свежего для текущего месяца). Пополнения в брокера — из раздела
-          «Движение денежных средств». В плане крупная цифра — общий бюджет
-          пополнения (как в калькуляторе), подпись «в брокера» — после вычета
-          долгов. Долг — из вкладки «Другие активы» на момент загрузки отчёта.
+          свежего для текущего месяца). Для текущего месяца капитал пересчитывается
+          с актуальными «Другими активами» и долгом. Пополнения в брокера — из
+          раздела «Движение денежных средств». В плане крупная цифра — общий
+          бюджет пополнения (как в калькуляторе), подпись «в брокера» — после
+          вычета долгов. После платежа по ипотеке обновите остаток долга в
+          «Других активах», иначе факт не учтёт погашение.
         </p>
       </div>
     </div>

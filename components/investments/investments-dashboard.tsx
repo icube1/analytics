@@ -375,6 +375,7 @@ export function InvestmentsDashboard() {
           forecastPlans={forecastPlans}
           brokerSnapshots={brokerSnapshots}
           currentTotalDebt={currentTotalDebt}
+          currentCustomAssetsTotal={wealth.customTotal}
         />
       )}
       </div>

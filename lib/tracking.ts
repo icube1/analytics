@@ -115,6 +115,7 @@ export function buildTrackingMonths(
   plans: SavedForecastPlan[],
   snapshots: BrokerBalanceSnapshot[],
   currentCustomDebt: number,
+  currentCustomAssetsTotal: number,
 ): TrackingMonthRow[] {
   const depositsByMonth = aggregateBrokerDepositsByMonth(snapshots);
   const balancesByMonth = getBalanceFactsByMonth(snapshots);
@@ -152,9 +153,9 @@ export function buildTrackingMonths(
     let balanceSource: string | null = balanceFact?.periodEnd ?? null;
 
     if (isCurrent && latest) {
-      grandTotal = latest.grandTotal;
       brokerTotal = latest.brokerTotal;
-      totalDebt = latest.totalDebt;
+      grandTotal = latest.brokerTotal + currentCustomAssetsTotal;
+      totalDebt = currentCustomDebt;
       balanceSource = latest.periodEnd;
     }
 
@@ -180,7 +181,7 @@ export function buildTrackingMonths(
         brokerTotal,
         brokerDeposits: depositsByMonth.get(calendarMonth) ?? 0,
         totalDebt:
-          isCurrent && totalDebt == null ? currentCustomDebt : totalDebt,
+          isCurrent ? currentCustomDebt : totalDebt,
         balanceSource,
       },
       plans: plansData,

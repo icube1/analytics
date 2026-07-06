@@ -31,7 +31,14 @@ export function ChartMoneyTooltip({
       {title ? (
         <p className="mb-1 font-medium text-zinc-900 dark:text-zinc-100">{title}</p>
       ) : null}
-      {payload.map((entry, index) => (
+      {payload
+        .filter(
+          (entry) =>
+            entry.value != null &&
+            entry.value !== "" &&
+            Number.isFinite(Number(entry.value)),
+        )
+        .map((entry, index) => (
         <p
           key={`${entry.name ?? "value"}-${index}`}
           className="text-zinc-700 dark:text-zinc-300"

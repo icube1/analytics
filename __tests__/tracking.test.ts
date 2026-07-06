@@ -178,7 +178,7 @@ describe("tracking snapshots", () => {
       { items: [], otherDebts: [] },
     );
 
-    const rows = buildTrackingMonths([plan], [snapshot], 0);
+    const rows = buildTrackingMonths([plan], [snapshot], 0, 0);
     const july = rows.find((row) => row.calendarMonth === "2026-07");
     expect(july?.fact.grandTotal).toBe(150_000);
     expect(july?.fact.brokerDeposits).toBe(50_000);
