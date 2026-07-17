@@ -11,6 +11,7 @@ import {
   computePortfolioAnalytics,
   getCalculatorDefaultsFromPortfolio,
 } from "@/lib/portfolio-analytics";
+import { getPlanCalculatorSnapshot } from "@/lib/forecast-plans";
 import {
   fetchPortfolioDocument,
   savePortfolioDocument,
@@ -53,6 +54,10 @@ export function InvestmentsDashboard() {
     null,
   );
   const [forecastPlans, setForecastPlans] = useState<SavedForecastPlan[]>([]);
+  const [loadedScenarioId, setLoadedScenarioId] = useState<string | null>(null);
+  const [scenarioBrokerTotal, setScenarioBrokerTotal] = useState<number | null>(
+    null,
+  );
   const [brokerSnapshots, setBrokerSnapshots] = useState<
     BrokerBalanceSnapshot[]
   >([]);
@@ -194,11 +199,33 @@ export function InvestmentsDashboard() {
     }
   }, []);
 
+  const handleRestorePlan = useCallback(
+    (plan: SavedForecastPlan) => {
+      const { params, customAssets: planAssets, brokerTotal } =
+        getPlanCalculatorSnapshot(plan);
+      setCompoundParams(params);
+      setCustomAssets(planAssets);
+      setLoadedScenarioId(plan.id);
+      setScenarioBrokerTotal(brokerTotal);
+      persist({ compoundParams: params, customAssets: planAssets });
+    },
+    [persist],
+  );
+
+  const handleClearLoadedScenario = useCallback(() => {
+    setLoadedScenarioId(null);
+    setScenarioBrokerTotal(null);
+  }, []);
+
   const handleDeletePlan = useCallback(async (planId: string) => {
     setSaveState("saving");
     try {
       const doc = await removeForecastPlan(planId);
       setForecastPlans(doc.forecastPlans);
+      if (planId === loadedScenarioId) {
+        setLoadedScenarioId(null);
+        setScenarioBrokerTotal(null);
+      }
       setLastSavedAt(doc.updatedAt);
       setSaveState("saved");
     } catch (err) {
@@ -207,7 +234,7 @@ export function InvestmentsDashboard() {
         err instanceof Error ? err.message : "Не удалось удалить сценарий",
       );
     }
-  }, []);
+  }, [loadedScenarioId]);
 
   const currentTotalDebt = useMemo(() => {
     if (!customAssets) return 0;
@@ -363,11 +390,14 @@ export function InvestmentsDashboard() {
         <CalculatorTab
           params={compoundParams}
           customAssets={customAssets}
-          brokerTotal={wealth.brokerTotal}
+          brokerTotal={scenarioBrokerTotal ?? wealth.brokerTotal}
           forecastPlans={forecastPlans}
+          loadedPlanId={loadedScenarioId}
           onChange={handleParamsChange}
           onSavePlan={handleSavePlan}
           onDeletePlan={handleDeletePlan}
+          onRestorePlan={handleRestorePlan}
+          onClearLoadedPlan={handleClearLoadedScenario}
         />
       )}
       {activeTab === "tracking" && (

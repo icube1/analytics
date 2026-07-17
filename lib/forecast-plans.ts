@@ -6,6 +6,28 @@ import type {
   ForecastPlanPoint,
   SavedForecastPlan,
 } from "./portfolio-types";
+import { DEFAULT_COMPOUND_PARAMS, DEFAULT_CUSTOM_ASSETS } from "./portfolio-types";
+
+export interface PlanCalculatorSnapshot {
+  params: CompoundParams;
+  customAssets: CustomAssets;
+  brokerTotal: number;
+}
+
+/** Параметры сценария с подстановкой значений по умолчанию для старых сохранений */
+export function resolvePlanParams(plan: SavedForecastPlan): CompoundParams {
+  return { ...DEFAULT_COMPOUND_PARAMS, ...plan.params };
+}
+
+export function getPlanCalculatorSnapshot(
+  plan: SavedForecastPlan,
+): PlanCalculatorSnapshot {
+  return {
+    params: resolvePlanParams(plan),
+    customAssets: plan.customAssets ?? DEFAULT_CUSTOM_ASSETS,
+    brokerTotal: plan.brokerTotal,
+  };
+}
 
 export function buildForecastPlan(
   name: string,

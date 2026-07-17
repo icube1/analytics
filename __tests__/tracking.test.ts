@@ -4,7 +4,7 @@ import {
   extractBrokerDeposits,
   isBrokerDepositFlow,
 } from "@/lib/broker-deposits";
-import { buildForecastPlan } from "@/lib/forecast-plans";
+import { buildForecastPlan, getPlanCalculatorSnapshot, resolvePlanParams } from "@/lib/forecast-plans";
 import {
   aggregateBrokerDepositsByMonth,
   buildTrackingMonths,
@@ -15,6 +15,7 @@ import {
   DEFAULT_COMPOUND_PARAMS,
   type BrokerReport,
   type CashFlow,
+  type SavedForecastPlan,
 } from "@/lib/portfolio-types";
 
 function flow(
@@ -259,6 +260,56 @@ describe("tracking snapshots", () => {
     expect(july?.fact.debtPrincipalPaid).toBeCloseTo(38_334, 0);
     expect(july?.plans[plan.id]?.monthlyDebtPrincipal).toBeCloseTo(38_333.33, 0);
     expect(july?.plans[plan.id]?.monthlyWealthBuilding).toBeCloseTo(98_333.33, 0);
+  });
+
+  it("restores calculator snapshot from saved plan", () => {
+    const plan = buildForecastPlan(
+      "Снимок",
+      {
+        ...DEFAULT_COMPOUND_PARAMS,
+        monthlyContribution: 45_000,
+        years: 3,
+      },
+      {
+        items: [
+          {
+            id: "apt",
+            enabled: true,
+            label: "Квартира",
+            value: 1_000_000,
+            debt: 500_000,
+            monthlyDebtPayment: 30_000,
+            debtAnnualRate: 8,
+            growsWithInflation: false,
+            returnMode: "none",
+            annualReturnPercent: 0,
+            incomeAmount: 0,
+            incomePeriod: "monthly",
+            generatesDividendTax: false,
+            notes: "",
+          },
+        ],
+        otherDebts: [],
+      },
+      250_000,
+    );
+
+    const snapshot = getPlanCalculatorSnapshot(plan);
+    expect(snapshot.brokerTotal).toBe(250_000);
+    expect(snapshot.params.monthlyContribution).toBe(45_000);
+    expect(snapshot.customAssets.items[0]?.debt).toBe(500_000);
+
+    const legacyPlan = {
+      ...plan,
+      params: {
+        monthlyContribution: 70_000,
+        years: 5,
+      } as SavedForecastPlan["params"],
+    };
+    expect(resolvePlanParams(legacyPlan).monthlyContribution).toBe(70_000);
+    expect(resolvePlanParams(legacyPlan).annualReturnPercent).toBe(
+      DEFAULT_COMPOUND_PARAMS.annualReturnPercent,
+    );
   });
 });
 

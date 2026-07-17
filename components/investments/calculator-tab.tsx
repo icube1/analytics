@@ -39,9 +39,12 @@ interface CalculatorTabProps {
   customAssets: CustomAssets;
   brokerTotal: number;
   forecastPlans: SavedForecastPlan[];
+  loadedPlanId?: string | null;
   onChange: (params: CompoundParams) => void;
   onSavePlan: (plan: SavedForecastPlan) => void;
   onDeletePlan: (planId: string) => void;
+  onRestorePlan: (plan: SavedForecastPlan) => void;
+  onClearLoadedPlan?: () => void;
 }
 
 const inputClass =
@@ -203,13 +206,19 @@ export function CalculatorTab({
   customAssets,
   brokerTotal,
   forecastPlans,
+  loadedPlanId = null,
   onChange,
   onSavePlan,
   onDeletePlan,
+  onRestorePlan,
+  onClearLoadedPlan,
 }: CalculatorTabProps) {
   const [draft, setDraft] = useState(savedParams);
   const [planName, setPlanName] = useState("");
   const [showSavePlan, setShowSavePlan] = useState(false);
+  const [planToRestore, setPlanToRestore] = useState<SavedForecastPlan | null>(
+    null,
+  );
   const skipPersistRef = useRef(true);
   const { debounced: simParams, isPending: isSimPending } = useDebouncedValue(
     draft,
@@ -217,6 +226,7 @@ export function CalculatorTab({
   );
 
   useEffect(() => {
+    skipPersistRef.current = true;
     setDraft(savedParams);
   }, [savedParams]);
 
@@ -255,6 +265,9 @@ export function CalculatorTab({
       return next;
     });
   }, []);
+
+  const loadedPlan =
+    forecastPlans.find((plan) => plan.id === loadedPlanId) ?? null;
 
   const hasCustomWealth = customAssets.items.some((item) => item.enabled);
   const monthlyDebtService = getMonthlyDebtService(customAssets);
@@ -1066,11 +1079,35 @@ export function CalculatorTab({
         aria-busy={isSimPending}
       >
       <div className="flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+        {loadedPlan && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm dark:border-indigo-900 dark:bg-indigo-950/40">
+            <div>
+              <p className="font-medium text-indigo-900 dark:text-indigo-100">
+                Открыт сценарий «{loadedPlan.name}»
+              </p>
+              <p className="text-xs text-indigo-700/80 dark:text-indigo-300/80">
+                Сохранён{" "}
+                {new Date(loadedPlan.savedAt).toLocaleString("ru-RU")} · брокер
+                на момент снимка {formatMoney(loadedPlan.brokerTotal)}
+              </p>
+            </div>
+            {onClearLoadedPlan && (
+              <button
+                type="button"
+                onClick={onClearLoadedPlan}
+                className="rounded-lg border border-indigo-300 bg-white px-3 py-1.5 text-xs font-medium text-indigo-800 hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950 dark:text-indigo-200 dark:hover:bg-indigo-900"
+              >
+                Текущий баланс брокера
+              </button>
+            )}
+          </div>
+        )}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="text-sm font-semibold">Сценарии прогноза</h3>
             <p className="text-xs text-zinc-500">
-              Сохраните вариант для сравнения с фактом на вкладке «Трекинг»
+              Сохраните вариант для трекинга или откройте сохранённый, чтобы
+              посмотреть расчёт подробнее
             </p>
           </div>
           <button
@@ -1093,7 +1130,11 @@ export function CalculatorTab({
             {forecastPlans.map((plan) => (
               <li
                 key={plan.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-100 px-3 py-2 text-sm dark:border-zinc-800"
+                className={`flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm ${
+                  plan.id === loadedPlanId
+                    ? "border-indigo-300 bg-indigo-50/50 dark:border-indigo-800 dark:bg-indigo-950/20"
+                    : "border-zinc-100 dark:border-zinc-800"
+                }`}
               >
                 <div>
                   <p className="font-medium">{plan.name}</p>
@@ -1102,18 +1143,63 @@ export function CalculatorTab({
                     {formatMoney(plan.summary.finalBalance)}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => onDeletePlan(plan.id)}
-                  className="text-xs text-rose-600 hover:underline dark:text-rose-400"
-                >
-                  Удалить
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setPlanToRestore(plan)}
+                    className="text-xs font-medium text-indigo-600 hover:underline dark:text-indigo-400"
+                  >
+                    Открыть
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDeletePlan(plan.id)}
+                    className="text-xs text-rose-600 hover:underline dark:text-rose-400"
+                  >
+                    Удалить
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
         )}
       </div>
+
+      {planToRestore && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-5 shadow-xl dark:border-zinc-700 dark:bg-zinc-900">
+            <h3 className="text-lg font-semibold">Открыть сценарий</h3>
+            <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
+              Загрузить «{planToRestore.name}» в калькулятор? Параметры и
+              «Другие активы» будут заменены снимком от{" "}
+              {new Date(planToRestore.savedAt).toLocaleString("ru-RU")}.
+            </p>
+            <p className="mt-2 text-xs text-zinc-500">
+              Графики и таблица пересчитаются с балансом брокера на момент
+              сохранения ({formatMoney(planToRestore.brokerTotal)}).
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setPlanToRestore(null)}
+                className="rounded-lg border border-zinc-200 px-4 py-2 text-sm dark:border-zinc-700"
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onRestorePlan(planToRestore);
+                  setPlanToRestore(null);
+                }}
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
+              >
+                Открыть
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showSavePlan && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
