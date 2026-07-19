@@ -4,11 +4,17 @@ import {
   calendarMonthFromRuDate,
   extractBrokerDeposits,
 } from "./broker-deposits";
+import {
+  collectDebtObservations,
+  debtBalanceByMonth,
+  debtPrincipalPaidByMonth,
+} from "./debt-history";
 import { findPlanPointForCalendarMonth, resolvePlanPointCalendarMonth } from "./forecast-plans";
 import type {
   BrokerBalanceSnapshot,
   BrokerReport,
   CustomAssets,
+  DebtBalanceEntry,
   SavedForecastPlan,
 } from "./portfolio-types";
 
@@ -121,15 +127,28 @@ export function buildTrackingMonths(
   snapshots: BrokerBalanceSnapshot[],
   currentCustomDebt: number,
   currentCustomAssetsTotal: number,
+  debtBalanceHistory: DebtBalanceEntry[] = [],
 ): TrackingMonthRow[] {
   const depositsByMonth = aggregateBrokerDepositsByMonth(snapshots);
   const balancesByMonth = getBalanceFactsByMonth(snapshots);
   const latest = getLatestSnapshot(snapshots);
   const currentMonth = calendarMonthFromIso(new Date().toISOString());
+  const debtObservations = collectDebtObservations(
+    debtBalanceHistory,
+    snapshots,
+    currentCustomDebt,
+    currentMonth,
+    new Date().toISOString(),
+    plans,
+  );
+  const principalByMonth = debtPrincipalPaidByMonth(debtObservations);
+  const debtByMonth = debtBalanceByMonth(debtObservations);
 
   const monthSet = new Set<string>();
   for (const month of depositsByMonth.keys()) monthSet.add(month);
   for (const month of balancesByMonth.keys()) monthSet.add(month);
+  for (const month of principalByMonth.keys()) monthSet.add(month);
+  for (const month of debtByMonth.keys()) monthSet.add(month);
   for (const plan of plans) {
     for (const point of plan.points) {
       if (point.month <= 0) continue;
@@ -148,21 +167,17 @@ export function buildTrackingMonths(
 
   const months = [...monthSet].sort((a, b) => a.localeCompare(b));
 
-  let prevFactDebt: number | null = null;
-
   return months.map((calendarMonth) => {
     const balanceFact = balancesByMonth.get(calendarMonth);
     const isCurrent = calendarMonth === currentMonth;
 
     let grandTotal: number | null = balanceFact?.grandTotal ?? null;
     let brokerTotal: number | null = balanceFact?.brokerTotal ?? null;
-    let totalDebt: number | null = balanceFact?.totalDebt ?? null;
     let balanceSource: string | null = balanceFact?.periodEnd ?? null;
 
     if (isCurrent && latest) {
       brokerTotal = latest.brokerTotal;
       grandTotal = latest.brokerTotal + currentCustomAssetsTotal;
-      totalDebt = currentCustomDebt;
       balanceSource = latest.periodEnd;
     }
 
@@ -184,18 +199,10 @@ export function buildTrackingMonths(
         : null;
     }
 
-    const factDebt =
-      isCurrent ? currentCustomDebt : totalDebt;
-    let debtPrincipalPaid: number | null = null;
-    if (factDebt != null && prevFactDebt != null) {
-      const reduction = prevFactDebt - factDebt;
-      if (reduction > 0) {
-        debtPrincipalPaid = reduction;
-      }
-    }
-    if (factDebt != null) {
-      prevFactDebt = factDebt;
-    }
+    const factDebt = isCurrent
+      ? currentCustomDebt
+      : (debtByMonth.get(calendarMonth) ?? balanceFact?.totalDebt ?? null);
+    const debtPrincipalPaid = principalByMonth.get(calendarMonth) ?? null;
 
     return {
       calendarMonth,

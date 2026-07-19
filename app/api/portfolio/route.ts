@@ -36,6 +36,18 @@ export async function PUT(request: Request) {
       }),
       brokerReport:
         body.brokerReport !== undefined ? body.brokerReport : current.brokerReport,
+      brokerSnapshots:
+        body.brokerSnapshots !== undefined
+          ? body.brokerSnapshots
+          : current.brokerSnapshots,
+      debtBalanceHistory:
+        body.debtBalanceHistory !== undefined
+          ? body.debtBalanceHistory
+          : current.debtBalanceHistory,
+      forecastPlans:
+        body.forecastPlans !== undefined
+          ? body.forecastPlans
+          : current.forecastPlans,
     };
 
     writePortfolioDocument(next);

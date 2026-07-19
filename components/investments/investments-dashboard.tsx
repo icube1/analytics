@@ -29,6 +29,7 @@ import {
   type BrokerBalanceSnapshot,
   type CompoundParams,
   type CustomAssets,
+  type DebtBalanceEntry,
   type SavedForecastPlan,
 } from "@/lib/portfolio-types";
 
@@ -60,6 +61,9 @@ export function InvestmentsDashboard() {
   );
   const [brokerSnapshots, setBrokerSnapshots] = useState<
     BrokerBalanceSnapshot[]
+  >([]);
+  const [debtBalanceHistory, setDebtBalanceHistory] = useState<
+    DebtBalanceEntry[]
   >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -102,6 +106,7 @@ export function InvestmentsDashboard() {
         setReport(doc.brokerReport);
         setForecastPlans(doc.forecastPlans);
         setBrokerSnapshots(doc.brokerSnapshots);
+        setDebtBalanceHistory(doc.debtBalanceHistory ?? []);
         setLastSavedAt(doc.updatedAt);
         readyRef.current = true;
       } catch (err) {
@@ -137,6 +142,9 @@ export function InvestmentsDashboard() {
         try {
           const doc = await savePortfolioDocument(patch);
           setLastSavedAt(doc.updatedAt);
+          if (doc.debtBalanceHistory) {
+            setDebtBalanceHistory(doc.debtBalanceHistory);
+          }
           setSaveState("saved");
         } catch (err) {
           setSaveState("error");
@@ -173,6 +181,7 @@ export function InvestmentsDashboard() {
       setFileName(data.fileName);
       const doc = await fetchPortfolioDocument();
       setBrokerSnapshots(doc.brokerSnapshots);
+      setDebtBalanceHistory(doc.debtBalanceHistory ?? []);
       setLastSavedAt(doc.updatedAt);
       setSaveState("saved");
       setError(null);
@@ -404,6 +413,7 @@ export function InvestmentsDashboard() {
         <TrackingTab
           forecastPlans={forecastPlans}
           brokerSnapshots={brokerSnapshots}
+          debtBalanceHistory={debtBalanceHistory}
           currentTotalDebt={currentTotalDebt}
           currentCustomAssetsTotal={wealth.customTotal}
         />

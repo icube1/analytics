@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { backfillDebtHistoryFromSnapshots } from "./debt-history";
 import { mergePortfolioStorage } from "./merge-portfolio-storage";
 import {
   DEFAULT_DOCUMENT,
@@ -29,12 +30,17 @@ export function readPortfolioDocument(): PortfolioDocument {
     const raw = fs.readFileSync(docPath, "utf-8");
     const parsed = JSON.parse(raw) as Partial<PortfolioDocument>;
     const merged = mergePortfolioStorage(parsed);
+    const brokerSnapshots = parsed.brokerSnapshots ?? [];
     return {
       ...merged,
       version: 1,
       updatedAt: parsed.updatedAt ?? merged.updatedAt,
       brokerReport: parsed.brokerReport ?? null,
-      brokerSnapshots: parsed.brokerSnapshots ?? [],
+      brokerSnapshots,
+      debtBalanceHistory: backfillDebtHistoryFromSnapshots(
+        parsed.debtBalanceHistory ?? [],
+        brokerSnapshots,
+      ),
       forecastPlans: parsed.forecastPlans ?? [],
     };
   } catch {

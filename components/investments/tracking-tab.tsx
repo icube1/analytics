@@ -13,7 +13,11 @@ import {
 } from "recharts";
 import { ChartMoneyTooltip } from "@/components/chart-money-tooltip";
 import { formatMoney } from "@/lib/portfolio-wealth";
-import type { BrokerBalanceSnapshot, SavedForecastPlan } from "@/lib/portfolio-types";
+import type {
+  BrokerBalanceSnapshot,
+  DebtBalanceEntry,
+  SavedForecastPlan,
+} from "@/lib/portfolio-types";
 import { CHART_COLORS } from "@/lib/stats";
 import {
   buildTrackingChartData,
@@ -24,6 +28,7 @@ import {
 interface TrackingTabProps {
   forecastPlans: SavedForecastPlan[];
   brokerSnapshots: BrokerBalanceSnapshot[];
+  debtBalanceHistory?: DebtBalanceEntry[];
   currentTotalDebt: number;
   currentCustomAssetsTotal: number;
 }
@@ -87,6 +92,7 @@ function DeltaCell({ delta }: { delta: number | null }) {
 export function TrackingTab({
   forecastPlans,
   brokerSnapshots,
+  debtBalanceHistory = [],
   currentTotalDebt,
   currentCustomAssetsTotal,
 }: TrackingTabProps) {
@@ -123,8 +129,15 @@ export function TrackingTab({
         brokerSnapshots,
         currentTotalDebt,
         currentCustomAssetsTotal,
+        debtBalanceHistory,
       ),
-    [forecastPlans, brokerSnapshots, currentTotalDebt, currentCustomAssetsTotal],
+    [
+      forecastPlans,
+      brokerSnapshots,
+      currentTotalDebt,
+      currentCustomAssetsTotal,
+      debtBalanceHistory,
+    ],
   );
 
   const latestSnapshot = useMemo(() => {
@@ -642,10 +655,10 @@ export function TrackingTab({
           свежего для текущего месяца). Для текущего месяца капитал пересчитывается
           с актуальными «Другими активами» и долгом. Пополнения в брокера — из
           раздела «Движение денежных средств». В плане крупная цифра — реальный
-          прирост капитала (брокер + тело долга), «бюджет» — ваш отток на капитал
-          (115 000 ₽ при отдельном долге). Тело долга по факту — снижение остатка
-          долга относительно прошлого месяца. Старые сценарии без разбивки нужно
-          пересохранить на вкладке «Сложный процент».
+          прирост капитала (брокер + тело долга), «бюджет» — ваш отток на капитал.
+          «Тело долга факт» — снижение остатка долга между записями истории (при
+          изменении долга в «Других активах» или загрузке отчёта). Старые сценарии
+          без разбивки нужно пересохранить на вкладке «Сложный процент».
         </p>
       </div>
     </div>

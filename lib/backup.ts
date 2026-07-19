@@ -31,6 +31,7 @@ function normalizePortfolioDocument(
     }),
     brokerReport: data.brokerReport ?? null,
     brokerSnapshots: data.brokerSnapshots ?? [],
+    debtBalanceHistory: data.debtBalanceHistory ?? [],
     forecastPlans: data.forecastPlans ?? [],
     lastBrokerFileName:
       data.lastBrokerFileName ?? DEFAULT_DOCUMENT.lastBrokerFileName,

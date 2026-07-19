@@ -186,8 +186,18 @@ export interface PortfolioDocument extends PortfolioStorage {
   brokerReport: BrokerReport | null;
   /** История загрузок отчётов брокера для трекинга */
   brokerSnapshots: BrokerBalanceSnapshot[];
+  /** История остатка долга для расчёта погашенного тела */
+  debtBalanceHistory: DebtBalanceEntry[];
   /** Сохранённые сценарии прогноза */
   forecastPlans: SavedForecastPlan[];
+}
+
+/** Запись остатка долга (при изменении активов или загрузке отчёта) */
+export interface DebtBalanceEntry {
+  id: string;
+  recordedAt: string;
+  totalDebt: number;
+  source: "assets" | "broker-upload" | "backfill";
 }
 
 /** Пополнение брокерского счёта из отчёта */
@@ -286,5 +296,6 @@ export const DEFAULT_DOCUMENT: PortfolioDocument = {
   ...DEFAULT_STORAGE,
   brokerReport: null,
   brokerSnapshots: [],
+  debtBalanceHistory: [],
   forecastPlans: [],
 };

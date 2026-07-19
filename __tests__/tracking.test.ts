@@ -262,6 +262,67 @@ describe("tracking snapshots", () => {
     expect(july?.plans[plan.id]?.monthlyWealthBuilding).toBeCloseTo(98_333.33, 0);
   });
 
+  it("computes debt principal from assets history within the same month", () => {
+    const history = [
+      {
+        id: "1",
+        recordedAt: "2026-07-01T10:00:00.000Z",
+        totalDebt: 2_000_000,
+        source: "assets" as const,
+      },
+      {
+        id: "2",
+        recordedAt: "2026-07-15T10:00:00.000Z",
+        totalDebt: 1_980_000,
+        source: "assets" as const,
+      },
+    ];
+
+    const rows = buildTrackingMonths([], [], 1_980_000, 0, history);
+    const july = rows.find((row) => row.calendarMonth === "2026-07");
+    expect(july?.fact.debtPrincipalPaid).toBe(20_000);
+  });
+
+  it("uses plan debt as baseline when snapshots have no debt history", () => {
+    const plan = buildForecastPlan(
+      "С долгом",
+      {
+        ...DEFAULT_COMPOUND_PARAMS,
+        monthlyContribution: 60_000,
+        debtPaymentsSeparateFromContribution: true,
+        years: 1,
+        contributionGrowthPercent: 0,
+      },
+      {
+        items: [
+          {
+            id: "apt",
+            enabled: true,
+            label: "Квартира",
+            value: 3_000_000,
+            debt: 2_000_000,
+            monthlyDebtPayment: 55_000,
+            debtAnnualRate: 10,
+            growsWithInflation: false,
+            returnMode: "none" as const,
+            annualReturnPercent: 0,
+            incomeAmount: 0,
+            incomePeriod: "monthly" as const,
+            generatesDividendTax: false,
+            notes: "",
+          },
+        ],
+        otherDebts: [],
+      },
+      100_000,
+    );
+    plan.savedAt = "2026-06-01T00:00:00.000Z";
+
+    const rows = buildTrackingMonths([plan], [], 1_960_000, 1_040_000, []);
+    const july = rows.find((row) => row.calendarMonth === "2026-07");
+    expect(july?.fact.debtPrincipalPaid).toBe(40_000);
+  });
+
   it("restores calculator snapshot from saved plan", () => {
     const plan = buildForecastPlan(
       "Снимок",

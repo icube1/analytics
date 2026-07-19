@@ -23,6 +23,8 @@ export function mergePortfolioStorage(
       "brokerReport" in partial ? (partial.brokerReport ?? null) : null,
     brokerSnapshots:
       "brokerSnapshots" in partial ? (partial.brokerSnapshots ?? []) : [],
+    debtBalanceHistory:
+      "debtBalanceHistory" in partial ? (partial.debtBalanceHistory ?? []) : [],
     forecastPlans:
       "forecastPlans" in partial ? (partial.forecastPlans ?? []) : [],
   };

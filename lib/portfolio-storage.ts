@@ -1,5 +1,11 @@
 import { normalizeCustomAssets } from "./custom-assets";
 import { createBrokerSnapshot } from "./tracking";
+import {
+  appendDebtBalanceIfChanged,
+  appendDebtFromAssets,
+  backfillDebtHistoryFromSnapshots,
+} from "./debt-history";
+import { getTotalDebtBalance } from "./debt-amortization";
 import { mergePortfolioStorage, isEmptyDocument } from "./merge-portfolio-storage";
 import { normalizeCompoundParams } from "./normalize-compound-params";
 import { parsePortfolioHtml } from "./parse-portfolio-html";
@@ -14,6 +20,12 @@ import {
 const LEGACY_STORAGE_KEY = "analytics-portfolio-v1";
 
 function normalizeDocument(data: Partial<PortfolioDocument>): PortfolioDocument {
+  const brokerSnapshots = data.brokerSnapshots ?? [];
+  const debtBalanceHistory = backfillDebtHistoryFromSnapshots(
+    data.debtBalanceHistory ?? [],
+    brokerSnapshots,
+  );
+
   return {
     ...DEFAULT_DOCUMENT,
     ...data,
@@ -24,7 +36,8 @@ function normalizeDocument(data: Partial<PortfolioDocument>): PortfolioDocument 
       ...data.compoundParams,
     }),
     brokerReport: data.brokerReport ?? null,
-    brokerSnapshots: data.brokerSnapshots ?? [],
+    brokerSnapshots,
+    debtBalanceHistory,
     forecastPlans: data.forecastPlans ?? [],
     lastBrokerFileName:
       data.lastBrokerFileName ?? DEFAULT_DOCUMENT.lastBrokerFileName,
@@ -109,6 +122,15 @@ export async function savePortfolioDocument(
       patch.brokerSnapshots !== undefined
         ? patch.brokerSnapshots
         : current.brokerSnapshots,
+    debtBalanceHistory:
+      patch.debtBalanceHistory !== undefined
+        ? patch.debtBalanceHistory
+        : patch.customAssets !== undefined
+          ? appendDebtFromAssets(
+              current.debtBalanceHistory ?? [],
+              patch.customAssets,
+            )
+          : current.debtBalanceHistory,
     forecastPlans:
       patch.forecastPlans !== undefined
         ? patch.forecastPlans
@@ -153,11 +175,17 @@ export async function uploadBrokerReport(
     fileName,
     current.customAssets,
   );
+  const debtBalanceHistory = appendDebtBalanceIfChanged(
+    current.debtBalanceHistory ?? [],
+    getTotalDebtBalance(current.customAssets),
+    "broker-upload",
+  );
 
   await savePortfolioDocument({
     lastBrokerFileName: fileName,
     brokerReport: report,
     brokerSnapshots: [...current.brokerSnapshots, snapshot],
+    debtBalanceHistory,
   });
 
   return { report, fileName };
