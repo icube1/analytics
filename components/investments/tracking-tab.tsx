@@ -27,8 +27,10 @@ import {
   getLatestSnapshot,
   mergeTrackingRowsWithLiveForecast,
 } from "@/lib/tracking";
+import { resolvePlanParams } from "@/lib/forecast-plans";
 import {
   FORECAST_HORIZONS,
+  averageRecentBrokerDeposits,
   buildLiveTrackingForecast,
   type ForecastHorizonId,
 } from "@/lib/tracking-forecast";
@@ -120,6 +122,9 @@ export function TrackingTab({
   const [forecastBasePlanId, setForecastBasePlanId] = useState<string>(
     () => forecastPlans[0]?.id ?? "",
   );
+  const [forecastContribution, setForecastContribution] = useState<number | null>(
+    null,
+  );
   const [brushRange, setBrushRange] = useState<{
     startIndex: number;
     endIndex: number;
@@ -179,6 +184,25 @@ export function TrackingTab({
 
   const currentGrandTotal = currentBrokerTotal + currentCustomAssetsTotal;
 
+  const factAverage = useMemo(
+    () => averageRecentBrokerDeposits(depositsByMonth, new Date(), 3),
+    [depositsByMonth],
+  );
+
+  const scenarioContribution = basePlan
+    ? resolvePlanParams(basePlan).monthlyContribution
+    : 0;
+
+  // При смене базового сценария подставляем его взнос (можно сразу поправить вручную)
+  useEffect(() => {
+    if (scenarioContribution > 0) {
+      setForecastContribution(scenarioContribution);
+    }
+  }, [forecastBasePlanId, scenarioContribution]);
+
+  const effectiveContribution =
+    forecastContribution != null ? forecastContribution : scenarioContribution;
+
   const liveForecast = useMemo(() => {
     if (!basePlan || currentGrandTotal <= 0) return null;
     return buildLiveTrackingForecast({
@@ -188,6 +212,7 @@ export function TrackingTab({
       currentGrandTotal,
       depositsByMonth,
       horizonMonths: forecastHorizonMonths,
+      monthlyContribution: effectiveContribution,
     });
   }, [
     basePlan,
@@ -196,6 +221,7 @@ export function TrackingTab({
     currentGrandTotal,
     depositsByMonth,
     forecastHorizonMonths,
+    effectiveContribution,
   ]);
 
   const rows = useMemo(
@@ -491,12 +517,49 @@ export function TrackingTab({
                 ))}
               </select>
             </label>
+            <label className="flex flex-wrap items-center gap-1.5">
+              <span className="text-amber-700/80 dark:text-amber-300/80">
+                Взнос в брокера / мес
+              </span>
+              <input
+                type="number"
+                min={0}
+                step={1000}
+                className="w-28 rounded-md border border-amber-300 bg-white px-2 py-1 text-xs tabular-nums dark:border-amber-800 dark:bg-zinc-950"
+                value={effectiveContribution || ""}
+                onChange={(e) =>
+                  setForecastContribution(
+                    Number.parseFloat(e.target.value) || 0,
+                  )
+                }
+              />
+              {factAverage && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setForecastContribution(Math.round(factAverage.average))
+                  }
+                  className="rounded-md border border-amber-300 bg-white px-2 py-1 text-[11px] text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:bg-zinc-950 dark:text-amber-200 dark:hover:bg-amber-900"
+                  title="Подставить среднее по факту"
+                >
+                  среднее сейчас {formatMoney(factAverage.average)}
+                  <span className="text-amber-600/70 dark:text-amber-400/70">
+                    {" "}
+                    · {factAverage.monthsUsed} мес.
+                  </span>
+                </button>
+              )}
+              {scenarioContribution > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setForecastContribution(scenarioContribution)}
+                  className="rounded-md border border-amber-300/70 px-2 py-1 text-[11px] text-amber-800/80 hover:bg-amber-100 dark:border-amber-800 dark:text-amber-200/80 dark:hover:bg-amber-900"
+                >
+                  из сценария {formatMoney(scenarioContribution)}
+                </button>
+              )}
+            </label>
             <span className="text-amber-800/90 dark:text-amber-200/90">
-              взнос ≈ {formatMoney(liveForecast.hybridMonthlyContribution)}
-              {liveForecast.contributionSource === "fact-average"
-                ? ` (среднее за ${liveForecast.factMonthsUsed} мес. факта)`
-                : " (из сценария)"}
-              {" · "}
               старт от факта {formatMoney(currentGrandTotal)}
             </span>
           </div>
@@ -856,9 +919,9 @@ export function TrackingTab({
           Фактический баланс берётся из последнего отчёта за месяц (или самого
           свежего для текущего месяца). «Прогноз» стартует от текущего факта:
           доходность и режим долга — из выбранного сценария, ежемесячный взнос в
-          брокера — среднее по последним месяцам с пополнениями (иначе из
-          сценария), долг — актуальные «Другие активы» с расчётом дней/365.
-          Горизонт фиксированный: 1 / 3 / 5 лет.
+          брокера задаётся вручную (по умолчанию из сценария; рядом показано
+          среднее по факту на сегодня). Долг — актуальные «Другие активы» с
+          расчётом дней/365. Горизонт: 1 / 3 / 5 лет.
         </p>
       </div>
     </div>

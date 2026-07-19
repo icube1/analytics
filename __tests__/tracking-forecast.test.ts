@@ -21,7 +21,7 @@ describe("tracking-forecast", () => {
     expect(result?.average).toBeCloseTo(60_000, 0);
   });
 
-  it("builds live forecast from fact start and hybrid contribution", () => {
+  it("defaults to scenario contribution and exposes fact average as suggestion", () => {
     const customAssets = {
       items: [
         {
@@ -60,9 +60,9 @@ describe("tracking-forecast", () => {
     );
 
     const deposits = new Map([
-      ["2026-05", 55_000],
-      ["2026-06", 65_000],
-      ["2026-07", 60_000],
+      ["2026-05", 20_000],
+      ["2026-06", 25_000],
+      ["2026-07", 15_000],
     ]);
 
     const currentBroker = 800_000;
@@ -78,26 +78,28 @@ describe("tracking-forecast", () => {
       asOf: new Date(2026, 6, 19),
     });
 
-    expect(forecast.contributionSource).toBe("fact-average");
-    expect(forecast.hybridMonthlyContribution).toBeCloseTo(60_000, 0);
+    // Без ручного ввода — взнос сценария, а не заниженное среднее факта
+    expect(forecast.monthlyContribution).toBe(60_000);
+    expect(forecast.suggestedFromScenario).toBe(60_000);
+    expect(forecast.suggestedFromFact).toBeCloseTo(20_000, 0);
+    expect(forecast.factMonthsUsed).toBe(3);
     expect(forecast.points[0]?.isStart).toBe(true);
     expect(forecast.points[0]?.calendarMonth).toBe("2026-07");
     expect(forecast.points[0]?.balance).toBeCloseTo(currentGrand, 0);
-    expect(forecast.points.length).toBe(13); // start + 12 months
+    expect(forecast.points.length).toBe(13);
     expect(forecast.points[1]?.calendarMonth).toBe("2026-08");
-    expect(forecast.points[1]?.monthlyBrokerInvest).toBeGreaterThan(0);
-    expect(forecast.points[1]?.monthlyDebtPrincipal).toBeGreaterThan(0);
-    expect(forecast.points[12]?.balance).toBeGreaterThan(forecast.points[0]!.balance);
+    expect(forecast.points[1]?.monthlyBrokerInvest).toBe(60_000);
   });
 
-  it("falls back to scenario contribution without deposit fact", () => {
+  it("uses manual monthly contribution when provided", () => {
     const plan: SavedForecastPlan = buildForecastPlan(
-      "Без факта",
+      "Ручной",
       {
         ...DEFAULT_COMPOUND_PARAMS,
         monthlyContribution: 45_000,
         years: 2,
         contributionGrowthPercent: 0,
+        debtPaymentsSeparateFromContribution: true,
       },
       { items: [], otherDebts: [] },
       100_000,
@@ -108,12 +110,15 @@ describe("tracking-forecast", () => {
       currentBrokerTotal: 100_000,
       currentCustomAssets: { items: [], otherDebts: [] },
       currentGrandTotal: 100_000,
-      depositsByMonth: new Map(),
+      depositsByMonth: new Map([["2026-07", 10_000]]),
       horizonMonths: 12,
+      monthlyContribution: 80_000,
       asOf: new Date(2026, 6, 1),
     });
 
-    expect(forecast.contributionSource).toBe("scenario");
-    expect(forecast.hybridMonthlyContribution).toBe(45_000);
+    expect(forecast.monthlyContribution).toBe(80_000);
+    expect(forecast.suggestedFromScenario).toBe(45_000);
+    expect(forecast.suggestedFromFact).toBe(10_000);
+    expect(forecast.points[1]?.monthlyBrokerInvest).toBe(80_000);
   });
 });

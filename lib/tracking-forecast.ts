@@ -33,9 +33,10 @@ export interface LiveForecastPoint {
 
 export interface LiveForecastResult {
   points: LiveForecastPoint[];
-  hybridMonthlyContribution: number;
-  contributionSource: "fact-average" | "scenario";
+  monthlyContribution: number;
+  suggestedFromFact: number | null;
   factMonthsUsed: number;
+  suggestedFromScenario: number;
   basePlanId: string;
   basePlanName: string;
   horizonMonths: number;
@@ -103,19 +104,23 @@ export function buildLiveTrackingForecast(input: {
   currentGrandTotal: number;
   depositsByMonth: Map<string, number>;
   horizonMonths: number;
+  /** Ручной взнос в брокера; если не задан — сценарий (не среднее по факту) */
+  monthlyContribution?: number;
   asOf?: Date;
 }): LiveForecastResult {
   const asOf = input.asOf ?? new Date();
   const startMonth = formatCalendarMonth(asOf);
 
   const factAvg = averageRecentBrokerDeposits(input.depositsByMonth, asOf, 3);
-  const scenarioContribution = resolvePlanParams(input.basePlan).monthlyContribution;
-  const hybridMonthlyContribution = factAvg?.average ?? scenarioContribution;
-  const contributionSource = factAvg ? "fact-average" : "scenario";
+  const suggestedFromScenario = resolvePlanParams(input.basePlan).monthlyContribution;
+  const monthlyContribution =
+    input.monthlyContribution != null && Number.isFinite(input.monthlyContribution)
+      ? Math.max(0, input.monthlyContribution)
+      : suggestedFromScenario;
 
   const params = buildHybridForecastParams(
     input.basePlan,
-    hybridMonthlyContribution,
+    monthlyContribution,
     input.horizonMonths,
     input.currentGrandTotal,
   );
@@ -169,9 +174,10 @@ export function buildLiveTrackingForecast(input: {
 
   return {
     points,
-    hybridMonthlyContribution,
-    contributionSource,
+    monthlyContribution,
+    suggestedFromFact: factAvg?.average ?? null,
     factMonthsUsed: factAvg?.monthsUsed ?? 0,
+    suggestedFromScenario,
     basePlanId: input.basePlan.id,
     basePlanName: input.basePlan.name,
     horizonMonths: input.horizonMonths,
