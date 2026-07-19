@@ -748,33 +748,47 @@ export function TrackingTab({
             Показать взносы (рост капитала и долг)
           </label>
         </div>
-        <div className="overflow-x-auto">
+        <div className="max-h-[min(70vh,36rem)] overflow-auto">
           <table className="w-full min-w-[720px] text-left text-sm">
-            <thead>
+            <thead className="sticky top-0 z-10">
               <tr className="border-b border-zinc-200 text-xs text-zinc-500 dark:border-zinc-700">
-                <th className="px-2 py-2 font-medium">Месяц</th>
-                <th className="px-2 py-2 font-medium">Факт</th>
+                <th className="sticky top-0 bg-white px-2 py-2 font-medium dark:bg-zinc-900">
+                  Месяц
+                </th>
+                <th className="sticky top-0 bg-white px-2 py-2 font-medium dark:bg-zinc-900">
+                  Факт
+                </th>
                 {showLiveForecast && liveForecast && (
-                  <th className="px-2 py-2 font-medium text-amber-700 dark:text-amber-400">
+                  <th className="sticky top-0 bg-white px-2 py-2 font-medium text-amber-700 dark:bg-zinc-900 dark:text-amber-400">
                     Прогноз
                   </th>
                 )}
                 {forecastPlans.map((plan) => (
-                  <th key={plan.id} className="px-2 py-2 font-medium">
+                  <th
+                    key={plan.id}
+                    className="sticky top-0 bg-white px-2 py-2 font-medium dark:bg-zinc-900"
+                  >
                     {plan.name}
                   </th>
                 ))}
                 {showDeposits && (
                   <>
-                    <th className="px-2 py-2 font-medium">В брокера факт</th>
-                    <th className="px-2 py-2 font-medium">Тело долга факт</th>
+                    <th className="sticky top-0 bg-white px-2 py-2 font-medium dark:bg-zinc-900">
+                      В брокера факт
+                    </th>
+                    <th className="sticky top-0 bg-white px-2 py-2 font-medium dark:bg-zinc-900">
+                      Тело долга факт
+                    </th>
                     {showLiveForecast && liveForecast && (
-                      <th className="px-2 py-2 font-medium text-amber-700 dark:text-amber-400">
+                      <th className="sticky top-0 bg-white px-2 py-2 font-medium text-amber-700 dark:bg-zinc-900 dark:text-amber-400">
                         Прогноз (взносы)
                       </th>
                     )}
                     {forecastPlans.map((plan) => (
-                      <th key={`${plan.id}-dep`} className="px-2 py-2 font-medium">
+                      <th
+                        key={`${plan.id}-dep`}
+                        className="sticky top-0 bg-white px-2 py-2 font-medium dark:bg-zinc-900"
+                      >
                         {plan.name} (план)
                       </th>
                     ))}
