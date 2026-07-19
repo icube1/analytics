@@ -28,6 +28,7 @@ import {
   mergeTrackingRowsWithLiveForecast,
 } from "@/lib/tracking";
 import { resolvePlanParams } from "@/lib/forecast-plans";
+import { getMonthlyDebtService } from "@/lib/debt-amortization";
 import {
   FORECAST_HORIZONS,
   averageRecentBrokerDeposits,
@@ -189,6 +190,11 @@ export function TrackingTab({
   const factAverage = useMemo(
     () => averageRecentBrokerDeposits(depositsByMonth, new Date(), 3),
     [depositsByMonth],
+  );
+
+  const monthlyDebtService = useMemo(
+    () => getMonthlyDebtService(currentCustomAssets),
+    [currentCustomAssets],
   );
 
   const scenarioContribution = basePlan
@@ -537,21 +543,47 @@ export function TrackingTab({
                   )
                 }
               />
-              {factAverage && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    setForecastContribution(Math.round(factAverage.average))
-                  }
-                  className="rounded-md border border-amber-300 bg-white px-2 py-1 text-[11px] text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:bg-zinc-950 dark:text-amber-200 dark:hover:bg-amber-900"
-                  title="Подставить среднее по факту"
-                >
-                  среднее сейчас {formatMoney(factAverage.average)}
-                  <span className="text-amber-600/70 dark:text-amber-400/70">
-                    {" "}
-                    · {factAverage.monthsUsed} мес.
-                  </span>
-                </button>
+              {(factAverage || monthlyDebtService > 0) && (
+                <span className="flex flex-wrap items-center gap-1.5">
+                  {factAverage && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setForecastContribution(Math.round(factAverage.average))
+                      }
+                      className="rounded-md border border-amber-300 bg-white px-2 py-1 text-[11px] text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:bg-zinc-950 dark:text-amber-200 dark:hover:bg-amber-900"
+                      title="Подставить среднее пополнений брокера по факту"
+                    >
+                      брокер ср. {formatMoney(factAverage.average)}
+                      <span className="text-amber-600/70 dark:text-amber-400/70">
+                        {" "}
+                        · {factAverage.monthsUsed} мес.
+                      </span>
+                    </button>
+                  )}
+                  {monthlyDebtService > 0 && (
+                    <span className="rounded-md border border-amber-300/80 bg-amber-100/50 px-2 py-1 text-[11px] text-amber-900 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-100">
+                      долг {formatMoney(monthlyDebtService)}
+                      <span className="text-amber-700/70 dark:text-amber-300/70">
+                        {" "}
+                        · обязательно
+                      </span>
+                    </span>
+                  )}
+                  {(factAverage || monthlyDebtService > 0) && (
+                    <span className="text-[11px] text-amber-800/90 dark:text-amber-200/90">
+                      всего ≈{" "}
+                      {formatMoney(
+                        (factAverage?.average ?? effectiveContribution) +
+                          monthlyDebtService,
+                      )}
+                      <span className="text-amber-600/70 dark:text-amber-400/70">
+                        {" "}
+                        / мес на капитал
+                      </span>
+                    </span>
+                  )}
+                </span>
               )}
               {scenarioContribution > 0 && (
                 <button
@@ -565,6 +597,13 @@ export function TrackingTab({
             </label>
             <span className="text-amber-800/90 dark:text-amber-200/90">
               старт от факта {formatMoney(currentGrandTotal)}
+              {monthlyDebtService > 0 && (
+                <>
+                  {" "}
+                  · в прогнозе долг {formatMoney(monthlyDebtService)} идёт
+                  сверху взноса в брокера
+                </>
+              )}
             </span>
           </div>
         )}
@@ -923,10 +962,11 @@ export function TrackingTab({
           Фактический баланс берётся из последнего отчёта за месяц (или самого
           свежего для текущего месяца). «Прогноз» стартует от текущего факта:
           доходность и режим долга — из выбранного сценария, ежемесячный взнос в
-          брокера задаётся вручную (по умолчанию из сценария; рядом показано
-          среднее по факту на сегодня). Долг — актуальные «Другие активы» с
-          расчётом дней/365. Горизонт: 1 / 3 / 5 лет или до конца выбранного
-          сценария.
+          брокера задаётся вручную (по умолчанию из сценария). Рядом: среднее
+          пополнений брокера по факту, обязательный платёж по долгу из «Других
+          активов» и сумма «всего на капитал». В самом прогнозе долг считается
+          отдельно и всегда сверху взноса в брокера. Горизонт: 1 / 3 / 5 лет или
+          до конца выбранного сценария.
         </p>
       </div>
     </div>
