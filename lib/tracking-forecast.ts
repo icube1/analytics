@@ -75,6 +75,10 @@ export interface LiveForecastResult {
   basePlanId: string;
   basePlanName: string;
   horizonMonths: number;
+  /** Лет до начала вывода в прогнозе (null — вывода нет) */
+  withdrawAfterYears: number | null;
+  /** Календарный месяц начала вывода (как в сценарии) */
+  withdrawCalendarMonth: string | null;
 }
 
 function formatMonthLabel(calendarMonth: string): string {
@@ -114,21 +118,65 @@ export function averageRecentBrokerDeposits(
   return { average, monthsUsed: samples.length };
 }
 
+/**
+ * Календарный месяц начала вывода в сценарии (первый месяц фазы вывода).
+ * Совпадает с month > withdrawAfterYears*12 в симуляции.
+ */
+export function scenarioWithdrawCalendarMonth(
+  plan: SavedForecastPlan,
+): string | null {
+  const params = resolvePlanParams(plan);
+  if (params.withdrawAfterYears == null || params.withdrawAfterYears <= 0) {
+    return null;
+  }
+  const offsetMonths = Math.round(params.withdrawAfterYears * 12);
+  // Фаза вывода: month > offset → первый месяц offset+1 → календарь savedAt + offset
+  return calendarMonthFromPlanMonth(plan.savedAt, offsetMonths);
+}
+
+/**
+ * Сколько лет от asOf до той же календарной даты начала вывода, что в сценарии.
+ * Если дата уже прошла — вывод с 1-го месяца прогноза.
+ */
+export function remainingWithdrawAfterYears(
+  plan: SavedForecastPlan,
+  asOf: Date = new Date(),
+): number | null {
+  const withdrawMonth = scenarioWithdrawCalendarMonth(plan);
+  if (!withdrawMonth) return null;
+
+  const [wy, wm] = withdrawMonth.split("-").map(Number);
+  const withdrawAbsMonths = wy * 12 + (wm - 1);
+  const asOfAbsMonths = asOf.getFullYear() * 12 + asOf.getMonth();
+  const remainingMonths = withdrawAbsMonths - asOfAbsMonths;
+
+  // Первый месяц вывода в live-прогнозе: asOf + remainingMonths
+  // (calendarMonth = asOf + month). Фаза: month > withdrawAfterYears*12
+  // → withdrawStart = remainingMonths - 1.
+  if (remainingMonths <= 1) {
+    return 1 / 48;
+  }
+
+  return (remainingMonths - 1) / 12;
+}
+
 export function buildHybridForecastParams(
   basePlan: SavedForecastPlan,
   hybridMonthlyContribution: number,
   horizonMonths: number,
   currentGrandTotal: number,
+  asOf: Date = new Date(),
 ): CompoundParams {
   const base = resolvePlanParams(basePlan);
+  const withdrawAfterYears = remainingWithdrawAfterYears(basePlan, asOf);
+
   return {
     ...base,
     initialCapital: currentGrandTotal,
     monthlyContribution: hybridMonthlyContribution,
     years: Math.max(1 / 12, horizonMonths / 12),
-    // Короткий ориентир без фазы вывода
-    withdrawAfterYears: null,
-    monthlyWithdrawal: 0,
+    // Та же календарная дата вывода, что в сценарии (не отключаем)
+    withdrawAfterYears,
   };
 }
 
@@ -158,6 +206,7 @@ export function buildLiveTrackingForecast(input: {
     monthlyContribution,
     input.horizonMonths,
     input.currentGrandTotal,
+    asOf,
   );
 
   const result = calculateCompoundInterest(
@@ -216,5 +265,7 @@ export function buildLiveTrackingForecast(input: {
     basePlanId: input.basePlan.id,
     basePlanName: input.basePlan.name,
     horizonMonths: input.horizonMonths,
+    withdrawAfterYears: params.withdrawAfterYears,
+    withdrawCalendarMonth: scenarioWithdrawCalendarMonth(input.basePlan),
   };
 }

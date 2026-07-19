@@ -1,8 +1,10 @@
 import {
   averageRecentBrokerDeposits,
   buildLiveTrackingForecast,
+  remainingWithdrawAfterYears,
   resolveForecastHorizonMonths,
   scenarioRemainingMonths,
+  scenarioWithdrawCalendarMonth,
 } from "@/lib/tracking-forecast";
 import { DEFAULT_COMPOUND_PARAMS, type SavedForecastPlan } from "@/lib/portfolio-types";
 import { buildForecastPlan } from "@/lib/forecast-plans";
@@ -124,6 +126,50 @@ describe("tracking-forecast", () => {
     expect(forecast.points[1]?.monthlyBrokerInvest).toBe(80_000);
   });
 
+  it("keeps the same absolute withdrawal calendar month as the scenario", () => {
+    const plan = buildForecastPlan(
+      "С выводом",
+      {
+        ...DEFAULT_COMPOUND_PARAMS,
+        monthlyContribution: 60_000,
+        years: 15,
+        withdrawAfterYears: 10,
+        monthlyWithdrawal: 80_000,
+        contributionGrowthPercent: 0,
+        debtPaymentsSeparateFromContribution: true,
+      },
+      { items: [], otherDebts: [] },
+      100_000,
+    );
+    plan.savedAt = "2026-07-01T00:00:00.000Z";
+
+    expect(scenarioWithdrawCalendarMonth(plan)).toBe("2036-07");
+
+    // Через 2 года после сохранения — до вывода ~8 лет, дата та же (июл 2036)
+    const asOf = new Date(2028, 6, 19);
+    expect(remainingWithdrawAfterYears(plan, asOf)).toBeCloseTo(95 / 12, 5);
+
+    const forecast = buildLiveTrackingForecast({
+      basePlan: plan,
+      currentBrokerTotal: 200_000,
+      currentCustomAssets: { items: [], otherDebts: [] },
+      currentGrandTotal: 200_000,
+      depositsByMonth: new Map(),
+      horizonMonths: 120,
+      monthlyContribution: 60_000,
+      asOf,
+    });
+
+    expect(forecast.withdrawCalendarMonth).toBe("2036-07");
+    expect(forecast.withdrawAfterYears).toBeCloseTo(95 / 12, 5);
+
+    // В месяце начала вывода пополнения уже не идут
+    const withdrawRow = forecast.points.find((p) => p.calendarMonth === "2036-07");
+    const beforeWithdraw = forecast.points.find((p) => p.calendarMonth === "2036-06");
+    expect(beforeWithdraw?.monthlyBrokerInvest).toBeGreaterThan(0);
+    expect(withdrawRow?.monthlyBrokerInvest ?? 0).toBe(0);
+  });
+
   it("resolves scenario horizon to remaining months until plan end", () => {
     const plan = buildForecastPlan(
       "Длинный",
@@ -139,7 +185,6 @@ describe("tracking-forecast", () => {
     plan.savedAt = "2026-07-01T00:00:00.000Z";
 
     const months = scenarioRemainingMonths(plan, new Date(2026, 6, 19));
-    // Последняя точка плана: июл 2026 + 119 мес. = июн 2036 → 119 мес. вперёд
     expect(months).toBe(119);
 
     expect(resolveForecastHorizonMonths("scenario", plan, new Date(2026, 6, 19))).toBe(
