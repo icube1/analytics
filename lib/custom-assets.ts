@@ -30,6 +30,7 @@ export function createCustomAsset(
     debt: partial.debt ?? 0,
     monthlyDebtPayment: partial.monthlyDebtPayment ?? 0,
     debtAnnualRate: partial.debtAnnualRate ?? 0,
+    debtPaymentDay: partial.debtPaymentDay ?? 6,
     growsWithInflation: partial.growsWithInflation ?? false,
     returnMode: partial.returnMode ?? "none",
     annualReturnPercent: partial.annualReturnPercent ?? 0,

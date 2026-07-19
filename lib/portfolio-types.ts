@@ -70,6 +70,8 @@ export interface DebtObligation {
   balance: number;
   monthlyPayment: number;
   annualInterestRate: number;
+  /** День месяца для платежа (как в графике банка), по умолчанию 6 */
+  paymentDay?: number;
 }
 
 export type AssetReturnMode = "none" | "percent" | "income";
@@ -86,6 +88,8 @@ export interface CustomAssetItem {
   monthlyDebtPayment: number;
   /** Годовая ставка по привязанному долгу, % */
   debtAnnualRate: number;
+  /** День месяца платежа по долгу (Альфа и т.п.), по умолчанию 6 */
+  debtPaymentDay?: number;
   /** Рост стоимости вместе с инфляцией */
   growsWithInflation: boolean;
   returnMode: AssetReturnMode;

@@ -258,8 +258,12 @@ describe("tracking snapshots", () => {
 
     const july = rows.find((row) => row.calendarMonth === "2026-07");
     expect(july?.fact.debtPrincipalPaid).toBeCloseTo(38_334, 0);
-    expect(july?.plans[plan.id]?.monthlyDebtPrincipal).toBeCloseTo(38_333.33, 0);
-    expect(july?.plans[plan.id]?.monthlyWealthBuilding).toBeCloseTo(98_333.33, 0);
+    expect(july?.plans[plan.id]?.monthlyDebtPrincipal).toBeGreaterThan(30_000);
+    expect(july?.plans[plan.id]?.monthlyDebtInterest).toBeGreaterThan(0);
+    expect(july?.plans[plan.id]?.monthlyWealthBuilding).toBeCloseTo(
+      60_000 + (july?.plans[plan.id]?.monthlyDebtPrincipal ?? 0),
+      0,
+    );
   });
 
   it("computes debt principal from assets history within the same month", () => {

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createCustomAsset, getAssetNetValue } from "@/lib/custom-assets";
 import { amortizeDebtMonth, estimatePayoffMonths, getMonthlyDebtService } from "@/lib/debt-amortization";
+import { currentPaymentPeriodDays } from "@/lib/debt-daycount";
 import { formatMoney, getTotalWealth } from "@/lib/portfolio-wealth";
 import type {
   AssetIncomePeriod,
@@ -60,6 +61,7 @@ function newDebt(): DebtObligation {
     balance: 0,
     monthlyPayment: 0,
     annualInterestRate: 0,
+    paymentDay: 6,
   };
 }
 
@@ -76,13 +78,22 @@ function AssetCard({
   onUpdate: (patch: Partial<CustomAssetItem>) => void;
   onRemove: () => void;
 }) {
+  const paymentDay = item.debtPaymentDay ?? 6;
+  const periodDays = currentPaymentPeriodDays(paymentDay);
   const debtPayoff =
     item.debt > 0
-      ? estimatePayoffMonths(item.debt, item.monthlyDebtPayment, item.debtAnnualRate)
+      ? estimatePayoffMonths(
+          item.debt,
+          item.monthlyDebtPayment,
+          item.debtAnnualRate,
+          paymentDay,
+        )
       : null;
   const debtPaymentSplit =
     item.debt > 0 && item.monthlyDebtPayment > 0
-      ? amortizeDebtMonth(item.debt, item.monthlyDebtPayment, item.debtAnnualRate)
+      ? amortizeDebtMonth(item.debt, item.monthlyDebtPayment, item.debtAnnualRate, {
+          periodDays,
+        })
       : null;
 
   return (
@@ -173,13 +184,31 @@ function AssetCard({
                   }
                 />
               </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-xs text-zinc-500">День платежа</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={28}
+                  className={inputClass}
+                  value={item.debtPaymentDay ?? 6}
+                  onChange={(e) =>
+                    onUpdate({
+                      debtPaymentDay: Math.min(
+                        28,
+                        Math.max(1, Number.parseInt(e.target.value, 10) || 6),
+                      ),
+                    })
+                  }
+                />
+              </label>
               <p className="text-xs text-zinc-500 sm:col-span-2">
                 Погашение при текущем платеже:{" "}
                 <strong>{formatPayoff(debtPayoff)}</strong>
                 {debtPaymentSplit && (
                   <>
                     {" "}
-                    · из платежа: тело{" "}
+                    · из платежа ({periodDays} дн.): тело{" "}
                     <strong>{formatMoney(debtPaymentSplit.principal)}</strong>, проценты{" "}
                     <strong>{formatMoney(debtPaymentSplit.interest)}</strong>
                   </>
@@ -309,14 +338,19 @@ function DebtCard({
   onUpdate: (patch: Partial<DebtObligation>) => void;
   onRemove: () => void;
 }) {
+  const paymentDay = debt.paymentDay ?? 6;
+  const periodDays = currentPaymentPeriodDays(paymentDay);
   const payoff = estimatePayoffMonths(
     debt.balance,
     debt.monthlyPayment,
     debt.annualInterestRate,
+    paymentDay,
   );
   const paymentSplit =
     debt.balance > 0 && debt.monthlyPayment > 0
-      ? amortizeDebtMonth(debt.balance, debt.monthlyPayment, debt.annualInterestRate)
+      ? amortizeDebtMonth(debt.balance, debt.monthlyPayment, debt.annualInterestRate, {
+          periodDays,
+        })
       : null;
 
   return (
@@ -383,6 +417,24 @@ function DebtCard({
             }
           />
         </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-xs text-zinc-500">День платежа</span>
+          <input
+            type="number"
+            min={1}
+            max={28}
+            className={inputClass}
+            value={debt.paymentDay ?? 6}
+            onChange={(e) =>
+              onUpdate({
+                paymentDay: Math.min(
+                  28,
+                  Math.max(1, Number.parseInt(e.target.value, 10) || 6),
+                ),
+              })
+            }
+          />
+        </label>
       </div>
       {debt.balance > 0 && (
         <p className="mt-2 text-xs text-zinc-500">
@@ -390,7 +442,7 @@ function DebtCard({
           {paymentSplit && (
             <>
               {" "}
-              · из платежа: тело{" "}
+              · из платежа ({periodDays} дн.): тело{" "}
               <strong>{formatMoney(paymentSplit.principal)}</strong>, проценты{" "}
               <strong>{formatMoney(paymentSplit.interest)}</strong>
             </>

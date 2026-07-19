@@ -217,6 +217,7 @@ describe("calculateCompoundInterest", () => {
               debt: 2_000_000,
               monthlyDebtPayment: 55_000,
               debtAnnualRate: 10,
+              debtPaymentDay: 6,
               growsWithInflation: false,
               returnMode: "none",
               annualReturnPercent: 0,
@@ -237,8 +238,14 @@ describe("calculateCompoundInterest", () => {
     expect(month1?.monthlyDebtPayment).toBe(55_000);
     expect(month1?.monthlyTotalContribution).toBe(115_000);
     expect(month1?.monthlyCashOutflow).toBe(115_000);
-    expect(month1?.monthlyDebtInterest).toBeCloseTo(16_666.67, 0);
-    expect(month1?.monthlyDebtPrincipal).toBeCloseTo(38_333.33, 0);
-    expect(month1?.monthlyWealthBuilding).toBeCloseTo(98_333.33, 0);
+    expect(month1?.monthlyDebtInterest).toBeGreaterThan(0);
+    expect(month1?.monthlyDebtPrincipal).toBeGreaterThan(0);
+    expect(
+      (month1?.monthlyDebtPrincipal ?? 0) + (month1?.monthlyDebtInterest ?? 0),
+    ).toBeCloseTo(55_000, 0);
+    expect(month1?.monthlyWealthBuilding).toBeCloseTo(
+      60_000 + (month1?.monthlyDebtPrincipal ?? 0),
+      0,
+    );
   });
 });

@@ -208,7 +208,10 @@ export function calculateCompoundInterest(
     let monthTotalContribution = 0;
 
     if (wealthState && context) {
-      const debtStep = stepDebtsMonth(context.customAssets, wealthState);
+      const debtStep = stepDebtsMonth(context.customAssets, wealthState, {
+        simulationMonth: month,
+        asOf: new Date(),
+      });
       debtPayment = debtStep.totalPayment;
       debtPrincipal = debtStep.totalPrincipal;
       debtInterest = debtStep.totalInterest;
