@@ -15,15 +15,23 @@ import { ChartMoneyTooltip } from "@/components/chart-money-tooltip";
 import { formatMoney } from "@/lib/portfolio-wealth";
 import type {
   BrokerBalanceSnapshot,
+  CustomAssets,
   DebtBalanceEntry,
   SavedForecastPlan,
 } from "@/lib/portfolio-types";
 import { CHART_COLORS } from "@/lib/stats";
 import {
+  aggregateBrokerDepositsByMonth,
   buildTrackingChartData,
   buildTrackingMonths,
   getLatestSnapshot,
+  mergeTrackingRowsWithLiveForecast,
 } from "@/lib/tracking";
+import {
+  FORECAST_HORIZONS,
+  buildLiveTrackingForecast,
+  type ForecastHorizonId,
+} from "@/lib/tracking-forecast";
 
 interface TrackingTabProps {
   forecastPlans: SavedForecastPlan[];
@@ -31,6 +39,8 @@ interface TrackingTabProps {
   debtBalanceHistory?: DebtBalanceEntry[];
   currentTotalDebt: number;
   currentCustomAssetsTotal: number;
+  currentBrokerTotal: number;
+  currentCustomAssets: CustomAssets;
 }
 
 const ZOOM_PRESETS = [
@@ -48,6 +58,7 @@ function collectChartValues(
 ): number[] {
   const values: number[] = [];
   if (typeof row.fact === "number") values.push(row.fact);
+  if (typeof row.liveForecast === "number") values.push(row.liveForecast);
   for (const planId of planIds) {
     const value = row[`plan_${planId}`];
     if (typeof value === "number") values.push(value);
@@ -95,12 +106,20 @@ export function TrackingTab({
   debtBalanceHistory = [],
   currentTotalDebt,
   currentCustomAssetsTotal,
+  currentBrokerTotal,
+  currentCustomAssets,
 }: TrackingTabProps) {
   const [useRealBalance, setUseRealBalance] = useState(false);
   const [visiblePlanIds, setVisiblePlanIds] = useState<Set<string>>(() =>
     new Set(forecastPlans.map((plan) => plan.id)),
   );
   const [showDeposits, setShowDeposits] = useState(false);
+  const [showLiveForecast, setShowLiveForecast] = useState(true);
+  const [forecastHorizonId, setForecastHorizonId] =
+    useState<ForecastHorizonId>("3y");
+  const [forecastBasePlanId, setForecastBasePlanId] = useState<string>(
+    () => forecastPlans[0]?.id ?? "",
+  );
   const [brushRange, setBrushRange] = useState<{
     startIndex: number;
     endIndex: number;
@@ -120,9 +139,13 @@ export function TrackingTab({
       }
       return next;
     });
+    setForecastBasePlanId((prev) => {
+      if (forecastPlans.some((plan) => plan.id === prev)) return prev;
+      return forecastPlans[0]?.id ?? "";
+    });
   }, [forecastPlans]);
 
-  const rows = useMemo(
+  const baseRows = useMemo(
     () =>
       buildTrackingMonths(
         forecastPlans,
@@ -138,6 +161,49 @@ export function TrackingTab({
       currentCustomAssetsTotal,
       debtBalanceHistory,
     ],
+  );
+
+  const depositsByMonth = useMemo(
+    () => aggregateBrokerDepositsByMonth(brokerSnapshots),
+    [brokerSnapshots],
+  );
+
+  const forecastHorizonMonths =
+    FORECAST_HORIZONS.find((item) => item.id === forecastHorizonId)?.months ??
+    36;
+
+  const basePlan =
+    forecastPlans.find((plan) => plan.id === forecastBasePlanId) ??
+    forecastPlans[0] ??
+    null;
+
+  const currentGrandTotal = currentBrokerTotal + currentCustomAssetsTotal;
+
+  const liveForecast = useMemo(() => {
+    if (!basePlan || currentGrandTotal <= 0) return null;
+    return buildLiveTrackingForecast({
+      basePlan,
+      currentBrokerTotal,
+      currentCustomAssets,
+      currentGrandTotal,
+      depositsByMonth,
+      horizonMonths: forecastHorizonMonths,
+    });
+  }, [
+    basePlan,
+    currentBrokerTotal,
+    currentCustomAssets,
+    currentGrandTotal,
+    depositsByMonth,
+    forecastHorizonMonths,
+  ]);
+
+  const rows = useMemo(
+    () =>
+      liveForecast
+        ? mergeTrackingRowsWithLiveForecast(baseRows, liveForecast.points)
+        : baseRows,
+    [baseRows, liveForecast],
   );
 
   const latestSnapshot = useMemo(() => {
@@ -162,8 +228,14 @@ export function TrackingTab({
     .filter((id) => visiblePlanIds.has(id));
 
   const chartData = useMemo(
-    () => buildTrackingChartData(rows, activePlanIds, useRealBalance),
-    [rows, activePlanIds, useRealBalance],
+    () =>
+      buildTrackingChartData(
+        rows,
+        activePlanIds,
+        useRealBalance,
+        showLiveForecast && liveForecast != null,
+      ),
+    [rows, activePlanIds, useRealBalance, showLiveForecast, liveForecast],
   );
 
   const defaultBrushRange = useMemo(() => {
@@ -348,6 +420,17 @@ export function TrackingTab({
           <span className="rounded-full border border-emerald-500 px-3 py-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
             Факт
           </span>
+          <button
+            type="button"
+            onClick={() => setShowLiveForecast((prev) => !prev)}
+            className={`rounded-full border px-3 py-1 text-xs font-medium transition-opacity ${
+              showLiveForecast && liveForecast
+                ? "border-amber-500 text-amber-600 opacity-100 dark:text-amber-400"
+                : "border-zinc-300 text-zinc-400 opacity-40"
+            }`}
+          >
+            Прогноз
+          </button>
           {forecastPlans.map((plan) => {
             const active = visiblePlanIds.has(plan.id);
             const color = planColors.get(plan.id) ?? CHART_COLORS[0];
@@ -373,6 +456,51 @@ export function TrackingTab({
             );
           })}
         </div>
+
+        {liveForecast && (
+          <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-amber-200 bg-amber-50/60 px-3 py-2 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+            <label className="flex items-center gap-1.5">
+              <span className="text-amber-700/80 dark:text-amber-300/80">База</span>
+              <select
+                className="rounded-md border border-amber-300 bg-white px-2 py-1 text-xs dark:border-amber-800 dark:bg-zinc-950"
+                value={basePlan?.id ?? ""}
+                onChange={(e) => setForecastBasePlanId(e.target.value)}
+              >
+                {forecastPlans.map((plan) => (
+                  <option key={plan.id} value={plan.id}>
+                    {plan.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex items-center gap-1.5">
+              <span className="text-amber-700/80 dark:text-amber-300/80">
+                Горизонт
+              </span>
+              <select
+                className="rounded-md border border-amber-300 bg-white px-2 py-1 text-xs dark:border-amber-800 dark:bg-zinc-950"
+                value={forecastHorizonId}
+                onChange={(e) =>
+                  setForecastHorizonId(e.target.value as ForecastHorizonId)
+                }
+              >
+                {FORECAST_HORIZONS.map((horizon) => (
+                  <option key={horizon.id} value={horizon.id}>
+                    {horizon.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <span className="text-amber-800/90 dark:text-amber-200/90">
+              взнос ≈ {formatMoney(liveForecast.hybridMonthlyContribution)}
+              {liveForecast.contributionSource === "fact-average"
+                ? ` (среднее за ${liveForecast.factMonthsUsed} мес. факта)`
+                : " (из сценария)"}
+              {" · "}
+              старт от факта {formatMoney(currentGrandTotal)}
+            </span>
+          </div>
+        )}
 
         <div className="h-80 w-full">
           <ResponsiveContainer width="100%" height="100%">
@@ -406,6 +534,19 @@ export function TrackingTab({
                 connectNulls={false}
                 isAnimationActive={false}
               />
+              {showLiveForecast && liveForecast && (
+                <Line
+                  type="monotone"
+                  dataKey="liveForecast"
+                  name="Прогноз"
+                  stroke="#f59e0b"
+                  strokeWidth={2.5}
+                  dot={false}
+                  connectNulls
+                  strokeDasharray="4 3"
+                  isAnimationActive={false}
+                />
+              )}
               {activePlanIds.map((planId) => {
                 const plan = forecastPlans.find((p) => p.id === planId);
                 if (!plan) return null;
@@ -493,6 +634,11 @@ export function TrackingTab({
               <tr className="border-b border-zinc-200 text-xs text-zinc-500 dark:border-zinc-700">
                 <th className="px-2 py-2 font-medium">Месяц</th>
                 <th className="px-2 py-2 font-medium">Факт</th>
+                {showLiveForecast && liveForecast && (
+                  <th className="px-2 py-2 font-medium text-amber-700 dark:text-amber-400">
+                    Прогноз
+                  </th>
+                )}
                 {forecastPlans.map((plan) => (
                   <th key={plan.id} className="px-2 py-2 font-medium">
                     {plan.name}
@@ -502,6 +648,11 @@ export function TrackingTab({
                   <>
                     <th className="px-2 py-2 font-medium">В брокера факт</th>
                     <th className="px-2 py-2 font-medium">Тело долга факт</th>
+                    {showLiveForecast && liveForecast && (
+                      <th className="px-2 py-2 font-medium text-amber-700 dark:text-amber-400">
+                        Прогноз (взносы)
+                      </th>
+                    )}
                     {forecastPlans.map((plan) => (
                       <th key={`${plan.id}-dep`} className="px-2 py-2 font-medium">
                         {plan.name} (план)
@@ -536,6 +687,26 @@ export function TrackingTab({
                       <span className="text-zinc-400">—</span>
                     )}
                   </td>
+                  {showLiveForecast && liveForecast && (
+                    <td className="px-2 py-2 tabular-nums text-amber-800 dark:text-amber-200">
+                      {row.liveForecast ? (
+                        <div>
+                          <div>
+                            {formatMoney(
+                              useRealBalance
+                                ? row.liveForecast.realBalance
+                                : row.liveForecast.balance,
+                            )}
+                          </div>
+                          {row.liveForecast.isStart && (
+                            <div className="text-[10px] text-amber-600/80">старт</div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-zinc-400">—</span>
+                      )}
+                    </td>
+                  )}
                   {forecastPlans.map((plan) => {
                     const planData = row.plans[plan.id];
                     const fact = row.fact.grandTotal;
@@ -569,6 +740,37 @@ export function TrackingTab({
                           ? formatMoney(row.fact.debtPrincipalPaid)
                           : "—"}
                       </td>
+                      {showLiveForecast && liveForecast && (
+                        <td className="px-2 py-2 tabular-nums text-amber-800 dark:text-amber-200">
+                          {row.liveForecast && !row.liveForecast.isStart ? (
+                            <div>
+                              <div>
+                                {formatMoney(row.liveForecast.monthlyWealthBuilding)}
+                              </div>
+                              <div className="text-[10px] text-amber-700/70 dark:text-amber-300/70">
+                                брокер{" "}
+                                {formatMoney(row.liveForecast.monthlyBrokerInvest)}
+                                {row.liveForecast.monthlyDebtPrincipal > 0 && (
+                                  <>
+                                    {" "}
+                                    · тело{" "}
+                                    {formatMoney(row.liveForecast.monthlyDebtPrincipal)}
+                                  </>
+                                )}
+                                {row.liveForecast.monthlyDebtInterest > 0 && (
+                                  <>
+                                    {" "}
+                                    · %{" "}
+                                    {formatMoney(row.liveForecast.monthlyDebtInterest)}
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-zinc-400">—</span>
+                          )}
+                        </td>
+                      )}
                       {forecastPlans.map((plan) => {
                         const planData = row.plans[plan.id];
                         const deposits = row.fact.brokerDeposits;
@@ -652,13 +854,11 @@ export function TrackingTab({
       <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-xs text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
         <p>
           Фактический баланс берётся из последнего отчёта за месяц (или самого
-          свежего для текущего месяца). Для текущего месяца капитал пересчитывается
-          с актуальными «Другими активами» и долгом. Пополнения в брокера — из
-          раздела «Движение денежных средств». В плане крупная цифра — реальный
-          прирост капитала (брокер + тело долга), «бюджет» — ваш отток на капитал.
-          «Тело долга факт» — снижение остатка долга между записями истории (при
-          изменении долга в «Других активах» или загрузке отчёта). Старые сценарии
-          без разбивки нужно пересохранить на вкладке «Сложный процент».
+          свежего для текущего месяца). «Прогноз» стартует от текущего факта:
+          доходность и режим долга — из выбранного сценария, ежемесячный взнос в
+          брокера — среднее по последним месяцам с пополнениями (иначе из
+          сценария), долг — актуальные «Другие активы» с расчётом дней/365.
+          Горизонт фиксированный: 1 / 3 / 5 лет.
         </p>
       </div>
     </div>

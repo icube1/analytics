@@ -17,6 +17,7 @@ import type {
   DebtBalanceEntry,
   SavedForecastPlan,
 } from "./portfolio-types";
+import type { LiveForecastPoint } from "./tracking-forecast";
 
 export interface MonthBalanceFact {
   brokerTotal: number;
@@ -51,6 +52,7 @@ export interface TrackingMonthRow {
       totalDebt: number;
     } | null
   >;
+  liveForecast?: LiveForecastPoint | null;
 }
 
 function calendarMonthFromIso(iso: string): string {
@@ -244,10 +246,48 @@ export function createBrokerSnapshot(
   };
 }
 
+export function mergeTrackingRowsWithLiveForecast(
+  rows: TrackingMonthRow[],
+  forecastPoints: LiveForecastPoint[],
+): TrackingMonthRow[] {
+  const byMonth = new Map(
+    rows.map((row) => [row.calendarMonth, { ...row, liveForecast: null as LiveForecastPoint | null }]),
+  );
+
+  for (const point of forecastPoints) {
+    const existing = byMonth.get(point.calendarMonth);
+    if (existing) {
+      existing.liveForecast = point;
+      continue;
+    }
+
+    const plans: TrackingMonthRow["plans"] = {};
+    byMonth.set(point.calendarMonth, {
+      calendarMonth: point.calendarMonth,
+      label: point.label,
+      fact: {
+        grandTotal: null,
+        brokerTotal: null,
+        brokerDeposits: 0,
+        totalDebt: null,
+        debtPrincipalPaid: null,
+        balanceSource: null,
+      },
+      plans,
+      liveForecast: point,
+    });
+  }
+
+  return [...byMonth.values()].sort((a, b) =>
+    a.calendarMonth.localeCompare(b.calendarMonth),
+  );
+}
+
 export function buildTrackingChartData(
   rows: TrackingMonthRow[],
   planIds: string[],
   useRealBalance: boolean,
+  includeLiveForecast = false,
 ) {
   return rows.map((row) => {
     const entry: Record<string, string | number | null> = {
@@ -255,7 +295,14 @@ export function buildTrackingChartData(
       calendarMonth: row.calendarMonth,
       fact: row.fact.grandTotal,
       factBrokerDeposits: row.fact.brokerDeposits || null,
+      liveForecast: null,
     };
+
+    if (includeLiveForecast && row.liveForecast) {
+      entry.liveForecast = useRealBalance
+        ? row.liveForecast.realBalance
+        : row.liveForecast.balance;
+    }
 
     for (const planId of planIds) {
       const planData = row.plans[planId];

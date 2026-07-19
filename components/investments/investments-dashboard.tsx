@@ -416,6 +416,8 @@ export function InvestmentsDashboard() {
           debtBalanceHistory={debtBalanceHistory}
           currentTotalDebt={currentTotalDebt}
           currentCustomAssetsTotal={wealth.customTotal}
+          currentBrokerTotal={wealth.brokerTotal}
+          currentCustomAssets={customAssets}
         />
       )}
       </div>
