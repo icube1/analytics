@@ -1,6 +1,8 @@
 import {
   averageRecentBrokerDeposits,
   buildLiveTrackingForecast,
+  resolveForecastHorizonMonths,
+  scenarioRemainingMonths,
 } from "@/lib/tracking-forecast";
 import { DEFAULT_COMPOUND_PARAMS, type SavedForecastPlan } from "@/lib/portfolio-types";
 import { buildForecastPlan } from "@/lib/forecast-plans";
@@ -120,5 +122,29 @@ describe("tracking-forecast", () => {
     expect(forecast.suggestedFromScenario).toBe(45_000);
     expect(forecast.suggestedFromFact).toBe(10_000);
     expect(forecast.points[1]?.monthlyBrokerInvest).toBe(80_000);
+  });
+
+  it("resolves scenario horizon to remaining months until plan end", () => {
+    const plan = buildForecastPlan(
+      "Длинный",
+      {
+        ...DEFAULT_COMPOUND_PARAMS,
+        monthlyContribution: 60_000,
+        years: 10,
+        contributionGrowthPercent: 0,
+      },
+      { items: [], otherDebts: [] },
+      100_000,
+    );
+    plan.savedAt = "2026-07-01T00:00:00.000Z";
+
+    const months = scenarioRemainingMonths(plan, new Date(2026, 6, 19));
+    // Последняя точка плана: июл 2026 + 119 мес. = июн 2036 → 119 мес. вперёд
+    expect(months).toBe(119);
+
+    expect(resolveForecastHorizonMonths("scenario", plan, new Date(2026, 6, 19))).toBe(
+      119,
+    );
+    expect(resolveForecastHorizonMonths("3y", plan)).toBe(36);
   });
 });

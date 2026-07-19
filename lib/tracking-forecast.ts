@@ -1,6 +1,9 @@
 import { calendarMonthFromPlanMonth, formatCalendarMonth } from "./broker-deposits";
 import { calculateCompoundInterest } from "./compound-interest";
-import { resolvePlanParams } from "./forecast-plans";
+import {
+  resolvePlanParams,
+  resolvePlanPointCalendarMonth,
+} from "./forecast-plans";
 import type {
   CompoundParams,
   CustomAssets,
@@ -11,9 +14,41 @@ export const FORECAST_HORIZONS = [
   { id: "1y", label: "1 год", months: 12 },
   { id: "3y", label: "3 года", months: 36 },
   { id: "5y", label: "5 лет", months: 60 },
+  { id: "scenario", label: "До конца сценария", months: null },
 ] as const;
 
 export type ForecastHorizonId = (typeof FORECAST_HORIZONS)[number]["id"];
+
+/** Сколько месяцев осталось от asOf до последней точки сценария */
+export function scenarioRemainingMonths(
+  plan: SavedForecastPlan,
+  asOf: Date = new Date(),
+): number {
+  const lastPoint = [...plan.points]
+    .filter((point) => point.month > 0)
+    .sort((a, b) => b.month - a.month)[0];
+
+  if (lastPoint) {
+    const endMonth = resolvePlanPointCalendarMonth(plan, lastPoint);
+    const [endY, endM] = endMonth.split("-").map(Number);
+    const startTotal = asOf.getFullYear() * 12 + asOf.getMonth();
+    const endTotal = endY * 12 + (endM - 1);
+    return Math.max(1, endTotal - startTotal);
+  }
+
+  return Math.max(1, Math.round(resolvePlanParams(plan).years * 12));
+}
+
+export function resolveForecastHorizonMonths(
+  horizonId: ForecastHorizonId,
+  basePlan: SavedForecastPlan | null,
+  asOf: Date = new Date(),
+): number {
+  const preset = FORECAST_HORIZONS.find((item) => item.id === horizonId);
+  if (preset?.months != null) return preset.months;
+  if (basePlan) return scenarioRemainingMonths(basePlan, asOf);
+  return 36;
+}
 
 export interface LiveForecastPoint {
   calendarMonth: string;

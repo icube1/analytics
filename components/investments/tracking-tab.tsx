@@ -32,6 +32,7 @@ import {
   FORECAST_HORIZONS,
   averageRecentBrokerDeposits,
   buildLiveTrackingForecast,
+  resolveForecastHorizonMonths,
   type ForecastHorizonId,
 } from "@/lib/tracking-forecast";
 
@@ -173,14 +174,15 @@ export function TrackingTab({
     [brokerSnapshots],
   );
 
-  const forecastHorizonMonths =
-    FORECAST_HORIZONS.find((item) => item.id === forecastHorizonId)?.months ??
-    36;
-
   const basePlan =
     forecastPlans.find((plan) => plan.id === forecastBasePlanId) ??
     forecastPlans[0] ??
     null;
+
+  const forecastHorizonMonths = resolveForecastHorizonMonths(
+    forecastHorizonId,
+    basePlan,
+  );
 
   const currentGrandTotal = currentBrokerTotal + currentCustomAssetsTotal;
 
@@ -512,7 +514,9 @@ export function TrackingTab({
               >
                 {FORECAST_HORIZONS.map((horizon) => (
                   <option key={horizon.id} value={horizon.id}>
-                    {horizon.label}
+                    {horizon.id === "scenario" && basePlan
+                      ? `До конца сценария (${forecastHorizonMonths} мес.)`
+                      : horizon.label}
                   </option>
                 ))}
               </select>
@@ -921,7 +925,8 @@ export function TrackingTab({
           доходность и режим долга — из выбранного сценария, ежемесячный взнос в
           брокера задаётся вручную (по умолчанию из сценария; рядом показано
           среднее по факту на сегодня). Долг — актуальные «Другие активы» с
-          расчётом дней/365. Горизонт: 1 / 3 / 5 лет.
+          расчётом дней/365. Горизонт: 1 / 3 / 5 лет или до конца выбранного
+          сценария.
         </p>
       </div>
     </div>
