@@ -4,6 +4,12 @@ import {
   getEnabledItems,
 } from "./custom-assets";
 import {
+  depositMaturesInSimulationMonth,
+  estimateDepositMaturityValue,
+  isDepositActive,
+  isDepositItem,
+} from "./term-deposits";
+import {
   currentPaymentPeriodDays,
   interestForPeriod,
   simulationPaymentPeriodDays,
@@ -22,6 +28,9 @@ export interface AssetSimulationState {
   id: string;
   grossValue: number;
   debtBalance: number;
+  /** Исходная сумма вклада (для расчёта процентов в конце срока) */
+  depositPrincipal?: number;
+  depositMatured?: boolean;
 }
 
 export interface WealthSimulationState {
@@ -150,6 +159,8 @@ export function initWealthSimulationState(
       id: item.id,
       grossValue: item.value,
       debtBalance: item.debt,
+      depositPrincipal: isDepositItem(item) ? item.value : undefined,
+      depositMatured: isDepositItem(item) ? !isDepositActive(item) : undefined,
     })),
     otherDebts: getEnabledDebts(assets).map((debt) => debt.balance),
   };
@@ -267,18 +278,66 @@ function monthlyRateFromAnnual(
     : (1 + annualReturnPercent / 100) ** (1 / 12) - 1;
 }
 
+export interface GrowCustomAssetsOptions {
+  asOf?: Date;
+  simulationMonth?: number;
+}
+
 export function growCustomAssets(
   assets: CustomAssets,
   state: WealthSimulationState,
   inflationPercent: number,
   rateMethod: "effective" | "simple",
+  options?: GrowCustomAssetsOptions,
 ): void {
   const itemById = new Map(assets.items.map((item) => [item.id, item]));
+  const asOf = options?.asOf ?? new Date();
+  const simulationMonth = options?.simulationMonth;
 
   for (const sim of state.assetItems) {
-    if (sim.grossValue <= 0) continue;
+    if (sim.depositMatured) continue;
+
     const item = itemById.get(sim.id);
     if (!item) continue;
+
+    if (isDepositItem(item)) {
+      if (!isDepositActive(item, asOf) && simulationMonth == null) {
+        sim.depositMatured = true;
+        sim.grossValue = 0;
+        continue;
+      }
+
+      if (
+        simulationMonth != null &&
+        depositMaturesInSimulationMonth(item, asOf, simulationMonth)
+      ) {
+        const principal = sim.depositPrincipal ?? sim.grossValue;
+        const termMonths = item.depositTermMonths ?? 0;
+        const mode = item.depositInterestMode ?? "at_maturity";
+        const payout = estimateDepositMaturityValue(
+          principal,
+          item.annualReturnPercent,
+          termMonths,
+          mode,
+          rateMethod,
+        );
+        state.investmentBalance += payout;
+        sim.grossValue = 0;
+        sim.depositMatured = true;
+        continue;
+      }
+
+      if (sim.grossValue <= 0) continue;
+
+      const annualGrowth = getAssetCapitalGrowthPercent(item, inflationPercent);
+      if (annualGrowth <= 0) continue;
+
+      const monthlyRate = monthlyRateFromAnnual(annualGrowth, rateMethod);
+      sim.grossValue *= 1 + monthlyRate;
+      continue;
+    }
+
+    if (sim.grossValue <= 0) continue;
 
     const annualGrowth = getAssetCapitalGrowthPercent(item, inflationPercent);
     if (annualGrowth <= 0) continue;

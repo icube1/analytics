@@ -76,11 +76,16 @@ export interface DebtObligation {
 
 export type AssetReturnMode = "none" | "percent" | "income";
 export type AssetIncomePeriod = "monthly" | "yearly";
+export type AssetKind = "standard" | "deposit";
+/** at_maturity — проценты в конце срока; monthly_capitalized — ежемесячная капитализация */
+export type DepositInterestMode = "at_maturity" | "monthly_capitalized";
 
 export interface CustomAssetItem {
   id: string;
   enabled: boolean;
   label: string;
+  /** standard — обычный актив; deposit — срочный вклад */
+  assetKind?: AssetKind;
   /** Оценочная / рыночная стоимость, ₽ */
   value: number;
   /** Привязанный долг (ипотека и т.п.), ₽ */
@@ -100,6 +105,11 @@ export interface CustomAssetItem {
   incomePeriod: AssetIncomePeriod;
   /** Учитывать в доле облагаемых дивидендами активов (ПИФы) */
   generatesDividendTax: boolean;
+  /** Срок вклада, мес. (только assetKind === "deposit") */
+  depositTermMonths?: number;
+  /** Дата открытия вклада YYYY-MM-DD */
+  depositOpenedAt?: string;
+  depositInterestMode?: DepositInterestMode;
   notes: string;
 }
 

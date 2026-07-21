@@ -1,10 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createCustomAsset, getAssetNetValue } from "@/lib/custom-assets";
+import { createCustomAsset, createTermDeposit, getAssetNetValue } from "@/lib/custom-assets";
 import { amortizeDebtMonth, estimatePayoffMonths, getMonthlyDebtService } from "@/lib/debt-amortization";
 import { currentPaymentPeriodDays } from "@/lib/debt-daycount";
 import { formatMoney, getTotalWealth } from "@/lib/portfolio-wealth";
+import {
+  estimateDepositMaturityValue,
+  formatDepositMaturityDate,
+  getDepositMonthsRemaining,
+  isDepositActive,
+  isDepositItem,
+} from "@/lib/term-deposits";
 import type {
   AssetIncomePeriod,
   AssetReturnMode,
@@ -12,6 +19,7 @@ import type {
   CustomAssetItem,
   CustomAssets,
   DebtObligation,
+  DepositInterestMode,
 } from "@/lib/portfolio-types";
 
 interface AssetsTabProps {
@@ -63,6 +71,179 @@ function newDebt(): DebtObligation {
     annualInterestRate: 0,
     paymentDay: 6,
   };
+}
+
+function DepositCard({
+  item,
+  netValue,
+  highlighted,
+  onUpdate,
+  onRemove,
+}: {
+  item: CustomAssetItem;
+  netValue: number;
+  highlighted: boolean;
+  onUpdate: (patch: Partial<CustomAssetItem>) => void;
+  onRemove: () => void;
+}) {
+  const active = isDepositActive(item);
+  const maturityLabel = formatDepositMaturityDate(item);
+  const monthsLeft = getDepositMonthsRemaining(item);
+  const termMonths = item.depositTermMonths ?? 0;
+  const expectedPayout =
+    termMonths > 0
+      ? estimateDepositMaturityValue(
+          item.value,
+          item.annualReturnPercent,
+          termMonths,
+          item.depositInterestMode ?? "at_maturity",
+        )
+      : item.value;
+
+  return (
+    <section id={`asset-${item.id}`} className={cardClass(highlighted)}>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={item.enabled}
+            onChange={(e) => onUpdate({ enabled: e.target.checked })}
+            className="size-4 rounded text-indigo-600"
+          />
+          <input
+            type="text"
+            className="rounded-lg border border-zinc-200 bg-white px-2 py-1 text-sm font-semibold dark:border-zinc-700 dark:bg-zinc-950"
+            value={item.label}
+            onChange={(e) => onUpdate({ label: e.target.value })}
+          />
+          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">
+            Вклад
+          </span>
+        </label>
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-medium tabular-nums text-indigo-600 dark:text-indigo-400">
+            {formatMoney(netValue)}
+          </span>
+          <button
+            type="button"
+            onClick={onRemove}
+            className="text-xs text-rose-600 hover:underline dark:text-rose-400"
+          >
+            Удалить
+          </button>
+        </div>
+      </div>
+
+      {item.enabled && (
+        <div className="flex flex-col gap-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="flex flex-col gap-1">
+              <span className="text-xs text-zinc-500">Сумма вклада, ₽</span>
+              <input
+                type="number"
+                className={inputClass}
+                value={item.value || ""}
+                onChange={(e) =>
+                  onUpdate({ value: Number.parseFloat(e.target.value) || 0 })
+                }
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs text-zinc-500">Ставка, % годовых</span>
+              <input
+                type="number"
+                step={0.1}
+                className={inputClass}
+                value={item.annualReturnPercent || ""}
+                onChange={(e) =>
+                  onUpdate({
+                    annualReturnPercent: Number.parseFloat(e.target.value) || 0,
+                  })
+                }
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs text-zinc-500">Срок, мес.</span>
+              <input
+                type="number"
+                min={1}
+                className={inputClass}
+                value={item.depositTermMonths || ""}
+                onChange={(e) =>
+                  onUpdate({
+                    depositTermMonths: Math.max(
+                      1,
+                      Number.parseInt(e.target.value, 10) || 1,
+                    ),
+                  })
+                }
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs text-zinc-500">Дата открытия</span>
+              <input
+                type="date"
+                className={inputClass}
+                value={item.depositOpenedAt ?? ""}
+                onChange={(e) => onUpdate({ depositOpenedAt: e.target.value })}
+              />
+            </label>
+            <label className="flex flex-col gap-1 sm:col-span-2">
+              <span className="text-xs text-zinc-500">Начисление процентов</span>
+              <select
+                className={inputClass}
+                value={item.depositInterestMode ?? "at_maturity"}
+                onChange={(e) =>
+                  onUpdate({
+                    depositInterestMode: e.target.value as DepositInterestMode,
+                  })
+                }
+              >
+                <option value="at_maturity">В конце срока (простые проценты)</option>
+                <option value="monthly_capitalized">Ежемесячная капитализация</option>
+              </select>
+            </label>
+          </div>
+
+          <p className="rounded-xl border border-emerald-100 bg-emerald-50/80 px-3 py-2 text-xs text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-100">
+            {active ? (
+              <>
+                Окончание срока: <strong>{maturityLabel ?? "—"}</strong>
+                {monthsLeft != null && monthsLeft > 0 && (
+                  <>
+                    {" "}
+                    · осталось ~<strong>{monthsLeft}</strong> мес.
+                  </>
+                )}
+                {" "}
+                · к выплате: <strong>{formatMoney(expectedPayout)}</strong>
+                {item.depositInterestMode === "at_maturity" && (
+                  <> (проценты: {formatMoney(expectedPayout - item.value)})</>
+                )}
+              </>
+            ) : (
+              <>
+                Срок истёк{maturityLabel ? ` (${maturityLabel})` : ""}. Ожидаемая
+                выплата была <strong>{formatMoney(expectedPayout)}</strong> — если
+                деньги уже на брокерском счёте, удалите или отключите вклад.
+              </>
+            )}
+          </p>
+
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-zinc-500">Заметки</span>
+            <input
+              type="text"
+              className={inputClass}
+              value={item.notes}
+              onChange={(e) => onUpdate({ notes: e.target.value })}
+              placeholder="Банк, номер договора..."
+            />
+          </label>
+        </div>
+      )}
+    </section>
+  );
 }
 
 function AssetCard({
@@ -488,6 +669,15 @@ export function AssetsTab({ assets, report, onChange }: AssetsTabProps) {
     });
   };
 
+  const addDeposit = () => {
+    const item = createTermDeposit({ label: "Вклад" });
+    onChange({
+      ...assets,
+      items: [...assets.items, item],
+    });
+    setHighlightId(`asset-${item.id}`);
+  };
+
   const addAsset = () => {
     const item = createCustomAsset({ label: "Новый актив" });
     onChange({
@@ -531,6 +721,13 @@ export function AssetsTab({ assets, report, onChange }: AssetsTabProps) {
         <div className="flex w-full gap-2 sm:ml-auto sm:w-auto">
           <button
             type="button"
+            onClick={addDeposit}
+            className="flex-1 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100 sm:flex-none dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200 dark:hover:bg-emerald-950/80"
+          >
+            + Вклад
+          </button>
+          <button
+            type="button"
             onClick={addAsset}
             className="flex-1 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-800 hover:bg-indigo-100 sm:flex-none dark:border-indigo-800 dark:bg-indigo-950/50 dark:text-indigo-200 dark:hover:bg-indigo-950/80"
           >
@@ -548,8 +745,8 @@ export function AssetsTab({ assets, report, onChange }: AssetsTabProps) {
 
       <p className="text-sm text-zinc-500 dark:text-zinc-400">
         Укажите стоимость, рост по инфляции и доходность — в процентах или
-        денежной суммой. Изменения сохраняются в{" "}
-        <code>data/portfolio.json</code>.
+        денежной суммой. Для срочных вкладов нажмите «+ Вклад». Изменения
+        сохраняются в <code>data/portfolio.json</code>.
       </p>
 
       {assets.items.length === 0 ? (
@@ -557,16 +754,27 @@ export function AssetsTab({ assets, report, onChange }: AssetsTabProps) {
           Активов пока нет — нажмите «+ Актив» в панели сверху
         </p>
       ) : (
-        assets.items.map((item) => (
-          <AssetCard
-            key={item.id}
-            item={item}
-            netValue={getAssetNetValue(item)}
-            highlighted={highlightId === `asset-${item.id}`}
-            onUpdate={(patch) => updateItem(item.id, patch)}
-            onRemove={() => removeItem(item.id)}
-          />
-        ))
+        assets.items.map((item) =>
+          isDepositItem(item) ? (
+            <DepositCard
+              key={item.id}
+              item={item}
+              netValue={getAssetNetValue(item)}
+              highlighted={highlightId === `asset-${item.id}`}
+              onUpdate={(patch) => updateItem(item.id, patch)}
+              onRemove={() => removeItem(item.id)}
+            />
+          ) : (
+            <AssetCard
+              key={item.id}
+              item={item}
+              netValue={getAssetNetValue(item)}
+              highlighted={highlightId === `asset-${item.id}`}
+              onUpdate={(patch) => updateItem(item.id, patch)}
+              onRemove={() => removeItem(item.id)}
+            />
+          ),
+        )
       )}
 
       <section className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">

@@ -248,4 +248,61 @@ describe("calculateCompoundInterest", () => {
       0,
     );
   });
+
+  it("moves matured term deposit to broker balance", () => {
+    const now = new Date();
+    const openedAt = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, "0"),
+      String(now.getDate()).padStart(2, "0"),
+    ].join("-");
+
+    const result = calculateCompoundInterest(
+      {
+        ...baseParams,
+        years: 1,
+        monthlyContribution: 0,
+        annualReturnPercent: 0,
+        initialCapital: 1_100_000,
+      },
+      {
+        brokerTotal: 100_000,
+        customAssets: {
+          items: [
+            {
+              id: "dep",
+              enabled: true,
+              label: "Вклад 25%",
+              assetKind: "deposit",
+              value: 1_000_000,
+              debt: 0,
+              monthlyDebtPayment: 0,
+              debtAnnualRate: 0,
+              growsWithInflation: false,
+              returnMode: "percent",
+              annualReturnPercent: 25,
+              incomeAmount: 0,
+              incomePeriod: "monthly",
+              generatesDividendTax: false,
+              depositTermMonths: 1,
+              depositOpenedAt: openedAt,
+              depositInterestMode: "at_maturity",
+              notes: "",
+            },
+          ],
+          otherDebts: [],
+        },
+      },
+      { allMonths: true },
+    );
+
+    const start = result.points[0];
+    expect(start.balance).toBeCloseTo(1_100_000, 0);
+
+    const month1 = result.points.find((p) => p.month === 1);
+    const expectedPayout = 1_000_000 * (1 + 0.25 / 12);
+    expect(month1?.assetBreakdown.find((a) => a.id === "dep")?.netEquity).toBe(0);
+    expect(month1?.liquidityBalance).toBeCloseTo(expectedPayout + 100_000, 0);
+    expect(month1?.balance).toBeCloseTo(expectedPayout + 100_000, 0);
+  });
 });

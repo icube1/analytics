@@ -1,4 +1,5 @@
 import { ASSUMED_RETURNS } from "./portfolio-assumptions";
+import { getDepositDisplayValue, isDepositActive, isDepositItem } from "./term-deposits";
 import type {
   ApartmentAsset,
   CustomAssetItem,
@@ -26,6 +27,7 @@ export function createCustomAsset(
     id: partial.id ?? crypto.randomUUID(),
     enabled: partial.enabled ?? true,
     label: partial.label ?? "Новый актив",
+    assetKind: partial.assetKind ?? "standard",
     value: partial.value ?? 0,
     debt: partial.debt ?? 0,
     monthlyDebtPayment: partial.monthlyDebtPayment ?? 0,
@@ -37,8 +39,39 @@ export function createCustomAsset(
     incomeAmount: partial.incomeAmount ?? 0,
     incomePeriod: partial.incomePeriod ?? "monthly",
     generatesDividendTax: partial.generatesDividendTax ?? false,
+    depositTermMonths: partial.depositTermMonths,
+    depositOpenedAt: partial.depositOpenedAt,
+    depositInterestMode: partial.depositInterestMode ?? "at_maturity",
     notes: partial.notes ?? "",
   };
+}
+
+function todayIsoDate(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+export function createTermDeposit(
+  partial: Partial<CustomAssetItem> = {},
+): CustomAssetItem {
+  return createCustomAsset({
+    label: "Вклад",
+    assetKind: "deposit",
+    returnMode: "percent",
+    annualReturnPercent: 20,
+    depositTermMonths: 6,
+    depositOpenedAt: todayIsoDate(),
+    depositInterestMode: "at_maturity",
+    growsWithInflation: false,
+    generatesDividendTax: false,
+    debt: 0,
+    monthlyDebtPayment: 0,
+    debtAnnualRate: 0,
+    ...partial,
+  });
 }
 
 function migrateLegacyItem(
@@ -135,9 +168,10 @@ export function getEnabledItems(assets: CustomAssets): CustomAssetItem[] {
   return assets.items.filter((item) => item.enabled);
 }
 
-export function getAssetNetValue(item: CustomAssetItem): number {
+export function getAssetNetValue(item: CustomAssetItem, asOf: Date = new Date()): number {
   if (!item.enabled) return 0;
-  return Math.max(0, item.value - item.debt);
+  const gross = isDepositItem(item) ? getDepositDisplayValue(item, asOf) : item.value;
+  return Math.max(0, gross - item.debt);
 }
 
 export function getCustomAssetsTotal(assets: CustomAssets): number {
@@ -148,6 +182,11 @@ export function getAssetCapitalGrowthPercent(
   item: CustomAssetItem,
   inflationPercent: number,
 ): number {
+  if (isDepositItem(item)) {
+    if (!isDepositActive(item)) return 0;
+    if (item.depositInterestMode === "at_maturity") return 0;
+    return item.annualReturnPercent;
+  }
   if (item.growsWithInflation) return inflationPercent;
   if (item.returnMode === "percent") return item.annualReturnPercent;
   return 0;

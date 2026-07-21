@@ -221,6 +221,7 @@ export function calculateCompoundInterest(
         wealthState,
         params.inflationPercent,
         rateMethod,
+        { asOf: new Date(), simulationMonth: month },
       );
       const assetIncome = applyCustomAssetIncome(
         context.customAssets,
