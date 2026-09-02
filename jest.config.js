@@ -8,7 +8,11 @@ const config = {
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/$1",
   },
-  modulePathIgnorePatterns: ["<rootDir>/.next/"],
+  modulePathIgnorePatterns: [
+    "<rootDir>/.next/",
+    "<rootDir>/.platform-local/",
+    "<rootDir>/.platform-release-staging/",
+  ],
 };
 
 module.exports = config;

@@ -1,4 +1,15 @@
-#![allow(clippy::ref_option, clippy::option_map_or_none, clippy::missing_errors_doc, clippy::assigning_clones, clippy::if_not_else, clippy::map_unwrap_or, clippy::needless_late_init, clippy::needless_pass_by_value, clippy::struct_excessive_bools, clippy::too_many_arguments)]
+#![allow(
+    clippy::ref_option,
+    clippy::option_map_or_none,
+    clippy::missing_errors_doc,
+    clippy::assigning_clones,
+    clippy::if_not_else,
+    clippy::map_unwrap_or,
+    clippy::needless_late_init,
+    clippy::needless_pass_by_value,
+    clippy::struct_excessive_bools,
+    clippy::too_many_arguments
+)]
 //! Deterministic compound projection mirroring `lib/compound-interest/simulate.ts`.
 
 use crate::date::CivilDate;
