@@ -13,6 +13,12 @@ vi.mock("@/components/investments/investments-dashboard", () => ({
   ),
 }));
 
+vi.mock("@/components/resilience/resilience-dashboard", () => ({
+  ResilienceDashboard: () => (
+    <div data-testid="resilience-page">Resilience</div>
+  ),
+}));
+
 vi.mock("@/components/data-backup-menu", () => ({
   DataBackupMenu: () => <button type="button">Бэкап</button>,
 }));
@@ -45,6 +51,18 @@ describe("AppRoutes", () => {
     expect(screen.getByTestId("investments-page")).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "Инвестиции" }),
+    ).toBeInTheDocument();
+  });
+
+  it("renders resilience on /resilience", () => {
+    render(
+      <MemoryRouter initialEntries={["/resilience"]}>
+        <AppRoutes />
+      </MemoryRouter>,
+    );
+    expect(screen.getByTestId("resilience-page")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Устойчивость" }),
     ).toBeInTheDocument();
   });
 });

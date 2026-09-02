@@ -1,0 +1,17 @@
+{
+  "name": "finance-wasm",
+  "type": "module",
+  "description": "wasm-bindgen adapter for finance-core batch evaluation",
+  "version": "0.1.0",
+  "license": "UNLICENSED",
+  "files": [
+    "finance_wasm_bg.wasm",
+    "finance_wasm.js",
+    "finance_wasm.d.ts"
+  ],
+  "main": "finance_wasm.js",
+  "types": "finance_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

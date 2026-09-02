@@ -56,9 +56,12 @@ This adapter does not replace production TypeScript calculations yet. Build for
 the `wasm32-unknown-unknown` target when the toolchain is available:
 
 ```bash
-rustup target add wasm32-unknown-unknown
-cargo build -p finance-wasm --target wasm32-unknown-unknown --release
+npm run build:wasm
 ```
+
+The resilience UI (`/resilience`) lazy-loads this package from a dedicated Web
+Worker with TypeScript fallback and non-production parity checks. See
+`docs/resilience-ui.md`.
 
 ## Compatibility contract
 

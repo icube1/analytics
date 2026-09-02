@@ -4,6 +4,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 
 const links = [
   { to: "/", label: "Выписка", end: true },
+  { to: "/resilience", label: "Устойчивость", end: false },
   { to: "/investments", label: "Инвестиции", end: false },
 ] as const;
 
