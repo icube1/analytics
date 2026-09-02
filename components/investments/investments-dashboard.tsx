@@ -1,11 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AssetsTab } from "@/components/investments/assets-tab";
-import { CalculatorTab } from "@/components/investments/calculator-tab";
-import { PortfolioTab } from "@/components/investments/portfolio-tab";
-import { SummaryTab } from "@/components/investments/summary-tab";
-import { TrackingTab } from "@/components/investments/tracking-tab";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { WealthSummary } from "@/components/investments/wealth-summary";
 import {
   computePortfolioAnalytics,
@@ -35,6 +30,30 @@ import {
 
 type TabId = "summary" | "portfolio" | "assets" | "calculator" | "tracking";
 type SaveState = "idle" | "saving" | "saved" | "error";
+
+const SummaryTab = lazy(() =>
+  import("./summary-tab").then((module) => ({ default: module.SummaryTab })),
+);
+const PortfolioTab = lazy(() =>
+  import("./portfolio-tab").then((module) => ({ default: module.PortfolioTab })),
+);
+const AssetsTab = lazy(() =>
+  import("./assets-tab").then((module) => ({ default: module.AssetsTab })),
+);
+const CalculatorTab = lazy(() =>
+  import("./calculator-tab").then((module) => ({ default: module.CalculatorTab })),
+);
+const TrackingTab = lazy(() =>
+  import("./tracking-tab").then((module) => ({ default: module.TrackingTab })),
+);
+
+function TabLoadingFallback() {
+  return (
+    <div className="flex min-h-[12rem] items-center justify-center text-sm text-zinc-500 dark:text-zinc-400">
+      Загрузка вкладки...
+    </div>
+  );
+}
 
 const tabs: { id: TabId; label: string }[] = [
   { id: "summary", label: "Сводка" },
@@ -379,52 +398,62 @@ export function InvestmentsDashboard() {
       </div>
 
       {activeTab === "summary" && (
-        <SummaryTab
-          analytics={analytics}
-          report={report}
-          customAssets={customAssets}
-          brokerSnapshots={brokerSnapshots}
-        />
+        <Suspense fallback={<TabLoadingFallback />}>
+          <SummaryTab
+            analytics={analytics}
+            report={report}
+            customAssets={customAssets}
+            brokerSnapshots={brokerSnapshots}
+          />
+        </Suspense>
       )}
       {activeTab === "portfolio" && (
-        <PortfolioTab
-          report={report}
-          fileName={fileName}
-          onUpload={handleUpload}
-          brokerSnapshots={brokerSnapshots}
-        />
+        <Suspense fallback={<TabLoadingFallback />}>
+          <PortfolioTab
+            report={report}
+            fileName={fileName}
+            onUpload={handleUpload}
+            brokerSnapshots={brokerSnapshots}
+          />
+        </Suspense>
       )}
       {activeTab === "assets" && (
-        <AssetsTab
-          assets={customAssets}
-          report={report}
-          onChange={handleAssetsChange}
-        />
+        <Suspense fallback={<TabLoadingFallback />}>
+          <AssetsTab
+            assets={customAssets}
+            report={report}
+            onChange={handleAssetsChange}
+          />
+        </Suspense>
       )}
       {activeTab === "calculator" && (
-        <CalculatorTab
-          params={compoundParams}
-          customAssets={customAssets}
-          brokerTotal={scenarioBrokerTotal ?? wealth.brokerTotal}
-          forecastPlans={forecastPlans}
-          loadedPlanId={loadedScenarioId}
-          onChange={handleParamsChange}
-          onSavePlan={handleSavePlan}
-          onDeletePlan={handleDeletePlan}
-          onRestorePlan={handleRestorePlan}
-          onClearLoadedPlan={handleClearLoadedScenario}
-        />
+        <Suspense fallback={<TabLoadingFallback />}>
+          <CalculatorTab
+            params={compoundParams}
+            customAssets={customAssets}
+            brokerTotal={scenarioBrokerTotal ?? wealth.brokerTotal}
+            forecastPlans={forecastPlans}
+            loadedPlanId={loadedScenarioId}
+            onChange={handleParamsChange}
+            onSavePlan={handleSavePlan}
+            onDeletePlan={handleDeletePlan}
+            onRestorePlan={handleRestorePlan}
+            onClearLoadedPlan={handleClearLoadedScenario}
+          />
+        </Suspense>
       )}
       {activeTab === "tracking" && (
-        <TrackingTab
-          forecastPlans={forecastPlans}
-          brokerSnapshots={brokerSnapshots}
-          debtBalanceHistory={debtBalanceHistory}
-          currentTotalDebt={currentTotalDebt}
-          currentCustomAssetsTotal={wealth.customTotal}
-          currentBrokerTotal={wealth.brokerTotal}
-          currentCustomAssets={customAssets}
-        />
+        <Suspense fallback={<TabLoadingFallback />}>
+          <TrackingTab
+            forecastPlans={forecastPlans}
+            brokerSnapshots={brokerSnapshots}
+            debtBalanceHistory={debtBalanceHistory}
+            currentTotalDebt={currentTotalDebt}
+            currentCustomAssetsTotal={wealth.customTotal}
+            currentBrokerTotal={wealth.brokerTotal}
+            currentCustomAssets={customAssets}
+          />
+        </Suspense>
       )}
       </div>
     </>

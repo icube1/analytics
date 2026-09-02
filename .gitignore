@@ -20,6 +20,7 @@
 # production
 /build
 /target
+/apps/web/dist
 
 # misc
 .DS_Store
@@ -33,6 +34,8 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
+apps/web/.env.example
 
 # vercel
 .vercel
@@ -46,3 +49,4 @@ next-env.d.ts
 /data/broker-report.html
 /statements/*.csv
 /statements/*.CSV
+apps/web/node_modules

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { apiFetch } from "@/lib/api-base";
 import {
   attachPortfolioDelta,
   buildBenchmarkPeriods,
@@ -217,7 +218,7 @@ export function BenchmarkComparisonPanel({
       to: comparisonDates.toDate,
     });
 
-    fetch(`/api/market-benchmark?${params.toString()}`)
+    apiFetch(`/api/market-benchmark?${params.toString()}`)
       .then(async (response) => {
         if (!response.ok) {
           const body = (await response.json().catch(() => null)) as {
