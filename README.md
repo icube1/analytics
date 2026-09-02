@@ -10,7 +10,7 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 [![License](https://img.shields.io/badge/License-Private-lightgrey)](#)
 
-[Возможности](#-возможности) · [Быстрый старт](#-быстрый-старт) · [Структура проекта](#-структура-проекта) · [Конфиденциальность](#-конфиденциальность)
+[Возможности](#-возможности) · [Быстрый старт](#-быстрый-старт) · [Roadmap](docs/product-architecture-roadmap.md) · [Структура проекта](#-структура-проекта) · [Конфиденциальность](#-конфиденциальность)
 
 </div>
 
