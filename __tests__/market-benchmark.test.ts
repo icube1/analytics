@@ -1,7 +1,9 @@
 import {
   buildBenchmarkPeriods,
+  computeBrokerReturnForPeriod,
   computeBrokerReturnForRange,
   resolveComparisonDates,
+  type BenchmarkPeriod,
 } from "@/lib/market-benchmark";
 import type { BrokerBalanceSnapshot } from "@/lib/portfolio-types";
 
@@ -56,23 +58,50 @@ describe("market benchmark periods", () => {
   });
 
   it("computes broker return excluding deposits in range", () => {
-    const range = resolveComparisonDates({
+    const period: BenchmarkPeriod = {
       id: "month-2026-03",
       kind: "month",
       label: "март 2026",
       fromDate: "2026-03-01",
       toDate: "2026-03-31",
       calendarMonth: "2026-03",
-    });
+    };
 
-    const returnPct = computeBrokerReturnForRange(
-      snapshots,
-      range.fromDate,
-      range.toDate,
-    );
+    const returnPct = computeBrokerReturnForPeriod(snapshots, period);
 
     // (1_080_000 - 1_050_000 - 20_000) / 1_050_000 * 100 ≈ 0.952%
     expect(returnPct).not.toBeNull();
     expect(returnPct!).toBeCloseTo(0.952, 2);
+  });
+
+  it("does not compare monthly return across unrelated snapshots", () => {
+    const sparse = [
+      snapshot("31.01.2026", 1_000_000),
+      snapshot("31.07.2026", 1_011_300),
+    ];
+    const period: BenchmarkPeriod = {
+      id: "month-2026-07",
+      kind: "month",
+      label: "июль 2026",
+      fromDate: "2026-07-01",
+      toDate: "2026-07-31",
+      calendarMonth: "2026-07",
+    };
+    const range = resolveComparisonDates(period);
+
+    const misaligned = computeBrokerReturnForRange(
+      sparse,
+      range.fromDate,
+      range.toDate,
+    );
+    expect(misaligned).toBeCloseTo(1.13, 2);
+
+    expect(computeBrokerReturnForPeriod(sparse, period)).toBeNull();
+
+    const aligned = [
+      snapshot("30.06.2026", 1_000_000),
+      snapshot("31.07.2026", 1_011_300),
+    ];
+    expect(computeBrokerReturnForPeriod(aligned, period)).toBeCloseTo(1.13, 2);
   });
 });

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   attachPortfolioDelta,
   buildBenchmarkPeriods,
-  computeBrokerReturnForRange,
+  computeBrokerReturnForPeriod,
   defaultBenchmarkPeriod,
   resolveComparisonDates,
   type BenchmarkPeriod,
@@ -118,7 +118,7 @@ function BenchmarkTable({
         <tr>
           <th className="pb-2 pr-3 font-medium">Бенчмарк</th>
           <th className="pb-2 pr-3 text-right font-medium">Доходность</th>
-          <th className="pb-2 text-right font-medium">К портфелю</th>
+          <th className="pb-2 text-right font-medium">Разница</th>
         </tr>
       </thead>
       <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -195,13 +195,9 @@ export function BenchmarkComparisonPanel({
   );
 
   const portfolioReturn = useMemo(() => {
-    if (!comparisonDates) return null;
-    return computeBrokerReturnForRange(
-      snapshots,
-      comparisonDates.fromDate,
-      comparisonDates.toDate,
-    );
-  }, [snapshots, comparisonDates]);
+    if (!selectedPeriod) return null;
+    return computeBrokerReturnForPeriod(snapshots, selectedPeriod);
+  }, [snapshots, selectedPeriod]);
 
   const [marketData, setMarketData] = useState<MarketBenchmarkApiResponse | null>(
     null,
@@ -379,6 +375,26 @@ export function BenchmarkComparisonPanel({
 
         {!loading && !error && marketData && (
           <div className="space-y-3">
+            {portfolioReturn == null && selectedPeriod?.kind === "month" && (
+              <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+                Для сравнения за этот месяц нужны отчёты за текущий и предыдущий
+                месяц. Загрузите более ранний отчёт или выберите «С начала года» /
+                «С первого отчёта».
+              </p>
+            )}
+
+            {portfolioReturn != null && groupedRows.core[0] && (
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                Разница = ваша доходность минус доходность индекса.{" "}
+                <span className="text-emerald-700 dark:text-emerald-300">
+                  Плюс
+                </span>{" "}
+                — вы лучше рынка,{" "}
+                <span className="text-rose-700 dark:text-rose-300">минус</span> —
+                хуже. Это не означает, что вы в плюсе по деньгам.
+              </p>
+            )}
+
             <BenchmarkTable rows={groupedRows.core} portfolioRow={portfolioRow} />
 
             <CollapsibleGroup

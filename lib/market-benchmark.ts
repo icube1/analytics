@@ -143,6 +143,33 @@ export function computeBrokerReturnForRange(
   return ((endBalance - startBalance - netDeposits) / startBalance) * 100;
 }
 
+/** Согласует период портфеля с индексами — для месяца берёт отчёты двух соседних месяцев. */
+export function computeBrokerReturnForPeriod(
+  snapshots: BrokerBalanceSnapshot[],
+  period: BenchmarkPeriod,
+): number | null {
+  const { fromDate, toDate } = resolveComparisonDates(period);
+
+  if (period.kind === "month" && period.calendarMonth) {
+    const byMonth = monthEndBalance(snapshots);
+    const prevMonth = previousCalendarMonth(period.calendarMonth);
+    const startSnapshot = byMonth.get(prevMonth);
+    const endSnapshot = byMonth.get(period.calendarMonth);
+
+    if (!startSnapshot || !endSnapshot) return null;
+    if (startSnapshot.id === endSnapshot.id) return null;
+
+    const startBalance = startSnapshot.brokerTotal;
+    const endBalance = endSnapshot.brokerTotal;
+    if (startBalance <= 0) return null;
+
+    const netDeposits = depositsBetween(snapshots, fromDate, toDate);
+    return ((endBalance - startBalance - netDeposits) / startBalance) * 100;
+  }
+
+  return computeBrokerReturnForRange(snapshots, fromDate, toDate);
+}
+
 export function buildBenchmarkPeriods(
   snapshots: BrokerBalanceSnapshot[],
 ): BenchmarkPeriod[] {
