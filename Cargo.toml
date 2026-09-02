@@ -1,5 +1,9 @@
 [workspace]
-members = ["crates/finance-core", "crates/finance-wasm"]
+members = [
+    "crates/finance-api",
+    "crates/finance-core",
+    "crates/finance-wasm",
+]
 resolver = "2"
 
 [workspace.package]
