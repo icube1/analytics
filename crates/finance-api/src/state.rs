@@ -3,7 +3,7 @@ use std::sync::Arc;
 use sqlx::SqlitePool;
 
 use crate::auth::AuthService;
-use crate::billing::BillingService;
+use crate::billing::{build_billing_service, BillingService};
 use crate::config::Config;
 use crate::observability::HttpMetrics;
 use crate::repositories::BillingRepository;
@@ -25,11 +25,10 @@ struct Inner {
 
 impl AppState {
     pub fn new(pool: SqlitePool, config: Config) -> Self {
-        let billing = if let Some(secret) = config.billing_webhook_secret.as_deref() {
-            BillingService::test(pool.clone(), secret.as_bytes())
-        } else {
+        let billing = build_billing_service(pool.clone(), &config).unwrap_or_else(|error| {
+            tracing::warn!(error = %error, "falling back to null billing provider");
             BillingService::null(pool.clone())
-        };
+        });
         Self {
             inner: Arc::new(Inner {
                 pool: pool.clone(),
@@ -45,16 +44,17 @@ impl AppState {
     pub async fn with_worker(self) -> Result<Self, crate::error::ApiError> {
         self.auth().bootstrap_local_account().await?;
         let executor = JobExecutor::start(self.clone());
+        let billing =
+            build_billing_service(self.pool().clone(), self.config()).unwrap_or_else(|error| {
+                tracing::warn!(error = %error, "falling back to null billing provider");
+                BillingService::null(self.pool().clone())
+            });
         Ok(Self {
             inner: Arc::new(Inner {
                 pool: self.pool().clone(),
                 config: self.config().clone(),
                 auth: AuthService::new(self.pool().clone(), self.config().clone()),
-                billing: if let Some(secret) = self.config().billing_webhook_secret.as_deref() {
-                    BillingService::test(self.pool().clone(), secret.as_bytes())
-                } else {
-                    BillingService::null(self.pool().clone())
-                },
+                billing,
                 executor: Some(executor),
                 metrics: Arc::clone(self.metrics()),
             }),

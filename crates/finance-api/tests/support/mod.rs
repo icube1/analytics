@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use finance_api::{
     auth::hash_password,
+    billing::yookassa::YooKassaConfig,
     build_app,
     config::{Config, Environment},
     db,
@@ -43,6 +44,7 @@ impl TestHarness {
             bootstrap_display_name: None,
             bootstrap_household_name: None,
             billing_webhook_secret: Some("test-webhook-secret".to_owned()),
+            yookassa: YooKassaConfig::default(),
             session_ttl: chrono::Duration::hours(1),
             session_cookie_secure: false,
             max_request_bytes: 1024 * 1024,

@@ -2,6 +2,7 @@ use std::env;
 use std::path::PathBuf;
 use std::time::Duration;
 
+use crate::billing::yookassa::YooKassaConfig;
 use crate::error::ApiError;
 
 #[derive(Clone, Debug)]
@@ -16,6 +17,7 @@ pub struct Config {
     pub bootstrap_display_name: Option<String>,
     pub bootstrap_household_name: Option<String>,
     pub billing_webhook_secret: Option<String>,
+    pub yookassa: YooKassaConfig,
     pub session_ttl: chrono::Duration,
     pub session_cookie_secure: bool,
     pub max_request_bytes: usize,
@@ -73,6 +75,26 @@ impl Config {
             billing_webhook_secret: env::var("FINANCE_API_BILLING_WEBHOOK_SECRET")
                 .ok()
                 .filter(|value| !value.is_empty()),
+            yookassa: YooKassaConfig {
+                enabled: parse_bool("FINANCE_API_YOOKASSA_ENABLED", false)?,
+                shop_id: env::var("FINANCE_API_YOOKASSA_SHOP_ID")
+                    .ok()
+                    .filter(|value| !value.is_empty()),
+                secret_key: env::var("FINANCE_API_YOOKASSA_SECRET_KEY")
+                    .ok()
+                    .filter(|value| !value.is_empty()),
+                api_base_url: env::var("FINANCE_API_YOOKASSA_API_BASE")
+                    .unwrap_or_else(|_| "https://api.yookassa.ru/v3".to_owned()),
+                request_timeout: Duration::from_millis(parse_u64(
+                    "FINANCE_API_YOOKASSA_REQUEST_TIMEOUT_MS",
+                    15_000,
+                )?),
+                max_retries: parse_u32("FINANCE_API_YOOKASSA_MAX_RETRIES", 2)?,
+                retry_backoff: Duration::from_millis(parse_u64(
+                    "FINANCE_API_YOOKASSA_RETRY_BACKOFF_MS",
+                    250,
+                )?),
+            },
             session_ttl: chrono::Duration::seconds(parse_u64(
                 "FINANCE_API_SESSION_TTL_SECS",
                 604_800,
@@ -108,6 +130,12 @@ impl Config {
 
     pub fn local_auth_enabled(&self) -> bool {
         self.bootstrap_email.is_some() && self.bootstrap_password.is_some()
+    }
+
+    pub fn yookassa_configured(&self) -> bool {
+        self.yookassa.enabled
+            && self.yookassa.shop_id.is_some()
+            && self.yookassa.secret_key.is_some()
     }
 }
 

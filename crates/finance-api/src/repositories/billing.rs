@@ -238,4 +238,51 @@ impl BillingRepository {
             updated_at: parse_timestamp(&row.9)?,
         })
     }
+
+    pub async fn list_subscriptions_by_provider(
+        &self,
+        provider: &str,
+    ) -> ApiResult<Vec<SubscriptionRecord>> {
+        let rows = sqlx::query_as::<
+            _,
+            (
+                String,
+                String,
+                String,
+                String,
+                Option<String>,
+                Option<String>,
+                Option<String>,
+                Option<String>,
+                String,
+                String,
+            ),
+        >(
+            "SELECT id, household_id, plan_id, status, provider, external_id,
+                    current_period_start, current_period_end, created_at, updated_at
+             FROM subscriptions
+             WHERE provider = ?1
+             ORDER BY updated_at ASC",
+        )
+        .bind(provider)
+        .fetch_all(&self.pool)
+        .await?;
+
+        rows.into_iter()
+            .map(|row| {
+                Ok(SubscriptionRecord {
+                    id: row.0.parse().map_err(|_| ApiError::Internal)?,
+                    household_id: row.1.parse().map_err(|_| ApiError::Internal)?,
+                    plan_id: row.2,
+                    status: row.3,
+                    provider: row.4,
+                    external_id: row.5,
+                    current_period_start: parse_optional_timestamp(row.6)?,
+                    current_period_end: parse_optional_timestamp(row.7)?,
+                    created_at: parse_timestamp(&row.8)?,
+                    updated_at: parse_timestamp(&row.9)?,
+                })
+            })
+            .collect()
+    }
 }

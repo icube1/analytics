@@ -10,7 +10,7 @@ remain authoritative.
 finance-api (binary)
 ├── auth            # opaque sessions, Argon2id, CSRF, login/logout/me
 ├── worker          # bounded SQLite job executor (finance-core resilience)
-├── billing         # provider-neutral webhook ingestion (Null/Test only)
+├── billing         # provider-neutral webhook ingestion (Null/Test/YooKassa*)
 ├── entitlements    # feature checks (e.g. resilience.compute)
 ├── routes
 │   ├── /health
@@ -44,7 +44,8 @@ finance-api (binary)
 | POST | `/api/v1/jobs` | session + entitlement |
 | GET | `/api/v1/jobs/:id` | session |
 | POST | `/api/v1/jobs/:id/cancel` | session |
-| POST | `/api/v1/billing/webhook` | HMAC signature (Test provider) |
+| POST | `/api/v1/billing/webhook` | HMAC signature (Test) / API re-fetch (YooKassa*) |
+| POST | `/api/v1/billing/checkout` | session + Idempotency-Key (YooKassa*) |
 | GET/POST | `/api/v1/statements` | session |
 | GET | `/api/v1/statements/:id(/content)` | session |
 | GET/POST | `/api/v1/broker/imports` | session |
@@ -105,6 +106,6 @@ kill $PID
 
 1. **Production routing** — reverse proxy still points at Next.js.
 2. **OAuth/SSO** — local bootstrap accounts only; no external IdP.
-3. **Real billing provider** — Test/Null webhook verifier only.
+3. **Real billing provider** — YooKassa adapter available but disabled by default; see `docs/yookassa-billing-ru.md`.
 4. **Payload storage** — implemented in `003_import_storage.sql`; production routing still on Next.js.
 5. **Broker parsing** — Rust stores raw imports only; parsing delegated to TS pipeline.
