@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createCustomAsset, createTermDeposit, getAssetNetValue } from "@/lib/custom-assets";
+import { randomId } from "@/lib/random-id";
 import { amortizeDebtMonth, estimatePayoffMonths, getMonthlyDebtService } from "@/lib/debt-amortization";
 import { currentPaymentPeriodDays } from "@/lib/debt-daycount";
 import { formatMoney, getTotalWealth } from "@/lib/portfolio-wealth";
@@ -63,7 +64,7 @@ function formatPayoff(months: number | null): string {
 
 function newDebt(): DebtObligation {
   return {
-    id: crypto.randomUUID(),
+    id: randomId(),
     enabled: true,
     label: "Кредит",
     balance: 0,

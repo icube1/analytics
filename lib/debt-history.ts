@@ -1,4 +1,5 @@
 import { getTotalDebtBalance } from "./debt-amortization";
+import { randomId } from "./random-id";
 import { calendarMonthFromRuDate } from "./broker-deposits";
 import type {
   BrokerBalanceSnapshot,
@@ -22,7 +23,7 @@ export function createDebtBalanceEntry(
   recordedAt = new Date().toISOString(),
 ): DebtBalanceEntry {
   return {
-    id: crypto.randomUUID(),
+    id: randomId(),
     recordedAt,
     totalDebt,
     source,

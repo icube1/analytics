@@ -1,4 +1,5 @@
 import { calendarMonthFromPlanMonth } from "./broker-deposits";
+import { randomId } from "./random-id";
 import { calculateCompoundInterest } from "./compound-interest";
 import type {
   CompoundParams,
@@ -61,7 +62,7 @@ export function buildForecastPlan(
     }));
 
   return {
-    id: crypto.randomUUID(),
+    id: randomId(),
     name: name.trim() || "Сценарий",
     savedAt,
     params,
