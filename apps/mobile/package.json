@@ -1,0 +1,34 @@
+{
+  "name": "@analytics/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "build:web": "npm run build --workspace @analytics/web",
+    "prepare:bundle": "node scripts/prepare-mobile-bundle.mjs",
+    "build": "npm run build:web && npm run prepare:bundle",
+    "verify": "node scripts/verify-mobile-bundle.mjs",
+    "cap:sync": "npm run prepare:bundle && cap sync",
+    "cap:sync:ios": "npm run prepare:bundle && cap sync ios",
+    "cap:sync:android": "npm run prepare:bundle && cap sync android",
+    "cap:open:ios": "cap open ios",
+    "cap:open:android": "cap open android",
+    "cap:doctor": "cap doctor"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.4.2",
+    "@capacitor/app": "^7.0.2",
+    "@capacitor/browser": "^7.0.2",
+    "@capacitor/core": "^7.4.2",
+    "@capacitor/ios": "^7.4.2",
+    "@capacitor/network": "^7.0.2",
+    "@capacitor/preferences": "^7.0.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.4.2",
+    "typescript": "^5",
+    "vitest": "^3.2.4"
+  }
+}
