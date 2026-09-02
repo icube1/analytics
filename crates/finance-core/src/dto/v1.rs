@@ -5,6 +5,10 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    compound::{
+        calculate_compound_interest, run_monte_carlo_simulation, CompoundContext, CompoundError,
+        CompoundOptions, CompoundParams, CompoundResult, MonteCarloOptions, MonteCarloResult,
+    },
     date::CivilDate,
     debt::{
         amortize_debt_month, current_payment_period_days, estimate_payoff_months,
@@ -52,6 +56,24 @@ pub enum FinanceRequest {
     },
     #[serde(rename_all = "camelCase")]
     ResiliencePlan { id: String, input: ResilienceInput },
+    #[serde(rename_all = "camelCase")]
+    CompoundProjection {
+        id: String,
+        params: CompoundParams,
+        #[serde(default)]
+        context: Option<CompoundContext>,
+        #[serde(default)]
+        options: CompoundOptions,
+    },
+    #[serde(rename_all = "camelCase")]
+    MonteCarlo {
+        id: String,
+        params: CompoundParams,
+        #[serde(default)]
+        context: Option<CompoundContext>,
+        #[serde(default)]
+        options: MonteCarloOptions,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -86,12 +108,23 @@ pub enum FinanceResponse {
         id: String,
         plan: Box<ResiliencePlan>,
     },
+    #[serde(rename_all = "camelCase")]
+    CompoundProjection {
+        id: String,
+        result: Box<CompoundResult>,
+    },
+    #[serde(rename_all = "camelCase")]
+    MonteCarlo {
+        id: String,
+        result: Box<MonteCarloResult>,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum BoundaryError {
     UnsupportedSchemaVersion(u16),
     InvalidDate { id: String, value: String },
+    CompoundEvaluation { id: String, message: String },
 }
 
 impl fmt::Display for BoundaryError {
@@ -103,6 +136,9 @@ impl fmt::Display for BoundaryError {
             Self::InvalidDate { id, value } => {
                 write!(formatter, "case {id} has invalid civil date {value:?}")
             }
+            Self::CompoundEvaluation { id, message } => {
+                write!(formatter, "case {id} compound evaluation failed: {message}")
+            }
         }
     }
 }
@@ -113,7 +149,7 @@ impl std::error::Error for BoundaryError {}
 ///
 /// # Errors
 ///
-/// Returns [`BoundaryError`] for an unsupported schema or invalid civil date.
+/// Returns [`BoundaryError`] for an unsupported schema, invalid civil date, or compound failure.
 pub fn evaluate(batch: RequestBatch) -> Result<ResponseBatch, BoundaryError> {
     if batch.schema_version != SCHEMA_VERSION {
         return Err(BoundaryError::UnsupportedSchemaVersion(
@@ -195,6 +231,39 @@ fn evaluate_case(request: FinanceRequest) -> Result<FinanceResponse, BoundaryErr
                 plan: Box::new(plan),
             })
         }
+        FinanceRequest::CompoundProjection {
+            id,
+            params,
+            context,
+            options,
+        } => {
+            let result = calculate_compound_interest(&params, context.as_ref(), &options)
+                .map_err(|error| map_compound_error(&id, &error))?;
+            Ok(FinanceResponse::CompoundProjection {
+                id,
+                result: Box::new(result),
+            })
+        }
+        FinanceRequest::MonteCarlo {
+            id,
+            params,
+            context,
+            options,
+        } => {
+            let result = run_monte_carlo_simulation(&params, context.as_ref(), &options)
+                .map_err(|error| map_compound_error(&id, &error))?;
+            Ok(FinanceResponse::MonteCarlo {
+                id,
+                result: Box::new(result),
+            })
+        }
+    }
+}
+
+fn map_compound_error(id: &str, error: &CompoundError) -> BoundaryError {
+    BoundaryError::CompoundEvaluation {
+        id: id.to_owned(),
+        message: error.to_string(),
     }
 }
 

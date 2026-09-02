@@ -546,6 +546,7 @@ name = "finance-wasm"
 version = "0.1.0"
 dependencies = [
  "finance-core",
+ "js-sys",
  "serde_json",
  "wasm-bindgen",
 ]
