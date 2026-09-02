@@ -34,7 +34,7 @@ describe("mobile runtime", () => {
 
     win.window = {
       __ANALYTICS_MOBILE_CONFIG__: { apiBase: "https://api.example.com" },
-    } as Window & {
+    } as unknown as Window & typeof globalThis & {
       __ANALYTICS_MOBILE_CONFIG__?: { apiBase: string };
       __ANALYTICS_API_BASE__?: string;
     };
@@ -122,7 +122,8 @@ describe("native bridge", () => {
     const win = globalThis as typeof globalThis & {
       window?: Window & { __ANALYTICS_NATIVE_BRIDGE__?: unknown };
     };
-    win.window = {} as Window & { __ANALYTICS_NATIVE_BRIDGE__?: unknown };
+    win.window = {} as unknown as Window &
+      typeof globalThis & { __ANALYTICS_NATIVE_BRIDGE__?: unknown };
 
     registerNativeBridge({
       openExternalUrl: async () => {},

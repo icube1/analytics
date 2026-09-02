@@ -8,7 +8,7 @@ export interface MobileEnvDefaults {
 }
 
 export function loadMobileEnvDefaults(
-  env: NodeJS.ProcessEnv = process.env,
+  env: Record<string, string | undefined> = process.env,
 ): MobileEnvDefaults {
   return {
     apiBase: env.MOBILE_API_BASE?.trim() ?? "",

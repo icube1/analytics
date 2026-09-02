@@ -2,6 +2,18 @@ export const OBSERVABILITY_SCHEMA_VERSION = 1;
 
 export type StatusBreakdown = { "2xx": number; "3xx": number; "4xx": number; "5xx": number };
 export type LatencyPercentiles = { p50: number; p95: number; p99: number };
+export type HostSnapshot = {
+  cpuPercent: number;
+  memoryRssMb: number;
+  load1?: number;
+  disk: { usedPercent: number; freeMb: number };
+};
+export type NginxSnapshot = {
+  windowSecs: number;
+  requests: number;
+  latencyMs: LatencyPercentiles;
+  status: StatusBreakdown;
+};
 
 export type ServiceSnapshot = {
   uptimeSecs: number;
@@ -17,8 +29,8 @@ export type ServiceSnapshot = {
 export type ObservabilitySnapshot = {
   schemaVersion: typeof OBSERVABILITY_SCHEMA_VERSION;
   collectedAt: string;
-  host: { cpuPercent: number; memoryRssMb: number; load1?: number; disk: { usedPercent: number; freeMb: number } };
-  nginx?: { windowSecs: number; requests: number; latencyMs: LatencyPercentiles; status: StatusBreakdown };
+  host: HostSnapshot;
+  nginx?: NginxSnapshot;
   services: { financeApi?: ServiceSnapshot; nodeApp?: ServiceSnapshot };
 };
 

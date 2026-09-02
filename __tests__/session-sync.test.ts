@@ -239,13 +239,13 @@ describe("session-sync portfolio conflicts and offline replay", () => {
     const outcome = await pushPortfolio(
       {
         version: 1,
-        customAssets: [],
+        customAssets: { items: [], otherDebts: [] },
         compoundParams: {} as never,
         brokerReport: null,
         brokerSnapshots: [],
         debtBalanceHistory: [],
         forecastPlans: [],
-        lastBrokerFileName: null,
+        lastBrokerFileName: "portfolio.html",
         updatedAt: "2026-01-01T00:00:00.000Z",
       },
       { baseRevision: 1 },

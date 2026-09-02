@@ -7,6 +7,7 @@ import type {
   LatencyPercentiles,
   NginxSnapshot,
   ObservabilitySnapshot,
+  ServiceSnapshot,
   StatusBreakdown,
 } from "../../lib/observability/schema";
 import { OBSERVABILITY_SCHEMA_VERSION } from "../../lib/observability/schema";
@@ -154,8 +155,8 @@ function mapNode(payload: Record<string, unknown>): ObservabilitySnapshot["servi
     memoryRssMb: payload.memoryRssMb ? Number(payload.memoryRssMb) : undefined,
     heapUsedMb: payload.heapUsedMb ? Number(payload.heapUsedMb) : undefined,
     http: { requests: Number(http.requests ?? 0), latencyMs: http.latencyMs as LatencyPercentiles, status: http.status as StatusBreakdown },
-    cache: payload.cache as ObservabilitySnapshot["services"]["nodeApp"]["cache"],
-    imports: payload.imports as ObservabilitySnapshot["services"]["nodeApp"]["imports"],
+    cache: payload.cache as ServiceSnapshot["cache"],
+    imports: payload.imports as ServiceSnapshot["imports"],
   };
 }
 
