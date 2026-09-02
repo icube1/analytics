@@ -21,6 +21,18 @@ export function evaluate_finance_core(request_json) {
 }
 
 /**
+ * Evaluates a single Monte Carlo batch and returns final-path balances as `Float64Array`.
+ * @param {string} request_json
+ * @returns {Float64Array}
+ */
+export function evaluate_finance_core_monte_carlo_paths(request_json) {
+    const ptr0 = passStringToWasm0(request_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.evaluate_finance_core_monte_carlo_paths(ptr0, len0);
+    return ret;
+}
+
+/**
  * Returns the active finance-core schema version.
  * @returns {number}
  */
@@ -31,6 +43,17 @@ export function finance_core_schema_version() {
 function __wbg_get_imports() {
     const import0 = {
         __proto__: null,
+        __wbg___wbindgen_throw_bb96b2010945f0bc: function(arg0, arg1) {
+            throw new Error(getStringFromWasm0(arg0, arg1));
+        },
+        __wbg_new_from_slice_f6e95bc2809a2b07: function(arg0, arg1) {
+            const ret = new Float64Array(getArrayF64FromWasm0(arg0, arg1));
+            return ret;
+        },
+        __wbg_new_with_length_c6dc3c01aae43e21: function(arg0) {
+            const ret = new Float64Array(arg0 >>> 0);
+            return ret;
+        },
         __wbindgen_init_externref_table: function() {
             const table = wasm.__wbindgen_externrefs;
             const offset = table.grow(4);
@@ -45,6 +68,19 @@ function __wbg_get_imports() {
         __proto__: null,
         "./finance_wasm_bg.js": import0,
     };
+}
+
+function getArrayF64FromWasm0(ptr, len) {
+    ptr = ptr >>> 0;
+    return getFloat64ArrayMemory0().subarray(ptr / 8, ptr / 8 + len);
+}
+
+let cachedFloat64ArrayMemory0 = null;
+function getFloat64ArrayMemory0() {
+    if (cachedFloat64ArrayMemory0 === null || cachedFloat64ArrayMemory0.byteLength === 0) {
+        cachedFloat64ArrayMemory0 = new Float64Array(wasm.memory.buffer);
+    }
+    return cachedFloat64ArrayMemory0;
 }
 
 function getStringFromWasm0(ptr, len) {
@@ -130,6 +166,7 @@ function __wbg_finalize_init(instance, module) {
     wasmInstance = instance;
     wasm = instance.exports;
     wasmModule = module;
+    cachedFloat64ArrayMemory0 = null;
     cachedUint8ArrayMemory0 = null;
     wasm.__wbindgen_start();
     return wasm;

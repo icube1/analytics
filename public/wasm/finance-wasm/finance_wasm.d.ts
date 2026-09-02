@@ -7,6 +7,11 @@
 export function evaluate_finance_core(request_json: string): string;
 
 /**
+ * Evaluates a single Monte Carlo batch and returns final-path balances as `Float64Array`.
+ */
+export function evaluate_finance_core_monte_carlo_paths(request_json: string): Float64Array;
+
+/**
  * Returns the active finance-core schema version.
  */
 export function finance_core_schema_version(): number;
@@ -17,6 +22,7 @@ export interface InitOutput {
     readonly memory: WebAssembly.Memory;
     readonly evaluate_finance_core: (a: number, b: number) => [number, number];
     readonly finance_core_schema_version: () => number;
+    readonly evaluate_finance_core_monte_carlo_paths: (a: number, b: number) => any;
     readonly __wbindgen_externrefs: WebAssembly.Table;
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;

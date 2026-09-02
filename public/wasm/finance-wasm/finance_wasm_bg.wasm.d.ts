@@ -3,6 +3,7 @@
 export const memory: WebAssembly.Memory;
 export const evaluate_finance_core: (a: number, b: number) => [number, number];
 export const finance_core_schema_version: () => number;
+export const evaluate_finance_core_monte_carlo_paths: (a: number, b: number) => any;
 export const __wbindgen_externrefs: WebAssembly.Table;
 export const __wbindgen_malloc: (a: number, b: number) => number;
 export const __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
