@@ -383,6 +383,7 @@ export function InvestmentsDashboard() {
           analytics={analytics}
           report={report}
           customAssets={customAssets}
+          brokerSnapshots={brokerSnapshots}
         />
       )}
       {activeTab === "portfolio" && (
