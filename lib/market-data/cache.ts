@@ -1,43 +1,21 @@
 import fs from "node:fs";
 import path from "node:path";
-import { getDataDir } from "../project-paths";
-import type { DailyClose } from "./moex-client";
+import type { MarketDataCacheFile } from "./cache-types";
 
-export interface MarketDataCacheFile {
-  cacheDate: string;
-  fetchedAt: string;
-  indices: Record<string, DailyClose[]>;
-  fxDates: Record<string, Record<string, number>>;
-}
+export type { MarketDataCacheFile } from "./cache-types";
 
 const CACHE_FILE = "market-benchmark-cache.json";
+const DEFAULT_CACHE_DIR = path.join("/tmp", "analytics");
 
 /** Живёт между запросами в одном serverless-инстансе. */
 let memoryCache: MarketDataCacheFile | null = null;
 
 let resolvedCachePath: string | null | undefined;
 
-function isServerlessRuntime(): boolean {
-  return Boolean(
-    process.env.VERCEL ||
-      process.env.AWS_LAMBDA_FUNCTION_NAME ||
-      process.env.NETLIFY,
-  );
-}
-
 function candidateCacheDirs(): string[] {
-  if (isServerlessRuntime()) {
-    // Vercel/Lambda: каталог приложения read-only, пишем только во временный каталог.
-    return [process.env.MARKET_CACHE_DIR, path.join("/tmp", "analytics")].filter(
-      (dir): dir is string => Boolean(dir),
-    );
-  }
-
-  return [
-    process.env.MARKET_CACHE_DIR,
-    getDataDir(),
-    path.join("/tmp", "analytics"),
-  ].filter((dir): dir is string => Boolean(dir));
+  return [process.env.MARKET_CACHE_DIR, DEFAULT_CACHE_DIR].filter(
+    (dir): dir is string => Boolean(dir),
+  );
 }
 
 function resolveCachePath(): string | null {
@@ -92,7 +70,6 @@ export function writeMarketCache(cache: MarketDataCacheFile): void {
   try {
     fs.writeFileSync(filePath, `${JSON.stringify(cache, null, 2)}\n`, "utf-8");
   } catch {
-    // Больше не пробуем этот путь в текущем инстансе.
     resolvedCachePath = null;
   }
 }

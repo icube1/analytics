@@ -9,11 +9,25 @@ if [[ ! -d .next/standalone ]]; then
   exit 1
 fi
 
-mkdir -p .next/standalone/.next/static
-cp -r .next/static/. .next/standalone/.next/static/
+STANDALONE=".next/standalone"
+
+mkdir -p "$STANDALONE/.next/static"
+cp -r .next/static/. "$STANDALONE/.next/static/"
 
 if [[ -d public ]]; then
-  cp -r public .next/standalone/public
+  cp -r public "$STANDALONE/public"
 fi
 
-echo "Standalone bundle ready at .next/standalone/"
+PRUNE_PATHS=(
+  target crates apps docs fixtures deploy __tests__ scripts coverage
+  Cargo.lock Cargo.toml rust-toolchain.toml jest.config.js eslint.config.mjs
+  README.md AGENTS.md CLAUDE.md tsconfig.tsbuildinfo
+)
+
+for rel_path in "${PRUNE_PATHS[@]}"; do
+  if [[ -e "$STANDALONE/$rel_path" ]]; then
+    rm -rf "$STANDALONE/$rel_path"
+  fi
+done
+
+echo "Standalone bundle ready at $STANDALONE/"

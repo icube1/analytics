@@ -15,6 +15,8 @@
     "typecheck:web": "npm run typecheck --workspace @analytics/web",
     "test:web": "npm run test --workspace @analytics/web",
     "measure:bundles": "node scripts/measure-bundles.mjs",
+    "ci:verify": "bash scripts/ci-verify.sh",
+    "package:deploy": "bash scripts/package-deploy.sh",
     "benchmark:finance": "tsx scripts/benchmark-finance.ts",
     "sanitize:broker-fixtures": "tsx scripts/sanitize-broker-fixture.ts",
     "compare:finance-core": "tsx scripts/compare-finance-core.ts",

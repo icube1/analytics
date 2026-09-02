@@ -1,0 +1,32 @@
+name: Verify
+
+on:
+  workflow_call:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      CI_REPORT_DIR: ${{ github.workspace }}/ci-reports
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.88.0
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: .
+      - run: bash scripts/ci-verify.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ci-reports
+          path: |
+            ci-reports/timings.json
+            ci-reports/bundle-report.json
+          if-no-files-found: ignore

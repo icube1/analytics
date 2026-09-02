@@ -1,7 +1,4 @@
 #!/usr/bin/env node
-/**
- * Compare production bundle sizes: Next.js (.next) vs Vite SPA (apps/web/dist).
- */
 import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -9,30 +6,32 @@ import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const reportDir = process.env.CI_REPORT_DIR
+  ? path.resolve(process.env.CI_REPORT_DIR)
+  : path.join(root, "ci-reports");
+
+const BUDGETS = {
+  nextStandaloneBytes: Number(process.env.BUDGET_NEXT_STANDALONE_BYTES ?? 200 * 1024 * 1024),
+  viteDistBytes: Number(process.env.BUDGET_VITE_DIST_BYTES ?? 12 * 1024 * 1024),
+  viteJsGzipTotal: Number(process.env.BUDGET_VITE_JS_GZIP_BYTES ?? 600 * 1024),
+};
+
+const argv = process.argv.slice(2);
+const skipBuild = argv.includes("--skip-build");
+const ciMode = argv.includes("--ci");
 
 function walkFiles(dir) {
   if (!fs.existsSync(dir)) return [];
-  const entries = fs.readdirSync(dir, { withFileTypes: true });
-  const files = [];
-  for (const entry of entries) {
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const fullPath = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      files.push(...walkFiles(fullPath));
-    } else if (entry.isFile()) {
-      files.push(fullPath);
-    }
-  }
-  return files;
+    return entry.isDirectory() ? walkFiles(fullPath) : entry.isFile() ? [fullPath] : [];
+  });
 }
 
 function dirSizeBytes(dir) {
   const files = walkFiles(dir);
   if (files.length === 0 && !fs.existsSync(dir)) return null;
-  let total = 0;
-  for (const filePath of files) {
-    total += fs.statSync(filePath).size;
-  }
-  return total;
+  return files.reduce((sum, filePath) => sum + fs.statSync(filePath).size, 0);
 }
 
 function formatBytes(bytes) {
@@ -42,13 +41,7 @@ function formatBytes(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(2)} MiB`;
 }
 
-function gzipSize(filePath) {
-  const data = fs.readFileSync(filePath);
-  return gzipSync(data).length;
-}
-
 function collectViteAssets(distDir) {
-  if (!fs.existsSync(distDir)) return [];
   const assetsDir = path.join(distDir, "assets");
   if (!fs.existsSync(assetsDir)) return [];
   return fs
@@ -57,69 +50,52 @@ function collectViteAssets(distDir) {
     .map((name) => {
       const filePath = path.join(assetsDir, name);
       const stat = fs.statSync(filePath);
-      return {
-        name,
-        raw: stat.size,
-        gzip: gzipSize(filePath),
-      };
+      return { name, raw: stat.size, gzip: gzipSync(fs.readFileSync(filePath)).length };
     })
     .sort((a, b) => b.raw - a.raw);
 }
 
-function ensureBuild(label, command) {
-  console.log(`\n▶ ${label}`);
-  execSync(command, { cwd: root, stdio: "inherit" });
-}
-
-const skipBuild = process.argv.includes("--skip-build");
-
 if (!skipBuild) {
-  ensureBuild("Next.js production build", "npm run build");
-  ensureBuild("Vite SPA production build", "npm run build:web");
+  execSync("npm run build", { cwd: root, stdio: "inherit" });
+  execSync("npm run build:web", { cwd: root, stdio: "inherit" });
 }
 
-const nextStatic = path.join(root, ".next/static");
 const nextStandalone = path.join(root, ".next/standalone");
 const viteDist = path.join(root, "apps/web/dist");
-
-const nextStaticBytes = dirSizeBytes(nextStatic);
 const nextStandaloneBytes = dirSizeBytes(nextStandalone);
 const viteDistBytes = dirSizeBytes(viteDist);
 const viteAssets = collectViteAssets(viteDist);
-const viteJsGzip = viteAssets
-  .filter((asset) => asset.name.endsWith(".js"))
-  .reduce((sum, asset) => sum + asset.gzip, 0);
+const viteJsGzip = viteAssets.filter((a) => a.name.endsWith(".js")).reduce((s, a) => s + a.gzip, 0);
+const forbiddenStandalone = ["target", "crates", "apps"].filter((rel) =>
+  fs.existsSync(path.join(nextStandalone, rel)),
+);
 
 console.log("\n=== Bundle comparison ===\n");
-console.log(`Next .next/static (uncompressed tree): ${formatBytes(nextStaticBytes)}`);
-console.log(`Next .next/standalone (full server bundle): ${formatBytes(nextStandaloneBytes)}`);
-console.log(`Vite apps/web/dist (uncompressed tree): ${formatBytes(viteDistBytes)}`);
-console.log(`Vite JS assets (gzip sum): ${formatBytes(viteJsGzip)}`);
+console.log(`Next .next/standalone: ${formatBytes(nextStandaloneBytes)}`);
+console.log(`Vite apps/web/dist: ${formatBytes(viteDistBytes)}`);
+console.log(`Vite JS gzip sum: ${formatBytes(viteJsGzip)}`);
 
-if (viteAssets.length > 0) {
-  console.log("\nTop Vite assets:");
-  for (const asset of viteAssets.slice(0, 12)) {
-    console.log(
-      `  ${asset.name.padEnd(36)} raw ${formatBytes(asset.raw).padStart(10)}  gzip ${formatBytes(asset.gzip).padStart(10)}`,
-    );
-  }
+if (forbiddenStandalone.length > 0) {
+  console.error(`Forbidden standalone paths: ${forbiddenStandalone.join(", ")}`);
+  process.exit(1);
 }
 
-const reportPath = path.join(viteDist, "bundle-comparison.json");
-fs.mkdirSync(viteDist, { recursive: true });
-fs.writeFileSync(
-  reportPath,
-  JSON.stringify(
-    {
-      generatedAt: new Date().toISOString(),
-      nextStaticBytes,
-      nextStandaloneBytes,
-      viteDistBytes,
-      viteJsGzipTotal: viteJsGzip,
-      viteAssets,
-    },
-    null,
-    2,
-  ),
-);
-console.log(`\nWrote ${reportPath}`);
+const budgetResults = [
+  { name: "nextStandaloneBytes", actual: nextStandaloneBytes, limit: BUDGETS.nextStandaloneBytes },
+  { name: "viteDistBytes", actual: viteDistBytes, limit: BUDGETS.viteDistBytes },
+  { name: "viteJsGzipTotal", actual: viteJsGzip, limit: BUDGETS.viteJsGzipTotal },
+].map((e) => ({ ...e, ok: e.actual !== null && e.actual <= e.limit }));
+
+if (ciMode) {
+  console.log("\n=== Bundle budgets ===\n");
+  let failed = false;
+  for (const b of budgetResults) {
+    console.log(`  [${b.ok ? "OK" : "FAIL"}] ${b.name}: ${formatBytes(b.actual)} / ${formatBytes(b.limit)}`);
+    if (!b.ok) failed = true;
+  }
+  if (failed) process.exit(1);
+}
+
+const report = { generatedAt: new Date().toISOString(), nextStandaloneBytes, viteDistBytes, viteJsGzipTotal: viteJsGzip, viteAssets, budgets: BUDGETS, budgetResults, forbiddenStandalone };
+fs.mkdirSync(reportDir, { recursive: true });
+fs.writeFileSync(path.join(reportDir, "bundle-report.json"), `${JSON.stringify(report, null, 2)}\n`);

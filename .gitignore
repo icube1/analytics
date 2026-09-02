@@ -50,3 +50,5 @@ next-env.d.ts
 /statements/*.csv
 /statements/*.CSV
 apps/web/node_modules
+/ci-reports/
+deploy.tar.gz

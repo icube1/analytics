@@ -3,7 +3,7 @@ import path from "node:path";
 
 /** Корень Next.js-проекта (папка с package.json). */
 export function getProjectRoot(): string {
-  return process.cwd();
+  return /* turbopackIgnore: true */ process.cwd();
 }
 
 export function getDataDir(): string {

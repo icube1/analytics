@@ -86,12 +86,30 @@ export function sanitizeFixtureFile(filePath: string): void {
   fs.writeFileSync(filePath, sanitized, "utf8");
 }
 
-function runCli(): void {
-  const fixturePaths =
-    process.argv.length > 2 ? process.argv.slice(2) : DEFAULT_FIXTURES;
+export function assertFixtureSanitized(filePath: string): void {
+  const original = fs.readFileSync(filePath, "utf8");
+  const sanitized = sanitizeBrokerFixture(original);
+  if (sanitized !== original) {
+    throw new Error(`Fixture is not sanitized: ${filePath}`);
+  }
+}
 
-  for (const fixturePath of fixturePaths) {
-    sanitizeFixtureFile(path.resolve(fixturePath));
+function runCli(): void {
+  const checkOnly = process.argv.includes("--check");
+  const fixturePaths = process.argv
+    .slice(2)
+    .filter((arg) => arg !== "--check");
+
+  const paths = fixturePaths.length > 0 ? fixturePaths : DEFAULT_FIXTURES;
+
+  for (const fixturePath of paths) {
+    const resolved = path.resolve(fixturePath);
+    if (checkOnly) {
+      assertFixtureSanitized(resolved);
+      console.log(`OK ${resolved}`);
+    } else {
+      sanitizeFixtureFile(resolved);
+    }
   }
 }
 
