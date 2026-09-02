@@ -7,6 +7,7 @@ import {
 } from "./debt-history";
 import { getTotalDebtBalance } from "./debt-amortization";
 import { mergePortfolioStorage, isEmptyDocument } from "./merge-portfolio-storage";
+import { enrichBrokerReport } from "./broker-positions";
 import { normalizeCompoundParams } from "./normalize-compound-params";
 import { parsePortfolioHtml } from "./parse-portfolio-html";
 import { readPortfolioFromDb, writePortfolioToDb } from "./browser-idb";
@@ -35,7 +36,7 @@ function normalizeDocument(data: Partial<PortfolioDocument>): PortfolioDocument 
       ...DEFAULT_DOCUMENT.compoundParams,
       ...data.compoundParams,
     }),
-    brokerReport: data.brokerReport ?? null,
+    brokerReport: enrichBrokerReport(data.brokerReport ?? null),
     brokerSnapshots,
     debtBalanceHistory,
     forecastPlans: data.forecastPlans ?? [],
@@ -99,7 +100,16 @@ export async function fetchPortfolioDocument(): Promise<PortfolioDocument> {
     doc = (await migrateFromServerIfEmpty()) ?? doc;
   }
 
-  return doc ?? { ...DEFAULT_DOCUMENT };
+  const normalized = doc ?? { ...DEFAULT_DOCUMENT };
+  const enrichedReport = enrichBrokerReport(normalized.brokerReport);
+  if (enrichedReport !== normalized.brokerReport) {
+    return writeStoredDocument({
+      ...normalized,
+      brokerReport: enrichedReport,
+    });
+  }
+
+  return normalized;
 }
 
 export async function savePortfolioDocument(

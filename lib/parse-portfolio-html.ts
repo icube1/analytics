@@ -1,4 +1,5 @@
 import { parseHTML } from "linkedom";
+import { enrichBrokerReport } from "./broker-positions";
 import type {
   BrokerReport,
   BrokerTrade,
@@ -276,7 +277,7 @@ export function parsePortfolioHtml(html: string): BrokerReport {
   const cashFlowsTable = findTableAfterHeading(doc, "Движение денежных средств");
   const tradesTable = findTableAfterHeading(doc, "Сделки купли/продажи");
 
-  return {
+  const report: BrokerReport = {
     periodStart: meta.periodStart ?? "",
     periodEnd: meta.periodEnd ?? "",
     createdAt: meta.createdAt ?? "",
@@ -296,4 +297,6 @@ export function parsePortfolioHtml(html: string): BrokerReport {
     cashFlows: cashFlowsTable ? parseCashFlowsTable(cashFlowsTable) : [],
     trades: tradesTable ? parseTradesTable(tradesTable) : [],
   };
+
+  return enrichBrokerReport(report) ?? report;
 }

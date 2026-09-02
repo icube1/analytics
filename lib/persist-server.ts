@@ -1,7 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { backfillDebtHistoryFromSnapshots } from "./debt-history";
+import { enrichBrokerReport } from "./broker-positions";
 import { mergePortfolioStorage } from "./merge-portfolio-storage";
+import { parsePortfolioHtml } from "./parse-portfolio-html";
 import {
   DEFAULT_DOCUMENT,
   type PortfolioDocument,
@@ -31,11 +33,15 @@ export function readPortfolioDocument(): PortfolioDocument {
     const parsed = JSON.parse(raw) as Partial<PortfolioDocument>;
     const merged = mergePortfolioStorage(parsed);
     const brokerSnapshots = parsed.brokerSnapshots ?? [];
+    const html = readBrokerHtml();
+    const brokerReport = html
+      ? parsePortfolioHtml(html)
+      : enrichBrokerReport(parsed.brokerReport ?? null);
     return {
       ...merged,
       version: 1,
       updatedAt: parsed.updatedAt ?? merged.updatedAt,
-      brokerReport: parsed.brokerReport ?? null,
+      brokerReport,
       brokerSnapshots,
       debtBalanceHistory: backfillDebtHistoryFromSnapshots(
         parsed.debtBalanceHistory ?? [],

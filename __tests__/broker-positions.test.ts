@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
+  enrichBrokerReport,
   hasPendingSettlements,
   resolveSecurityPosition,
   sumEffectiveSecuritiesValue,
@@ -33,6 +34,29 @@ describe("broker positions T+1", () => {
 
     expect(hasPendingSettlements(report)).toBe(true);
     expect(sumEffectiveSecuritiesValue(report)).toBeGreaterThan(
+      report.securitiesEnd,
+    );
+  });
+
+  it("enriches legacy saved report from unsettled trades", () => {
+    const html = fs.readFileSync(fixturePath, "utf-8");
+    const report = parsePortfolioHtml(html);
+    const legacy = {
+      ...report,
+      securities: report.securities.map((security) => ({
+        ...security,
+        quantityPlanned: undefined,
+        plannedCredits: undefined,
+        plannedDebits: undefined,
+      })),
+    };
+
+    const enriched = enrichBrokerReport(legacy);
+    const gold = enriched!.securities.find((s) => s.name.includes("золото"));
+    expect(gold?.quantityPlanned).toBe(2087);
+    expect(resolveSecurityPosition(gold!).quantity).toBe(2087);
+    expect(hasPendingSettlements(enriched)).toBe(true);
+    expect(sumEffectiveSecuritiesValue(enriched)).toBeGreaterThan(
       report.securitiesEnd,
     );
   });
