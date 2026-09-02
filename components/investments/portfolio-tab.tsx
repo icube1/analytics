@@ -9,18 +9,25 @@ import {
   Tooltip,
 } from "recharts";
 import { ChartMoneyTooltip } from "@/components/chart-money-tooltip";
+import { BrokerReportDiffPanel } from "@/components/investments/broker-report-diff-panel";
 import { getEffectivePortfolioTotals, resolveCashPosition, resolveSecurityPosition } from "@/lib/broker-positions";
 import { CHART_COLORS } from "@/lib/stats";
 import { formatMoney } from "@/lib/portfolio-wealth";
-import type { BrokerReport } from "@/lib/portfolio-types";
+import type { BrokerBalanceSnapshot, BrokerReport } from "@/lib/portfolio-types";
 
 interface PortfolioTabProps {
   report: BrokerReport | null;
   onUpload: (file: File) => void;
   fileName: string;
+  brokerSnapshots: BrokerBalanceSnapshot[];
 }
 
-export function PortfolioTab({ report, onUpload, fileName }: PortfolioTabProps) {
+export function PortfolioTab({
+  report,
+  onUpload,
+  fileName,
+  brokerSnapshots,
+}: PortfolioTabProps) {
   if (!report) {
     return (
       <div className="rounded-2xl border border-dashed border-zinc-300 p-8 text-center dark:border-zinc-700">
@@ -175,6 +182,8 @@ export function PortfolioTab({ report, onUpload, fileName }: PortfolioTabProps) 
           </div>
         </div>
       </div>
+
+      <BrokerReportDiffPanel snapshots={brokerSnapshots} />
 
       <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
         <div className="border-b border-zinc-200 px-5 py-4 dark:border-zinc-800">

@@ -22,7 +22,8 @@ import {
   getMonthlyDebtService,
   getTotalDebtBalance,
 } from "@/lib/debt-amortization";
-import { calculateCompoundInterest } from "@/lib/compound-interest";
+import { calculateCompoundInterest, runMonteCarloSimulation } from "@/lib/compound-interest";
+import type { MonteCarloPercentilePoint } from "@/lib/compound-interest/monte-carlo";
 import { buildForecastPlan } from "@/lib/forecast-plans";
 import { getCustomAssetsMonthlyIncome } from "@/lib/custom-assets";
 import { formatMoney } from "@/lib/portfolio-wealth";
@@ -247,6 +248,8 @@ export function CalculatorTab({
   const [hiddenPayoutChartLines, setHiddenPayoutChartLines] = useState<
     Set<string>
   >(() => new Set());
+  const [showMonteCarlo, setShowMonteCarlo] = useState(false);
+  const [monteCarloVolatility, setMonteCarloVolatility] = useState(18);
 
   const toggleChartLine = useCallback((dataKey: string) => {
     setHiddenChartLines((prev) => {
@@ -337,6 +340,23 @@ export function CalculatorTab({
     [simParams, customAssets, brokerTotal],
   );
 
+  const monteCarlo = useMemo(() => {
+    if (!showMonteCarlo) return null;
+    return runMonteCarloSimulation(
+      simParams,
+      { customAssets, brokerTotal },
+      {
+        volatilityPercent: monteCarloVolatility,
+        simulations: 300,
+      },
+    );
+  }, [showMonteCarlo, simParams, customAssets, brokerTotal, monteCarloVolatility]);
+
+  const mcByMonth = useMemo(() => {
+    if (!monteCarlo) return new Map<number, MonteCarloPercentilePoint>();
+    return new Map(monteCarlo.points.map((point) => [point.month, point]));
+  }, [monteCarlo]);
+
   const safeWithdrawalAdvice = useMemo(
     () =>
       computeSafeWithdrawalAdvice(simParams, {
@@ -403,15 +423,21 @@ export function CalculatorTab({
       ? result.withdrawalMonthsLiquidityEmpty
       : result.withdrawalMonthsWithoutPayout;
 
-  const chartData = result.points.map((p) => ({
-    label: p.label,
-    nominal: p.balance,
-    inflationHurdle: p.inflationHurdle,
-    realPortfolio: p.realBalance,
-    realContributed: p.realContributed,
-    totalDebt: p.totalDebt,
-    liquidityBalance: p.liquidityBalance,
-  }));
+  const chartData = result.points.map((p) => {
+    const mc = mcByMonth.get(p.month);
+    return {
+      label: p.label,
+      nominal: p.balance,
+      inflationHurdle: p.inflationHurdle,
+      realPortfolio: p.realBalance,
+      realContributed: p.realContributed,
+      totalDebt: p.totalDebt,
+      liquidityBalance: p.liquidityBalance,
+      mcP10: mc?.p10,
+      mcP50: mc?.p50,
+      mcP90: mc?.p90,
+    };
+  });
 
   const payoutChartData = result.points
     .filter((p) => p.inWithdrawalPhase && p.monthlyPayoutTargetReal > 0)
@@ -1348,6 +1374,34 @@ export function CalculatorTab({
                 пересчёт…
               </span>
             )}
+            <label className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-300">
+              <input
+                type="checkbox"
+                checked={showMonteCarlo}
+                onChange={(e) => setShowMonteCarlo(e.target.checked)}
+                className="size-3.5 rounded text-indigo-600"
+              />
+              Monte Carlo
+            </label>
+            {showMonteCarlo && (
+              <label className="flex items-center gap-1.5 text-xs text-zinc-500">
+                σ
+                <input
+                  type="number"
+                  min={5}
+                  max={60}
+                  step={1}
+                  className="w-14 rounded border border-zinc-200 bg-white px-1.5 py-0.5 text-xs dark:border-zinc-700 dark:bg-zinc-950"
+                  value={monteCarloVolatility}
+                  onChange={(e) =>
+                    setMonteCarloVolatility(
+                      Math.min(60, Math.max(5, Number.parseFloat(e.target.value) || 18)),
+                    )
+                  }
+                />
+                %/год
+              </label>
+            )}
             <p className="text-[10px] text-zinc-400 dark:text-zinc-500">
               Легенда — вкл/выкл линию
             </p>
@@ -1360,6 +1414,13 @@ export function CalculatorTab({
             </button>
           </div>
         </div>
+        {showMonteCarlo && monteCarlo && (
+          <p className="mb-3 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+            {monteCarlo.simulations} сценариев при волатильности {monteCarlo.volatilityPercent}%/год.
+            Линии P10–P90 — диапазон исходов; медиана P50. Долги и вклады без случайности, случайна
+            только доходность брокерского портфеля.
+          </p>
+        )}
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-zinc-200 dark:stroke-zinc-700" />
@@ -1452,6 +1513,42 @@ export function CalculatorTab({
                 hide={isChartLineHidden("liquidityBalance")}
               />
             )}
+            {showMonteCarlo && monteCarlo && (
+              <>
+                <Line
+                  type="monotone"
+                  dataKey="mcP90"
+                  name="MC P90"
+                  stroke="#a5b4fc"
+                  strokeWidth={1.5}
+                  strokeDasharray="2 4"
+                  dot={false}
+                  activeDot={false}
+                  hide={isChartLineHidden("mcP90")}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="mcP50"
+                  name="MC медиана"
+                  stroke="#c084fc"
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={false}
+                  hide={isChartLineHidden("mcP50")}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="mcP10"
+                  name="MC P10"
+                  stroke="#a5b4fc"
+                  strokeWidth={1.5}
+                  strokeDasharray="2 4"
+                  dot={false}
+                  activeDot={false}
+                  hide={isChartLineHidden("mcP10")}
+                />
+              </>
+            )}
             {result.withdrawalEndedEarly && withdrawalDepletionMarker && (
               <ReferenceLine
                 x={withdrawalDepletionMarker}
@@ -1467,6 +1564,22 @@ export function CalculatorTab({
             )}
           </LineChart>
         </ResponsiveContainer>
+        {showMonteCarlo && monteCarlo && (
+          <div className="mt-3 grid gap-2 rounded-lg border border-violet-100 bg-violet-50/60 px-3 py-2 text-xs text-violet-950 dark:border-violet-900 dark:bg-violet-950/30 dark:text-violet-100 sm:grid-cols-3">
+            <p>
+              Через {simParams.years} лет, медиана:{" "}
+              <strong>{formatMoney(monteCarlo.finalBalance.p50)}</strong>
+            </p>
+            <p>
+              Оптимистично (P90):{" "}
+              <strong>{formatMoney(monteCarlo.finalBalance.p90)}</strong>
+            </p>
+            <p>
+              Пессимистично (P10):{" "}
+              <strong>{formatMoney(monteCarlo.finalBalance.p10)}</strong>
+            </p>
+          </div>
+        )}
       </div>
 
       {hasCustomWealth && <CalculatorAssetChart points={result.points} />}

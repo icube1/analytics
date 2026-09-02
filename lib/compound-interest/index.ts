@@ -1,4 +1,6 @@
 export { calculateCompoundInterest } from "./simulate";
+export { runMonteCarloSimulation } from "./monte-carlo";
+export type { MonteCarloOptions, MonteCarloResult } from "./monte-carlo";
 export type {
   AssetBreakdownEntry,
   CompoundContext,

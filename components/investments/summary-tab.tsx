@@ -15,17 +15,19 @@ import {
 } from "recharts";
 import { ChartMoneyTooltip, ChartPercentTooltip } from "@/components/chart-money-tooltip";
 import type { PortfolioAnalytics } from "@/lib/portfolio-analytics";
+import { UpcomingEventsPanel } from "@/components/investments/upcoming-events-panel";
 import { StatCard } from "@/components/stat-card";
 import { formatMoney } from "@/lib/portfolio-wealth";
 import { CHART_COLORS } from "@/lib/stats";
-import type { BrokerReport } from "@/lib/portfolio-types";
+import type { BrokerReport, CustomAssets } from "@/lib/portfolio-types";
 
 interface SummaryTabProps {
   analytics: PortfolioAnalytics;
   report: BrokerReport | null;
+  customAssets: CustomAssets;
 }
 
-export function SummaryTab({ analytics, report }: SummaryTabProps) {
+export function SummaryTab({ analytics, report, customAssets }: SummaryTabProps) {
   const pieData = analytics.slices.map((s) => ({
     name: s.label,
     value: s.value,
@@ -178,6 +180,8 @@ export function SummaryTab({ analytics, report }: SummaryTabProps) {
           </div>
         )}
       </section>
+
+      <UpcomingEventsPanel assets={customAssets} />
 
       {report && analytics.brokerPeriodChange !== null && (
         <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm dark:border-zinc-800 dark:bg-zinc-950">

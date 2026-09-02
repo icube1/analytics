@@ -242,6 +242,15 @@ export interface BrokerBalanceSnapshot {
   periodStart: string;
   periodEnd: string;
   brokerTotal: number;
+  /** Эффективный остаток RUB с учётом T+1 */
+  cashRub?: number;
+  /** Позиции на конец периода (effective) */
+  securities?: Array<{
+    isin: string;
+    name: string;
+    quantity: number;
+    value: number;
+  }>;
   customAssetsTotal: number;
   totalDebt: number;
   grandTotal: number;

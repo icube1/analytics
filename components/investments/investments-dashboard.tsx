@@ -379,13 +379,18 @@ export function InvestmentsDashboard() {
       </div>
 
       {activeTab === "summary" && (
-        <SummaryTab analytics={analytics} report={report} />
+        <SummaryTab
+          analytics={analytics}
+          report={report}
+          customAssets={customAssets}
+        />
       )}
       {activeTab === "portfolio" && (
         <PortfolioTab
           report={report}
           fileName={fileName}
           onUpload={handleUpload}
+          brokerSnapshots={brokerSnapshots}
         />
       )}
       {activeTab === "assets" && (

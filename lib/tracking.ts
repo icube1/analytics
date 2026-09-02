@@ -1,3 +1,8 @@
+import {
+  effectiveBrokerTotalFromReport,
+  snapshotPositionsFromReport,
+} from "./broker-report-diff";
+import { sumEffectiveCashRub } from "./broker-positions";
 import { getCustomAssetsTotal } from "./custom-assets";
 import { getTotalDebtBalance } from "./debt-amortization";
 import {
@@ -229,7 +234,7 @@ export function createBrokerSnapshot(
 ): BrokerBalanceSnapshot {
   const customAssetsTotal = getCustomAssetsTotal(customAssets);
   const totalDebt = getTotalDebtBalance(customAssets);
-  const brokerTotal = report.assetsEnd;
+  const brokerTotal = effectiveBrokerTotalFromReport(report);
   const deposits = extractBrokerDeposits(report);
 
   return {
@@ -239,6 +244,8 @@ export function createBrokerSnapshot(
     periodStart: report.periodStart,
     periodEnd: report.periodEnd,
     brokerTotal,
+    cashRub: sumEffectiveCashRub(report),
+    securities: snapshotPositionsFromReport(report),
     customAssetsTotal,
     totalDebt,
     grandTotal: brokerTotal + customAssetsTotal,
