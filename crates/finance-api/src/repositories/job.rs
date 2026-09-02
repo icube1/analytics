@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use sqlx::SqlitePool;
+use sqlx::{Row, SqlitePool};
 use uuid::Uuid;
 
 use crate::auth::TenantScope;
@@ -143,6 +143,26 @@ impl JobRepository {
         .await?;
 
         row.map(map_job_row).transpose()
+    }
+
+    pub async fn count_by_status(&self) -> ApiResult<std::collections::HashMap<String, i64>> {
+        let rows = sqlx::query("SELECT status, COUNT(*) AS count FROM jobs GROUP BY status")
+            .fetch_all(&self.pool)
+            .await?;
+        let mut counts = std::collections::HashMap::new();
+        for row in rows {
+            counts.insert(row.get("status"), row.get("count"));
+        }
+        Ok(counts)
+    }
+
+    pub async fn count_by_kind(&self) -> ApiResult<Vec<(String, i64)>> {
+        let rows = sqlx::query(
+            "SELECT kind, COUNT(*) AS count FROM jobs WHERE status IN ('pending', 'running') GROUP BY kind",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows.into_iter().map(|row| (row.get("kind"), row.get("count"))).collect())
     }
 }
 

@@ -1,0 +1,9 @@
+[Unit]
+Description=Run analytics observability collector every minute
+[Timer]
+OnCalendar=*:*:00
+RandomizedDelaySec=15
+Persistent=true
+Unit=analytics-metrics-collector.service
+[Install]
+WantedBy=timers.target

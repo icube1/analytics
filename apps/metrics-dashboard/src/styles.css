@@ -1,0 +1,8 @@
+:root { color-scheme: dark; font-family: system-ui, sans-serif; background: #0b1220; color: #e8eefc; }
+body { margin: 0; }
+.page { max-width: 1100px; margin: 0 auto; padding: 2rem 1rem; }
+.hero p { color: #9db0d6; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-top: 2rem; }
+.card { background: #141f35; border: 1px solid #243556; border-radius: 12px; padding: 1rem; }
+.card h3 { margin: 0 0 0.5rem; font-size: 0.85rem; color: #9db0d6; }
+.card p { margin: 0; font-size: 1.2rem; font-weight: 700; }

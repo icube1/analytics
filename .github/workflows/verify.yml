@@ -29,4 +29,5 @@ jobs:
           path: |
             ci-reports/timings.json
             ci-reports/bundle-report.json
+            ci-reports/observability-benchmark.json
           if-no-files-found: ignore

@@ -1,0 +1,20 @@
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name metrics.gala-soft.ru;
+    auth_basic "Analytics Metrics";
+    auth_basic_user_file /etc/nginx/.htpasswd-analytics;
+    ssl_certificate /etc/letsencrypt/live/metrics.gala-soft.ru/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/metrics.gala-soft.ru/privkey.pem;
+    root /opt/analytics/metrics-dashboard;
+    index index.html;
+    add_header X-Robots-Tag "noindex, nofollow" always;
+    add_header Cache-Control "no-store" always;
+    location /data/ {
+        alias /var/lib/analytics/observability/;
+        default_type application/json;
+        auth_basic "Analytics Metrics";
+        auth_basic_user_file /etc/nginx/.htpasswd-analytics;
+    }
+    location / { try_files $uri $uri/ /index.html; }
+}

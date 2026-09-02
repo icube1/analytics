@@ -1,0 +1,6 @@
+[Service]
+Environment=ANALYTICS_SERVICE_NAME=finance-api
+Environment=RUST_LOG=finance_api=info,tower_http=warn,sqlx=warn
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=finance-api
