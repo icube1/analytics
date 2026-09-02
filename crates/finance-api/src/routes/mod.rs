@@ -23,6 +23,7 @@ pub fn router(state: &AppState) -> Router<AppState> {
         .merge(statements::router())
         .merge(broker_imports::router())
         .merge(export::router())
+        .merge(billing::checkout_router())
         .layer(session_layer);
 
     Router::new()
@@ -30,5 +31,5 @@ pub fn router(state: &AppState) -> Router<AppState> {
         .merge(internal::router())
         .nest("/api/v1/auth", auth::public_router().merge(auth_protected))
         .nest("/api/v1", protected)
-        .nest("/api/v1", billing::router())
+        .nest("/api/v1", billing::webhook_router())
 }

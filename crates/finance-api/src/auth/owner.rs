@@ -96,6 +96,7 @@ fn base64_decode(input: &str) -> Result<Vec<u8>, ()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::billing::yookassa::YooKassaConfig;
     use std::time::Duration;
 
     #[test]
@@ -111,6 +112,7 @@ mod tests {
             bootstrap_display_name: None,
             bootstrap_household_name: None,
             billing_webhook_secret: None,
+            yookassa: YooKassaConfig::default(),
             session_ttl: chrono::Duration::hours(1),
             session_cookie_secure: true,
             max_request_bytes: 1024,

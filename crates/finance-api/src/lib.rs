@@ -15,6 +15,7 @@ pub mod routes;
 pub mod state;
 pub mod worker;
 pub use app::{build_app, init_tracing, startup_banner};
+pub use billing::build_billing_service;
 pub use config::Config;
 pub use error::ApiError;
 pub use state::AppState;

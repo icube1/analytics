@@ -2,6 +2,7 @@ use std::env;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
+use finance_api::build_billing_service;
 use finance_api::config::Config;
 use finance_api::db;
 use finance_api::migration::{MigrationOptions, MigrationRunner, RollbackOptions};
@@ -25,6 +26,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         "import" => run_import(&args[2..]).await?,
         "rollback" => run_rollback(&args[2..]).await?,
         "checksum" => run_checksum(&args[2..]).await?,
+        "billing-reconcile" => run_billing_reconcile().await?,
         _ => {
             print_usage();
             return Err("unknown command".into());
@@ -165,6 +167,22 @@ async fn run_checksum(args: &[String]) -> Result<(), Box<dyn std::error::Error>>
     run_import(&forwarded).await
 }
 
+async fn run_billing_reconcile() -> Result<(), Box<dyn std::error::Error>> {
+    let config = Config::from_env()?;
+    if !config.yookassa_configured() {
+        return Err(
+            "YooKassa billing is disabled or credentials are missing; set FINANCE_API_YOOKASSA_ENABLED=true with shop id and secret key"
+                .into(),
+        );
+    }
+    set_database_file_env(&config.database_url);
+    let pool = db::connect(&config).await?;
+    let billing = build_billing_service(pool, &config)?;
+    let report = billing.reconcile().await?;
+    println!("{}", serde_json::to_string_pretty(&report)?);
+    Ok(())
+}
+
 fn require_arg(args: &[String], index: usize) -> Result<&str, Box<dyn std::error::Error>> {
     args.get(index)
         .map(String::as_str)
@@ -187,6 +205,7 @@ fn print_usage() {
     [--bootstrap-email <email> --bootstrap-password <password>] [--dry-run] [--checksum]
     [--rollback-dir <dir>]
   finance-api-migrate rollback --run-id <uuid> --household-id <uuid>
-  finance-api-migrate checksum --backup <path> [--statements-dir <dir>]"
+  finance-api-migrate checksum --backup <path> [--statements-dir <dir>]
+  finance-api-migrate billing-reconcile"
     );
 }
