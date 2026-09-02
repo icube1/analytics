@@ -2,6 +2,7 @@
 members = [
     "crates/finance-api",
     "crates/finance-core",
+    "crates/finance-ffi",
     "crates/finance-wasm",
 ]
 resolver = "2"
