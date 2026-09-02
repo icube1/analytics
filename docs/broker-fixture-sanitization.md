@@ -1,6 +1,8 @@
 # Broker fixture sanitization
 
-Tracked broker HTML fixtures (`public/portfolio.html`, `__tests__/fixtures/sber-t1-report.html`) are sanitized copies of Sber brokerage reports. They keep securities tables, dates, quantities, and monetary values needed by `parsePortfolioHtml`, but replace customer identity and embedded media with deterministic placeholders.
+Tracked broker HTML fixtures (`public/portfolio.html`, `__tests__/fixtures/sber-t1-report.html`) are sanitized copies of Sber brokerage reports. They keep securities tables, dates, quantities, and monetary values needed by `parsePortfolioHtml` / `importBrokerReport`, but replace customer identity and embedded media with deterministic placeholders.
+
+For the full adapter API see [broker-adapter-platform.md](./broker-adapter-platform.md).
 
 ## Running the sanitizer
 
