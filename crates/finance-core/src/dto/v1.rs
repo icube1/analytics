@@ -10,6 +10,7 @@ use crate::{
         amortize_debt_month, current_payment_period_days, estimate_payoff_months,
         simulation_payment_period_days, surrounding_payment_dates,
     },
+    resilience::{evaluate_resilience, ResilienceInput, ResiliencePlan},
 };
 
 pub const SCHEMA_VERSION: u16 = 1;
@@ -49,6 +50,8 @@ pub enum FinanceRequest {
         payment_day: f64,
         as_of: String,
     },
+    #[serde(rename_all = "camelCase")]
+    ResiliencePlan { id: String, input: ResilienceInput },
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -78,6 +81,11 @@ pub enum FinanceResponse {
     },
     #[serde(rename_all = "camelCase")]
     EstimatePayoff { id: String, months: Option<u32> },
+    #[serde(rename_all = "camelCase")]
+    ResiliencePlan {
+        id: String,
+        plan: Box<ResiliencePlan>,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -178,6 +186,13 @@ fn evaluate_case(request: FinanceRequest) -> Result<FinanceResponse, BoundaryErr
                     payment_day,
                     date,
                 ),
+            })
+        }
+        FinanceRequest::ResiliencePlan { id, input } => {
+            let plan = evaluate_resilience(&input);
+            Ok(FinanceResponse::ResiliencePlan {
+                id,
+                plan: Box::new(plan),
             })
         }
     }

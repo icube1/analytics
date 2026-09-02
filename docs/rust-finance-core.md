@@ -11,6 +11,9 @@ No UI code calls Rust yet.
   leap/month handling without host time-zone behavior.
 - `debt`: payment-period boundaries, actual/365 interest, monthly
   amortization, and payoff estimation.
+- `resilience`: layered operational buffer, starter emergency fund, core and
+  extended reserves, sinking funds, experiences fund, household/debt risk
+  scoring, stress scenarios, and descriptive (non-advisory) notes.
 - `dto::v1`: serde request/response boundary with an explicit
   `schemaVersion: 1`. New transports should depend on this boundary rather
   than exposing Rust internals.
@@ -18,9 +21,48 @@ No UI code calls Rust yet.
 Monte Carlo, portfolio state mutation, asset growth, deposits, and UI wiring
 remain in TypeScript.
 
+## Resilience module
+
+The resilience slice models liquidity layers described in the product
+architecture roadmap:
+
+1. operational buffer (pay-cycle cash-flow gap),
+2. starter emergency fund,
+3. core reserve (income-loss coverage),
+4. extended reserve (elevated household risk),
+5. sinking funds (planned irregular expenses),
+6. experiences fund (quality-of-life goals, separate from emergencies).
+
+`dto::v1` exposes a `resiliencePlan` operation. Inputs include mandatory
+expenses, liquid assets, household risk factors, debt burden, sinking-fund
+goals, and experiences targets. Outputs include layer ranges, coverage
+percentages, a risk score, five deterministic stress scenarios, factor
+explanations, and descriptive debt-tradeoff notes. Nothing in this module
+constitutes personalized securities or credit advice.
+
+`fixtures/finance-core/resilience-v1.json` covers stable, variable-income, and
+high-risk household cases. `lib/resilience-plan.ts` mirrors the Rust logic for
+differential testing via `npm run compare:finance-core:resilience`.
+
+## WebAssembly adapter
+
+`crates/finance-wasm` wraps the versioned DTO batch evaluator for browser Worker
+hosts:
+
+- `evaluate_finance_core(request_json) -> response_json`
+- `finance_core_schema_version() -> u16`
+
+This adapter does not replace production TypeScript calculations yet. Build for
+the `wasm32-unknown-unknown` target when the toolchain is available:
+
+```bash
+rustup target add wasm32-unknown-unknown
+cargo build -p finance-wasm --target wasm32-unknown-unknown --release
+```
+
 ## Compatibility contract
 
-The source of truth for this slice remains `lib/debt-daycount.ts` and the debt
+The source of truth for the debt slice remains `lib/debt-daycount.ts` and the debt
 functions in `lib/debt-amortization.ts`. Rust intentionally preserves:
 
 - payment-day rounding and clamping to 1–28;
@@ -40,10 +82,12 @@ Run from the repository root:
 
 ```bash
 cargo fmt --all -- --check
-cargo clippy --workspace --all-targets --all-features -- -D warnings
-cargo test --workspace --all-features
+cargo clippy -p finance-core -p finance-wasm --all-targets --all-features -- -D warnings
+cargo test -p finance-core -p finance-wasm --all-features
+cargo run --release -p finance-core --bench resilience
 npm run compare:finance-core
-npm test -- --runTestsByPath __tests__/debt-daycount.test.ts __tests__/upcoming-events.test.ts
+npm run compare:finance-core:resilience
+npm test -- --runTestsByPath __tests__/debt-daycount.test.ts __tests__/upcoming-events.test.ts __tests__/resilience-plan.test.ts
 npx tsc --noEmit
 ```
 

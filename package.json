@@ -9,6 +9,7 @@
     "benchmark:finance": "tsx scripts/benchmark-finance.ts",
     "sanitize:broker-fixtures": "tsx scripts/sanitize-broker-fixture.ts",
     "compare:finance-core": "tsx scripts/compare-finance-core.ts",
+    "compare:finance-core:resilience": "tsx scripts/compare-finance-core-resilience.ts",
     "start": "next start",
     "lint": "eslint",
     "test": "jest --runInBand --forceExit",

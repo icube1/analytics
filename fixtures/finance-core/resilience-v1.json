@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "operation": "resiliencePlan",
+      "id": "stable-dual-income",
+      "input": {
+        "mandatoryMonthlyExpenses": 80000,
+        "discretionaryMonthlyExpenses": 20000,
+        "liquidAssets": 600000,
+        "monthlySurplus": 40000,
+        "payCycleDays": 30,
+        "household": {
+          "incomeStability": "stable",
+          "incomeSourceCount": 2,
+          "hasSecondaryHouseholdIncome": true,
+          "dependentCount": 1,
+          "jobSearchMonths": 2,
+          "insuranceCoverage": "high",
+          "riskTolerance": "moderate"
+        },
+        "debt": {
+          "totalBalance": 300000,
+          "monthlyPayments": 15000,
+          "weightedAnnualRate": 8,
+          "highInterestBalance": 0
+        },
+        "sinkingFunds": [],
+        "experiences": {
+          "annualTarget": 60000,
+          "currentAmount": 10000
+        }
+      }
+    },
+    {
+      "operation": "resiliencePlan",
+      "id": "variable-single-income-debt",
+      "input": {
+        "mandatoryMonthlyExpenses": 120000,
+        "discretionaryMonthlyExpenses": 30000,
+        "liquidAssets": 400000,
+        "monthlySurplus": 25000,
+        "payCycleDays": 30,
+        "household": {
+          "incomeStability": "variable",
+          "incomeSourceCount": 1,
+          "hasSecondaryHouseholdIncome": false,
+          "dependentCount": 2,
+          "jobSearchMonths": 4,
+          "insuranceCoverage": "medium",
+          "riskTolerance": "moderate"
+        },
+        "debt": {
+          "totalBalance": 900000,
+          "monthlyPayments": 45000,
+          "weightedAnnualRate": 14,
+          "highInterestBalance": 200000
+        },
+        "sinkingFunds": [
+          {
+            "id": "car-service",
+            "label": "Car service",
+            "targetAmount": 60000,
+            "currentAmount": 10000,
+            "monthsUntilDue": 6,
+            "priority": 1
+          }
+        ],
+        "experiences": {
+          "annualTarget": 120000,
+          "currentAmount": 20000
+        }
+      }
+    },
+    {
+      "operation": "resiliencePlan",
+      "id": "high-risk-seasonal",
+      "input": {
+        "mandatoryMonthlyExpenses": 95000,
+        "discretionaryMonthlyExpenses": 15000,
+        "liquidAssets": 150000,
+        "monthlySurplus": 5000,
+        "payCycleDays": 14,
+        "household": {
+          "incomeStability": "seasonal",
+          "incomeSourceCount": 1,
+          "hasSecondaryHouseholdIncome": false,
+          "dependentCount": 3,
+          "jobSearchMonths": 9,
+          "insuranceCoverage": "low",
+          "riskTolerance": "conservative"
+        },
+        "debt": {
+          "totalBalance": 1200000,
+          "monthlyPayments": 70000,
+          "weightedAnnualRate": 16,
+          "highInterestBalance": 500000
+        },
+        "sinkingFunds": [
+          {
+            "id": "insurance",
+            "label": "Annual insurance",
+            "targetAmount": 48000,
+            "currentAmount": 0,
+            "monthsUntilDue": 4,
+            "priority": 2
+          }
+        ],
+        "experiences": {
+          "annualTarget": 80000,
+          "currentAmount": 0
+        }
+      }
+    }
+  ]
+}
