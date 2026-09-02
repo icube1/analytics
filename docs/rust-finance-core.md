@@ -85,6 +85,25 @@ The resilience UI (`/resilience`) lazy-loads this package from a dedicated Web
 Worker with TypeScript fallback and non-production parity checks. See
 `docs/resilience-ui.md`.
 
+## Native mobile FFI adapter
+
+`crates/finance-ffi` exposes the same versioned DTO batch contract through UniFFI
+for iOS/Android hosts:
+
+- `finance_core_schema_version() -> u16`
+- `evaluate_finance_core(request_json) -> response_json`
+- `evaluate_finance_core_monte_carlo_percentiles(request_json) -> percentile record`
+
+Build and validate:
+
+```bash
+npm run build:ffi
+npm run test:ffi
+npm run measure:ffi
+```
+
+Capacitor continues to use WASM by default. See `docs/finance-native-ffi.md`.
+
 ## Compatibility contract
 
 The source of truth for the debt slice remains `lib/debt-daycount.ts` and the debt
@@ -107,8 +126,8 @@ Run from the repository root:
 
 ```bash
 cargo fmt --all -- --check
-cargo clippy -p finance-core -p finance-wasm --all-targets --all-features -- -D warnings
-cargo test -p finance-core -p finance-wasm --all-features
+cargo clippy -p finance-core -p finance-wasm -p finance-ffi --all-targets --all-features -- -D warnings
+cargo test -p finance-core -p finance-wasm -p finance-ffi --all-features
 cargo run --release -p finance-core --bench resilience
 npm run compare:finance-core
 npm run compare:finance-core:resilience
