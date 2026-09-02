@@ -1,0 +1,48 @@
+{
+  "getBrokerReportResponse": {
+    "brokerReport": [
+      {
+        "tradeId": "br-trade-001",
+        "orderId": "br-order-001",
+        "figi": "BBG004730N88",
+        "ticker": "SBER",
+        "classCode": "TQBR",
+        "name": "Sberbank",
+        "direction": "OPERATION_TYPE_BUY",
+        "quantity": "100",
+        "price": {
+          "currency": "rub",
+          "units": "1400",
+          "nano": 0
+        },
+        "orderAmount": {
+          "currency": "rub",
+          "units": "140000",
+          "nano": 0
+        },
+        "totalOrderAmount": {
+          "currency": "rub",
+          "units": "140000",
+          "nano": 0
+        },
+        "brokerCommission": {
+          "currency": "rub",
+          "units": "39",
+          "nano": 0
+        },
+        "exchangeCommission": {
+          "currency": "rub",
+          "units": "1",
+          "nano": 0
+        },
+        "tradeDatetime": "2025-01-10T12:00:00.000Z",
+        "secValueDate": "2025-01-12T00:00:00.000Z",
+        "clearValueDate": "2025-01-12T00:00:00.000Z",
+        "brokerStatus": "EXECUTED"
+      }
+    ],
+    "itemsCount": 1,
+    "pagesCount": 0,
+    "page": 0
+  }
+}

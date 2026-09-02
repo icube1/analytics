@@ -1,0 +1,56 @@
+{
+  "accountId": "SANITIZED-ACCOUNT-001",
+  "totalAmountPortfolio": {
+    "currency": "rub",
+    "units": "152500",
+    "nano": 500000000
+  },
+  "totalAmountShares": {
+    "currency": "rub",
+    "units": "150000",
+    "nano": 0
+  },
+  "totalAmountBonds": {
+    "currency": "rub",
+    "units": "0",
+    "nano": 0
+  },
+  "totalAmountEtf": {
+    "currency": "rub",
+    "units": "0",
+    "nano": 0
+  },
+  "totalAmountCurrencies": {
+    "currency": "rub",
+    "units": "2500",
+    "nano": 500000000
+  },
+  "positions": [
+    {
+      "figi": "BBG004730N88",
+      "instrumentType": "share",
+      "instrumentUid": "uid-sber-share",
+      "ticker": "SBER",
+      "classCode": "TQBR",
+      "quantity": {
+        "units": "100",
+        "nano": 0
+      },
+      "currentPrice": {
+        "currency": "rub",
+        "units": "1500",
+        "nano": 0
+      },
+      "averagePositionPrice": {
+        "currency": "rub",
+        "units": "1400",
+        "nano": 0
+      },
+      "expectedYield": {
+        "units": "10000",
+        "nano": 0
+      },
+      "blocked": false
+    }
+  ]
+}
