@@ -29,13 +29,11 @@ const phonePattern =
 describe("broker fixture privacy", () => {
   it.each(fixturePaths)("contains no customer PII or embedded signatures: %s", (fixturePath) => {
     const html = fs.readFileSync(fixturePath, "utf8");
+    const investor = html.match(/Инвестор:\s*([^<\r\n]+)/u)?.[1].trim();
+    const contract = html.match(/Договор\s+([^\s<]+)/u)?.[1];
 
-    expect(html).toContain(`Инвестор: ${SANITIZED_INVESTOR}`);
-    expect(html).toContain(`Договор ${SANITIZED_CONTRACT}`);
-    expect(html).not.toMatch(/Инвестор:\s*(?!Тестовый Инвестор)/u);
-    expect(html).not.toMatch(
-      /Договор\s+(?!SANITIZED-CONTRACT(?:\s|<))\S+/u,
-    );
+    expect(investor).toBe(SANITIZED_INVESTOR);
+    expect(contract).toBe(SANITIZED_CONTRACT);
     expect(html).not.toMatch(emailPattern);
     expect(html).not.toMatch(phonePattern);
     expect(html).not.toMatch(

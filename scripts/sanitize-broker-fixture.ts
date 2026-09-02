@@ -4,8 +4,8 @@ import path from "node:path";
 export const SANITIZED_INVESTOR = "Тестовый Инвестор";
 export const SANITIZED_CONTRACT = "SANITIZED-CONTRACT";
 export const SANITIZED_ACCOUNT = "SANITIZED-ACCOUNT";
-export const SANITIZED_EMAIL = "sanitized@example.invalid";
-export const SANITIZED_PHONE = "+0-000-000-00-00";
+export const SANITIZED_EMAIL = "[SANITIZED-EMAIL]";
+export const SANITIZED_PHONE = "[SANITIZED-PHONE]";
 export const SANITIZED_ADDRESS = "SANITIZED-ADDRESS";
 
 const DEFAULT_FIXTURES = [
