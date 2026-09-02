@@ -9,6 +9,7 @@ import {
   Tooltip,
 } from "recharts";
 import { ChartMoneyTooltip } from "@/components/chart-money-tooltip";
+import { resolveSecurityPosition } from "@/lib/broker-positions";
 import { CHART_COLORS } from "@/lib/stats";
 import { formatMoney } from "@/lib/portfolio-wealth";
 import type { BrokerReport } from "@/lib/portfolio-types";
@@ -46,11 +47,16 @@ export function PortfolioTab({ report, onUpload, fileName }: PortfolioTabProps) 
     );
   }
 
-  const allocation = report.securities.map((s) => ({
-    id: s.id,
-    name: s.name,
-    value: s.valueEnd,
-  }));
+  const allocation = report.securities
+    .map((s) => {
+      const resolved = resolveSecurityPosition(s);
+      return {
+        id: s.id,
+        name: s.name,
+        value: resolved.value,
+      };
+    })
+    .filter((item) => item.value > 0);
 
   const pieTotal = allocation.reduce((sum, item) => sum + item.value, 0);
 
@@ -169,6 +175,9 @@ export function PortfolioTab({ report, onUpload, fileName }: PortfolioTabProps) 
       <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
         <div className="border-b border-zinc-200 px-5 py-4 dark:border-zinc-800">
           <h3 className="font-semibold">Позиции</h3>
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+            С учётом нерасчитанных сделок T+1 (плановый остаток из отчёта Сбера)
+          </p>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
@@ -184,33 +193,50 @@ export function PortfolioTab({ report, onUpload, fileName }: PortfolioTabProps) 
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-              {report.securities.map((s) => (
-                <tr key={s.id}>
-                  <td className="px-4 py-3 font-medium">{s.name}</td>
-                  <td className="px-4 py-3 text-zinc-500">{s.isin}</td>
-                  <td className="px-4 py-3 text-right tabular-nums">{s.quantityEnd}</td>
-                  <td className="px-4 py-3 text-right tabular-nums">
-                    {formatMoney(s.priceEnd)}
-                  </td>
-                  <td className="px-4 py-3 text-right tabular-nums">
-                    {formatMoney(s.valueEnd)}
-                  </td>
-                  <td className="px-4 py-3 text-right tabular-nums">
-                    {pieTotal > 0
-                      ? `${((s.valueEnd / pieTotal) * 100).toFixed(1)}%`
-                      : "—"}
-                  </td>
-                  <td
-                    className={`px-4 py-3 text-right tabular-nums ${
-                      s.valueChange < 0
-                        ? "text-rose-600 dark:text-rose-400"
-                        : "text-emerald-600 dark:text-emerald-400"
-                    }`}
-                  >
-                    {formatMoney(s.valueChange)}
-                  </td>
-                </tr>
-              ))}
+              {report.securities.map((s) => {
+                const resolved = resolveSecurityPosition(s);
+                return (
+                  <tr key={s.id}>
+                    <td className="px-4 py-3 font-medium">
+                      {s.name}
+                      {resolved.hasPendingSettlement && (
+                        <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                          +{resolved.pendingQuantity} T+1
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-zinc-500">{s.isin}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">
+                      {resolved.quantity}
+                      {resolved.hasPendingSettlement && (
+                        <span className="block text-[11px] text-zinc-400">
+                          расч.: {s.quantityEnd}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-right tabular-nums">
+                      {formatMoney(s.priceEnd)}
+                    </td>
+                    <td className="px-4 py-3 text-right tabular-nums">
+                      {formatMoney(resolved.value)}
+                    </td>
+                    <td className="px-4 py-3 text-right tabular-nums">
+                      {pieTotal > 0
+                        ? `${((resolved.value / pieTotal) * 100).toFixed(1)}%`
+                        : "—"}
+                    </td>
+                    <td
+                      className={`px-4 py-3 text-right tabular-nums ${
+                        s.valueChange < 0
+                          ? "text-rose-600 dark:text-rose-400"
+                          : "text-emerald-600 dark:text-emerald-400"
+                      }`}
+                    >
+                      {formatMoney(s.valueChange)}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

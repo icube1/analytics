@@ -38,8 +38,6 @@ export function SummaryTab({ analytics, report }: SummaryTabProps) {
     contribution: s.weight * s.assumedReturn,
   }));
 
-  const topStocks = analytics.stockSlices.slice(0, 6);
-
   return (
     <div className="flex flex-col gap-6">
       <section className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(11.5rem,1fr))]">
@@ -65,11 +63,6 @@ export function SummaryTab({ analytics, report }: SummaryTabProps) {
           tone="income"
         />
         <StatCard
-          label="Диверсификация"
-          value={`${analytics.diversificationScore}/100`}
-          hint={analytics.diversificationLabel}
-        />
-        <StatCard
           label="Прогноз через 1 год"
           value={formatMoney(analytics.projectedValue1Y)}
           hint="Без реинвестирования"
@@ -79,6 +72,111 @@ export function SummaryTab({ analytics, report }: SummaryTabProps) {
           value={formatMoney(analytics.projectedValue5Y)}
           hint="Сложный рост по классам"
         />
+      </section>
+
+      <section className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
+              Диверсификация
+            </h3>
+            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              {analytics.diversificationLabel} · {analytics.activeClasses} классов
+              активов
+              {analytics.stockCount > 0 && ` · ${analytics.stockCount} бумаг`}
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-3xl font-semibold tabular-nums text-indigo-600 dark:text-indigo-400">
+              {analytics.diversificationScore}
+              <span className="text-lg text-zinc-400">/100</span>
+            </p>
+          </div>
+        </div>
+
+        <div className="mb-4 h-2 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+          <div
+            className="h-full rounded-full bg-indigo-500 transition-all"
+            style={{ width: `${analytics.diversificationScore}%` }}
+          />
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            {
+              label: "Крупнейший класс",
+              value: `${analytics.maxClassWeightPct.toFixed(1)}%`,
+              hint: "Доля одного класса активов",
+            },
+            {
+              label: "Крупнейшая бумага",
+              value:
+                analytics.stockCount > 0
+                  ? `${analytics.maxStockWeightPct.toFixed(1)}%`
+                  : "—",
+              hint: "Доля в общем капитале",
+            },
+            {
+              label: "Топ-3 бумаги",
+              value:
+                analytics.stockCount > 0
+                  ? `${analytics.top3StockWeightPct.toFixed(1)}%`
+                  : "—",
+              hint: "Совокупная доля",
+            },
+            {
+              label: "HHI по бумагам",
+              value: analytics.stockCount > 0 ? analytics.stockHhi.toFixed(3) : "—",
+              hint: "0 — идеально, 1 — одна бумага",
+            },
+          ].map((item) => (
+            <div
+              key={item.label}
+              className="rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-950/60"
+            >
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">{item.label}</p>
+              <p className="mt-0.5 text-lg font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
+                {item.value}
+              </p>
+              <p className="text-[11px] text-zinc-400">{item.hint}</p>
+            </div>
+          ))}
+        </div>
+
+        {analytics.hasPendingSettlements && (
+          <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+            В расчёте долей учтены нерасчитанные покупки T+1 из отчёта брокера
+            (плановый остаток). После расчётов на бирже цифры обновятся в
+            следующем отчёте.
+          </p>
+        )}
+
+        {analytics.stockSlices.length > 0 && (
+          <div className="mt-4 overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead className="text-left text-xs uppercase text-zinc-500 dark:text-zinc-400">
+                <tr>
+                  <th className="pb-2 pr-4">Бумага</th>
+                  <th className="pb-2 pr-4 text-right">% портфеля</th>
+                  <th className="pb-2 text-right">% акций</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                {analytics.stockSlices.slice(0, 5).map((stock) => (
+                  <tr key={stock.id}>
+                    <td className="py-2 pr-4 font-medium">{stock.name}</td>
+                    <td className="py-2 pr-4 text-right tabular-nums">
+                      {(stock.weightInPortfolio * 100).toFixed(1)}%
+                    </td>
+                    <td className="py-2 text-right tabular-nums">
+                      {(stock.weightInStocks * 100).toFixed(1)}%
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
       {report && analytics.brokerPeriodChange !== null && (
@@ -254,17 +352,10 @@ export function SummaryTab({ analytics, report }: SummaryTabProps) {
         </div>
       </section>
 
-      {topStocks.length > 0 && (
+      {analytics.stockSlices.length > 6 && (
         <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
           <div className="border-b border-zinc-200 px-5 py-4 dark:border-zinc-800">
-            <h3 className="font-semibold">
-              Диверсификация акций (топ позиций)
-            </h3>
-            <p className="mt-1 text-xs text-zinc-500">
-              Макс. доля одного класса:{" "}
-              {(analytics.maxClassWeight * 100).toFixed(1)}% · HHI:{" "}
-              {analytics.hhi.toFixed(3)}
-            </p>
+            <h3 className="font-semibold">Все позиции брокера</h3>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
@@ -277,7 +368,7 @@ export function SummaryTab({ analytics, report }: SummaryTabProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                {topStocks.map((stock) => (
+                {analytics.stockSlices.map((stock) => (
                   <tr key={stock.id}>
                     <td className="px-4 py-3 font-medium">{stock.name}</td>
                     <td className="px-4 py-3 text-right tabular-nums">

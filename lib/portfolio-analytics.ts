@@ -5,6 +5,8 @@ import {
   getCustomAssetsMonthlyIncome,
   getEnabledItems,
 } from "./custom-assets";
+import { resolveSecurityPosition } from "./broker-positions";
+import { sumEffectiveSecuritiesValue } from "./broker-positions";
 import { ASSUMED_RETURNS } from "./portfolio-assumptions";
 import type {
   BrokerReport,
@@ -52,6 +54,18 @@ export interface PortfolioAnalytics {
   hhi: number;
   diversificationLabel: string;
   diversificationScore: number;
+  /** Доля крупнейшего класса активов, % */
+  maxClassWeightPct: number;
+  /** Доля топ-3 бумаг в портфеле, % */
+  top3StockWeightPct: number;
+  /** Доля крупнейшей бумаги в портфеле, % */
+  maxStockWeightPct: number;
+  /** HHI по отдельным бумагам (0–1) */
+  stockHhi: number;
+  /** Кол-во бумаг в портфеле */
+  stockCount: number;
+  /** Есть нерасчитанные сделки T+1 */
+  hasPendingSettlements: boolean;
   brokerPeriodChange: number | null;
   brokerPeriodChangePct: number | null;
   activeClasses: number;
@@ -139,7 +153,10 @@ export function getBrokerPoolReturn(
   report: BrokerReport | null,
   inflationPercent: number,
 ): number {
-  const securities = report?.securitiesEnd ?? 0;
+  const securities =
+    report && report.securities.length > 0
+      ? sumEffectiveSecuritiesValue(report)
+      : report?.securitiesEnd ?? 0;
   const cash =
     report?.cash.find((c) => c.currency === "RUB")?.end ?? report?.cashEnd ?? 0;
   const gold = getBrokerGoldRub(report);
@@ -242,17 +259,37 @@ export function computePortfolioAnalytics(
   const expectedAnnualIncome = grandTotal * (weightedReturn / 100);
 
   const stockSlices: StockSlice[] = (report?.securities ?? [])
-    .filter((s) => s.valueEnd > 0)
-    .map((s) => ({
-      id: s.id,
-      name: s.name,
-      value: s.valueEnd,
-      weightInPortfolio: s.valueEnd / grandTotal,
+    .map((s) => {
+      const resolved = resolveSecurityPosition(s);
+      if (resolved.value <= 0) return null;
+      return {
+        id: s.id,
+        name: s.name,
+        value: resolved.value,
+        weightInPortfolio: resolved.value / grandTotal,
+        weightInStocks: 0,
+      };
+    })
+    .filter((slice): slice is StockSlice => slice != null)
+    .map((slice) => ({
+      ...slice,
       weightInStocks: wealth.brokerSecurities
-        ? s.valueEnd / wealth.brokerSecurities
+        ? slice.value / wealth.brokerSecurities
         : 0,
     }))
     .sort((a, b) => b.value - a.value);
+
+  const stockHhi = stockSlices.reduce((sum, s) => sum + s.weightInPortfolio ** 2, 0);
+  const maxStockWeightPct =
+    stockSlices.length > 0
+      ? Math.max(...stockSlices.map((s) => s.weightInPortfolio)) * 100
+      : 0;
+  const top3StockWeightPct =
+    stockSlices.slice(0, 3).reduce((sum, s) => sum + s.weightInPortfolio, 0) * 100;
+  const stockCount = stockSlices.length;
+  const hasPendingSettlements = (report?.securities ?? []).some(
+    (s) => resolveSecurityPosition(s).hasPendingSettlement,
+  );
 
   const hhi = slices.reduce((sum, s) => sum + s.weight ** 2, 0);
   const maxClassWeight = Math.max(...slices.map((s) => s.weight), 0);
@@ -288,6 +325,12 @@ export function computePortfolioAnalytics(
     hhi,
     diversificationLabel,
     diversificationScore,
+    maxClassWeightPct: maxClassWeight * 100,
+    top3StockWeightPct,
+    maxStockWeightPct,
+    stockHhi,
+    stockCount,
+    hasPendingSettlements,
     brokerPeriodChange,
     brokerPeriodChangePct,
     activeClasses,

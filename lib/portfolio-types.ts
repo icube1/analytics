@@ -10,6 +10,12 @@ export interface SecurityPosition {
   valueStart: number;
   valueEnd: number;
   valueChange: number;
+  /** Плановые зачисления по сделкам (T+1), шт */
+  plannedCredits?: number;
+  /** Плановые списания по сделкам (T+1), шт */
+  plannedDebits?: number;
+  /** Плановый исходящий остаток с учётом нерасчитанных сделок, шт */
+  quantityPlanned?: number;
 }
 
 export interface CashPosition {

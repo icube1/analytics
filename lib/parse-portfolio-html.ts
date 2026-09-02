@@ -129,6 +129,9 @@ function parseSecuritiesTable(table: Element): SecurityPosition[] {
       priceEnd: parseNum(cellText(row, 10)),
       valueEnd: parseNum(cellText(row, 11)),
       valueChange: parseNum(cellText(row, 14)),
+      plannedCredits: parseNum(cellText(row, 15)),
+      plannedDebits: parseNum(cellText(row, 16)),
+      quantityPlanned: parseNum(cellText(row, 17)),
     });
   }
 
@@ -150,10 +153,17 @@ function mergeSecurityPositions(positions: SecurityPosition[]): SecurityPosition
     const valueStart = existing.valueStart + pos.valueStart;
     const valueEnd = existing.valueEnd + pos.valueEnd;
 
+    const quantityPlanned =
+      (existing.quantityPlanned ?? existing.quantityEnd) +
+      (pos.quantityPlanned ?? pos.quantityEnd);
+
     byIsin.set(pos.isin, {
       ...existing,
       quantityStart,
       quantityEnd,
+      quantityPlanned,
+      plannedCredits: (existing.plannedCredits ?? 0) + (pos.plannedCredits ?? 0),
+      plannedDebits: (existing.plannedDebits ?? 0) + (pos.plannedDebits ?? 0),
       valueStart,
       valueEnd,
       valueChange: existing.valueChange + pos.valueChange,
