@@ -1,0 +1,62 @@
+---
+const year = new Date().getFullYear();
+const appUrl = "https://app.gala-soft.ru";
+---
+
+<footer class="site-footer section--tight">
+  <div class="container site-footer__inner">
+    <div>
+      <p class="site-footer__title">Gala</p>
+      <p class="site-footer__text">
+        Образовательный лендинг о финансовой устойчивости. Не является
+        индивидуальной финансовой, налоговой или инвестиционной рекомендацией.
+      </p>
+    </div>
+    <nav aria-label="Ссылки в подвале">
+      <ul class="site-footer__links">
+        <li><a href={appUrl}>Приложение</a></li>
+        <li><a href="/privacy/">Приватность</a></li>
+        <li><a href="/sitemap-index.xml">Карта сайта</a></li>
+      </ul>
+    </nav>
+    <p class="site-footer__copy">© {year} Gala. Без трекеров и рекламных пикселей.</p>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    border-top: 1px solid var(--border);
+    background: color-mix(in srgb, var(--card) 60%, var(--background));
+  }
+
+  .site-footer__inner {
+    display: grid;
+    gap: var(--space-lg);
+  }
+
+  .site-footer__title {
+    margin: 0 0 var(--space-xs);
+    font-weight: 700;
+  }
+
+  .site-footer__text,
+  .site-footer__copy {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+    max-width: 40rem;
+  }
+
+  .site-footer__links {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-md);
+  }
+
+  .site-footer__links a {
+    text-decoration: none;
+  }
+</style>

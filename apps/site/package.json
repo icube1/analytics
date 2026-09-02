@@ -1,0 +1,21 @@
+{
+  "name": "@analytics/site",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "typecheck": "astro sync && tsc --noEmit",
+    "test": "node scripts/verify-build.mjs",
+    "test:a11y": "node scripts/check-a11y.mjs"
+  },
+  "dependencies": {
+    "@astrojs/sitemap": "^3.6.0",
+    "astro": "^5.14.1"
+  },
+  "devDependencies": {
+    "typescript": "^5"
+  }
+}

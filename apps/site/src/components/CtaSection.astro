@@ -1,0 +1,42 @@
+---
+const appUrl = "https://app.gala-soft.ru";
+---
+
+<section class="section cta" aria-labelledby="cta-heading">
+  <div class="container card cta__inner">
+    <div>
+      <h2 id="cta-heading">Готовы спланировать устойчивость?</h2>
+      <p>
+        Полная модель с долгами, семейными сценариями и пояснениями факторов —
+        в веб-приложении. Без регистрации на сторонних сервисах аналитики.
+      </p>
+    </div>
+    <a class="btn btn--primary" href={appUrl}>Открыть app.gala-soft.ru</a>
+  </div>
+</section>
+
+<style>
+  .cta__inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-lg);
+    background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--accent-soft) 80%, var(--card)),
+      var(--card)
+    );
+  }
+
+  h2 {
+    margin: 0 0 var(--space-sm);
+    font-size: clamp(1.35rem, 3vw, 1.75rem);
+  }
+
+  p {
+    margin: 0;
+    color: var(--muted);
+    max-width: 36rem;
+  }
+</style>

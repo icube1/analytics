@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "apps/web/dist/**",
+    "apps/site/dist/**",
+    "apps/site/.astro/**",
     "next-env.d.ts",
   ]),
 ]);

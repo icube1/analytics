@@ -1,0 +1,75 @@
+---
+const appUrl = "https://app.gala-soft.ru";
+---
+
+<section class="hero section">
+  <div class="container hero__grid">
+    <div>
+      <p class="eyebrow">Финансовая устойчивость</p>
+      <h1 class="hero__title">
+        Резервы по слоям, долги в контексте и сценарии для семьи — без обещаний
+        «гарантированного дохода»
+      </h1>
+      <p class="lead hero__lead">
+        Gala помогает увидеть, сколько ликвидности нужно на ближайшие платежи,
+        непредвиденные события и долгий период без дохода — с учётом долговой
+        нагрузки и жизненных обстоятельств. Расчёты показывают диапазоны и
+        факторы, а не единственно верный ответ.
+      </p>
+      <div class="hero__actions">
+        <a class="btn btn--primary" href={appUrl}>Перейти в приложение</a>
+        <a class="btn btn--secondary" href="#demo">Попробовать демо</a>
+      </div>
+    </div>
+    <aside class="card hero__aside" aria-label="Ключевые принципы">
+      <ul class="hero__list">
+        <li>Многослойные резервы вместо одной «подушки на N месяцев»</li>
+        <li>Сравнение стратегий при наличии долгов</li>
+        <li>Семейные сценарии: доход, иждивенцы, поиск работы</li>
+        <li>Мгновенная обратная связь при изменении предположений</li>
+        <li>Долгосрочная независимость — после достижения выбранного диапазона</li>
+        <li>Данные остаются у вас; без сторонних трекеров</li>
+      </ul>
+    </aside>
+  </div>
+</section>
+
+<style>
+  .hero__grid {
+    display: grid;
+    gap: var(--space-2xl);
+    align-items: start;
+  }
+
+  @media (min-width: 56rem) {
+    .hero__grid {
+      grid-template-columns: 1.2fr 0.8fr;
+    }
+  }
+
+  .hero__title {
+    margin: 0 0 var(--space-md);
+    font-size: clamp(1.9rem, 4vw, 2.75rem);
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+  }
+
+  .hero__lead {
+    margin-bottom: var(--space-xl);
+  }
+
+  .hero__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-md);
+  }
+
+  .hero__list {
+    margin: 0;
+    padding-left: 1.1rem;
+    display: grid;
+    gap: var(--space-sm);
+    color: var(--muted);
+    font-size: 0.95rem;
+  }
+</style>
