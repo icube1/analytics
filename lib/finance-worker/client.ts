@@ -1,0 +1,118 @@
+import {
+  FINANCE_WORKER_PROTOCOL_VERSION,
+  isFinanceWorkerResponse,
+  type MonteCarloWorkerRequest,
+} from "./contract";
+import type { MonteCarloResult } from "../compound-interest/monte-carlo";
+
+export interface FinanceWorkerPort {
+  postMessage(message: MonteCarloWorkerRequest): void;
+  addEventListener(
+    type: "message",
+    listener: (event: MessageEvent<unknown>) => void,
+  ): void;
+  addEventListener(type: "error", listener: (event: ErrorEvent) => void): void;
+  removeEventListener(
+    type: "message",
+    listener: (event: MessageEvent<unknown>) => void,
+  ): void;
+  removeEventListener(type: "error", listener: (event: ErrorEvent) => void): void;
+  terminate(): void;
+}
+
+export class FinanceWorkerCancelledError extends Error {
+  constructor() {
+    super("Finance worker calculation cancelled");
+    this.name = "FinanceWorkerCancelledError";
+  }
+}
+
+export interface FinanceWorkerJob {
+  promise: Promise<MonteCarloResult>;
+  cancel(): void;
+}
+
+export function createFinanceWorker(): FinanceWorkerPort {
+  return new Worker(new URL("./finance.worker.ts", import.meta.url), {
+    type: "module",
+    name: "finance-calculations",
+  });
+}
+
+export function startMonteCarloWorkerJob(
+  worker: FinanceWorkerPort,
+  request: MonteCarloWorkerRequest,
+): FinanceWorkerJob {
+  let settled = false;
+  let rejectJob: (error: Error) => void = () => {};
+
+  const cleanup = () => {
+    worker.removeEventListener("message", onMessage);
+    worker.removeEventListener("error", onError);
+    worker.terminate();
+  };
+
+  const onMessage = (event: MessageEvent<unknown>) => {
+    const candidate = event.data;
+    if (
+      typeof candidate === "object" &&
+      candidate !== null &&
+      "requestId" in candidate &&
+      candidate.requestId !== request.requestId
+    ) {
+      return;
+    }
+
+    if (settled) return;
+    settled = true;
+    cleanup();
+
+    if (!isFinanceWorkerResponse(candidate)) {
+      rejectJob(new Error("Finance worker returned an invalid response"));
+    } else if (candidate.type === "finance.error") {
+      rejectJob(new Error(candidate.error.message));
+    } else {
+      resolveJob(candidate.payload);
+    }
+  };
+
+  const onError = (event: ErrorEvent) => {
+    if (settled) return;
+    settled = true;
+    cleanup();
+    rejectJob(new Error(event.message || "Finance worker failed"));
+  };
+
+  let resolveJob: (result: MonteCarloResult) => void = () => {};
+  const promise = new Promise<MonteCarloResult>((resolve, reject) => {
+    resolveJob = resolve;
+    rejectJob = reject;
+    worker.addEventListener("message", onMessage);
+    worker.addEventListener("error", onError);
+    worker.postMessage(request);
+  });
+
+  return {
+    promise,
+    cancel() {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      rejectJob(new FinanceWorkerCancelledError());
+    },
+  };
+}
+
+let nextRequestId = 0;
+
+export function createMonteCarloWorkerRequest(
+  payload: MonteCarloWorkerRequest["payload"],
+): MonteCarloWorkerRequest {
+  nextRequestId += 1;
+  return {
+    version: FINANCE_WORKER_PROTOCOL_VERSION,
+    requestId: `monte-carlo-${nextRequestId}`,
+    type: "monte-carlo.run",
+    payload,
+  };
+}
