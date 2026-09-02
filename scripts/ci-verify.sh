@@ -77,6 +77,8 @@ step "next build" npm run build
 step "prepare standalone" bash scripts/prepare-standalone.sh
 step "bundle budgets" node scripts/measure-bundles.mjs --skip-build --ci
 step "observability tests" npm test -- __tests__/observability-node.test.ts __tests__/observability-collector.test.ts __tests__/observability-schema.test.ts --runInBand --forceExit
+step "metrics dashboard typecheck" npm run typecheck:metrics
+step "metrics dashboard tests" npm run test:metrics
 step "metrics dashboard build" npm run build:metrics-dashboard
 step "observability benchmark" bash scripts/benchmark-observability.sh --ci
 

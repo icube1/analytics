@@ -17,7 +17,10 @@ async fn internal_metrics_requires_auth_in_production() {
     let state = AppState::new(harness.state.pool().clone(), config);
     let server = TestServer::new(build_app(state)).unwrap();
 
-    server.get("/internal/metrics").await.assert_status(StatusCode::UNAUTHORIZED);
+    server
+        .get("/internal/metrics")
+        .await
+        .assert_status(StatusCode::UNAUTHORIZED);
     let authorized = server
         .get("/internal/metrics")
         .add_header("authorization", "Basic b3duZXI6c2VjcmV0")

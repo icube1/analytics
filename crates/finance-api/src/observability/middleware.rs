@@ -17,7 +17,10 @@ pub async fn record_http_metrics(
     let started = Instant::now();
     let route = sanitize_route(request.uri().path());
     let response = next.run(request).await;
-    metrics.record(response.status().as_u16(), started.elapsed().as_secs_f64() * 1000.0);
+    metrics.record(
+        response.status().as_u16(),
+        started.elapsed().as_secs_f64() * 1000.0,
+    );
     tracing::debug!(route = %route, status = response.status().as_u16(), "http_request");
     response
 }

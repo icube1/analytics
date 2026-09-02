@@ -102,7 +102,11 @@ fn latency_bucket_index(latency_ms: f64) -> usize {
 
 fn percentile_from_buckets(buckets: &[u64], total: u64) -> LatencyPercentiles {
     if total == 0 {
-        return LatencyPercentiles { p50: 0.0, p95: 0.0, p99: 0.0 };
+        return LatencyPercentiles {
+            p50: 0.0,
+            p95: 0.0,
+            p99: 0.0,
+        };
     }
     LatencyPercentiles {
         p50: bucket_percentile(buckets, total, 0.50),

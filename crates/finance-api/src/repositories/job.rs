@@ -162,7 +162,10 @@ impl JobRepository {
         )
         .fetch_all(&self.pool)
         .await?;
-        Ok(rows.into_iter().map(|row| (row.get("kind"), row.get("count"))).collect())
+        Ok(rows
+            .into_iter()
+            .map(|row| (row.get("kind"), row.get("count")))
+            .collect())
     }
 }
 
