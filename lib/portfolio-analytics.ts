@@ -5,8 +5,11 @@ import {
   getCustomAssetsMonthlyIncome,
   getEnabledItems,
 } from "./custom-assets";
-import { resolveSecurityPosition } from "./broker-positions";
-import { sumEffectiveSecuritiesValue } from "./broker-positions";
+import {
+  resolveSecurityPosition,
+  sumEffectiveCashRub,
+  sumEffectiveSecuritiesValue,
+} from "./broker-positions";
 import { ASSUMED_RETURNS } from "./portfolio-assumptions";
 import type {
   BrokerReport,
@@ -158,7 +161,9 @@ export function getBrokerPoolReturn(
       ? sumEffectiveSecuritiesValue(report)
       : report?.securitiesEnd ?? 0;
   const cash =
-    report?.cash.find((c) => c.currency === "RUB")?.end ?? report?.cashEnd ?? 0;
+    report && report.cash.length > 0
+      ? sumEffectiveCashRub(report)
+      : report?.cashEnd ?? 0;
   const gold = getBrokerGoldRub(report);
 
   const parts: { value: number; rate: number }[] = [];

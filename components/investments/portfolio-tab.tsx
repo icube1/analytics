@@ -9,7 +9,7 @@ import {
   Tooltip,
 } from "recharts";
 import { ChartMoneyTooltip } from "@/components/chart-money-tooltip";
-import { resolveSecurityPosition } from "@/lib/broker-positions";
+import { getEffectivePortfolioTotals, resolveCashPosition, resolveSecurityPosition } from "@/lib/broker-positions";
 import { CHART_COLORS } from "@/lib/stats";
 import { formatMoney } from "@/lib/portfolio-wealth";
 import type { BrokerReport } from "@/lib/portfolio-types";
@@ -59,6 +59,7 @@ export function PortfolioTab({ report, onUpload, fileName }: PortfolioTabProps) 
     .filter((item) => item.value > 0);
 
   const pieTotal = allocation.reduce((sum, item) => sum + item.value, 0);
+  const totals = getEffectivePortfolioTotals(report);
 
   return (
     <div className="flex flex-col gap-6">
@@ -88,10 +89,10 @@ export function PortfolioTab({ report, onUpload, fileName }: PortfolioTabProps) 
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          { label: "Активы на конец", value: report.assetsEnd },
+          { label: "Активы на конец", value: totals.assetsEnd },
           { label: "Изменение", value: report.assetsChange },
-          { label: "Ценные бумаги", value: report.securitiesEnd },
-          { label: "Денежные средства", value: report.cashEnd },
+          { label: "Ценные бумаги", value: totals.securitiesEnd },
+          { label: "Денежные средства", value: totals.cashEnd },
         ].map((item) => (
           <div
             key={item.label}
@@ -149,25 +150,28 @@ export function PortfolioTab({ report, onUpload, fileName }: PortfolioTabProps) 
             Денежные остатки
           </h3>
           <div className="space-y-2">
-            {report.cash.map((c) => (
-              <div
-                key={`${c.platform}-${c.currency}`}
-                className="flex items-center justify-between rounded-lg bg-zinc-50 px-3 py-2 text-sm dark:bg-zinc-950"
-              >
-                <span className="text-zinc-700 dark:text-zinc-300">
-                  {c.currency}
-                  {c.rateEnd > 0 && ` · курс ${c.rateEnd.toLocaleString("ru-RU")}`}
-                </span>
-                <span className="font-medium tabular-nums">
-                  {c.end.toLocaleString("ru-RU")} {c.currency}
-                  {c.currency === "GLD" && c.rateEnd > 0 && (
-                    <span className="ml-2 text-zinc-500">
-                      ≈ {formatMoney(c.end * c.rateEnd)}
-                    </span>
-                  )}
-                </span>
-              </div>
-            ))}
+            {report.cash.map((c) => {
+              const cashResolved = resolveCashPosition(c);
+              return (
+                <div
+                  key={`${c.platform}-${c.currency}`}
+                  className="flex items-center justify-between rounded-lg bg-zinc-50 px-3 py-2 text-sm dark:bg-zinc-950"
+                >
+                  <span className="text-zinc-700 dark:text-zinc-300">
+                    {c.currency}
+                    {c.rateEnd > 0 && ` · курс ${c.rateEnd.toLocaleString("ru-RU")}`}
+                  </span>
+                  <span className="font-medium tabular-nums">
+                    {cashResolved.balance.toLocaleString("ru-RU")} {c.currency}
+                    {c.currency === "GLD" && c.rateEnd > 0 && (
+                      <span className="ml-2 text-zinc-500">
+                        ≈ {formatMoney(cashResolved.balance * c.rateEnd)}
+                      </span>
+                    )}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -175,9 +179,6 @@ export function PortfolioTab({ report, onUpload, fileName }: PortfolioTabProps) 
       <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
         <div className="border-b border-zinc-200 px-5 py-4 dark:border-zinc-800">
           <h3 className="font-semibold">Позиции</h3>
-          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-            С учётом нерасчитанных сделок T+1 (плановый остаток из отчёта Сбера)
-          </p>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
@@ -197,22 +198,10 @@ export function PortfolioTab({ report, onUpload, fileName }: PortfolioTabProps) 
                 const resolved = resolveSecurityPosition(s);
                 return (
                   <tr key={s.id}>
-                    <td className="px-4 py-3 font-medium">
-                      {s.name}
-                      {resolved.hasPendingSettlement && (
-                        <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800 dark:bg-amber-950 dark:text-amber-200">
-                          +{resolved.pendingQuantity} T+1
-                        </span>
-                      )}
-                    </td>
+                    <td className="px-4 py-3 font-medium">{s.name}</td>
                     <td className="px-4 py-3 text-zinc-500">{s.isin}</td>
                     <td className="px-4 py-3 text-right tabular-nums">
                       {resolved.quantity}
-                      {resolved.hasPendingSettlement && (
-                        <span className="block text-[11px] text-zinc-400">
-                          расч.: {s.quantityEnd}
-                        </span>
-                      )}
                     </td>
                     <td className="px-4 py-3 text-right tabular-nums">
                       {formatMoney(s.priceEnd)}

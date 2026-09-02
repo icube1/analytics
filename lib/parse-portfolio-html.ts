@@ -199,6 +199,9 @@ function parseCashTable(table: Element): CashPosition[] {
       start: parseNum(cellText(row, 3)),
       change: parseNum(cellText(row, 4)),
       end: parseNum(cellText(row, 5)),
+      plannedCredits: parseNum(cellText(row, 6)),
+      plannedDebits: parseNum(cellText(row, 7)),
+      endPlanned: parseNum(cellText(row, 8)),
     });
   }
 

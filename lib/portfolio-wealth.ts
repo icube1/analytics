@@ -1,5 +1,5 @@
 import { getCustomAssetsTotal } from "./custom-assets";
-import { sumEffectiveSecuritiesValue } from "./broker-positions";
+import { sumEffectiveCashRub, sumEffectiveSecuritiesValue } from "./broker-positions";
 import { getMonthlyDebtService, getTotalDebtBalance } from "./debt-amortization";
 import type { BrokerReport, CustomAssets } from "./portfolio-types";
 import { formatMoney } from "./stats";
@@ -31,7 +31,9 @@ export function getTotalWealth(
       ? sumEffectiveSecuritiesValue(report)
       : report?.securitiesEnd ?? 0;
   const brokerCashRub =
-    report?.cash.find((c) => c.currency === "RUB")?.end ?? report?.cashEnd ?? 0;
+    report && report.cash.length > 0
+      ? sumEffectiveCashRub(report)
+      : report?.cashEnd ?? 0;
   const brokerGoldRub = getBrokerGoldRub(report);
   const brokerTotal = report?.assetsEnd ?? brokerSecurities + brokerCashRub + brokerGoldRub;
 

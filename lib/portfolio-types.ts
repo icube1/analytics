@@ -25,6 +25,12 @@ export interface CashPosition {
   start: number;
   change: number;
   end: number;
+  /** Плановые зачисления по операциям */
+  plannedCredits?: number;
+  /** Плановые списания по операциям (сделки T+1) */
+  plannedDebits?: number;
+  /** Плановый исходящий остаток */
+  endPlanned?: number;
 }
 
 export interface BrokerTrade {

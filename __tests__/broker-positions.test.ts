@@ -3,7 +3,9 @@ import path from "node:path";
 import {
   enrichBrokerReport,
   hasPendingSettlements,
+  resolveCashPosition,
   resolveSecurityPosition,
+  sumEffectiveCashRub,
   sumEffectiveSecuritiesValue,
 } from "@/lib/broker-positions";
 import { parsePortfolioHtml } from "@/lib/parse-portfolio-html";
@@ -36,6 +38,11 @@ describe("broker positions T+1", () => {
     expect(sumEffectiveSecuritiesValue(report)).toBeGreaterThan(
       report.securitiesEnd,
     );
+
+    const rub = report.cash.find((item) => item.currency === "RUB");
+    expect(rub?.endPlanned).toBeCloseTo(30.93, 1);
+    expect(sumEffectiveCashRub(report)).toBeCloseTo(30.93, 1);
+    expect(sumEffectiveCashRub(report)).toBeLessThan(report.cashEnd);
   });
 
   it("enriches legacy saved report from unsettled trades", () => {
@@ -49,6 +56,12 @@ describe("broker positions T+1", () => {
         plannedCredits: undefined,
         plannedDebits: undefined,
       })),
+      cash: report.cash.map((item) => ({
+        ...item,
+        plannedCredits: undefined,
+        plannedDebits: undefined,
+        endPlanned: undefined,
+      })),
     };
 
     const enriched = enrichBrokerReport(legacy);
@@ -59,6 +72,9 @@ describe("broker positions T+1", () => {
     expect(sumEffectiveSecuritiesValue(enriched)).toBeGreaterThan(
       report.securitiesEnd,
     );
+    expect(sumEffectiveCashRub(enriched)).toBeCloseTo(30.93, 1);
+    const rub = enriched!.cash.find((item) => item.currency === "RUB");
+    expect(resolveCashPosition(rub!).balance).toBeCloseTo(30.93, 1);
   });
 
   it("keeps settled quantity when no planned balance differs", () => {
