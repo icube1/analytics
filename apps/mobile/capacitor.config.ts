@@ -8,7 +8,6 @@ const config: CapacitorConfig = {
   appId,
   appName,
   webDir: "../web/dist",
-  bundledWebRuntime: false,
   server: {
     androidScheme: "https",
     hostname: "app.gala-soft.ru",

@@ -36,6 +36,41 @@ jobs:
             deploy/nginx-analytics.conf
           retention-days: 7
 
+  platform-package:
+    runs-on: ubuntu-latest
+    needs: verify
+    env:
+      CI_REPORT_DIR: ${{ github.workspace }}/ci-reports
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.20
+          cache: npm
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.88.0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: .
+      - run: |
+          npm ci
+          bash scripts/package-platform-release.sh platform-release.tar.gz
+          PLATFORM_APP_ROOT="$PWD/.platform-local/opt/analytics-platform" \
+            bash scripts/deploy-platform-release.sh platform-release.tar.gz --local
+      - uses: actions/upload-artifact@v4
+        with:
+          name: platform-release-bundle
+          path: |
+            platform-release.tar.gz
+            ci-reports/platform-release.json
+            ci-reports/platform-smoke.json
+            deploy/blue-green/
+            scripts/deploy-platform-release.sh
+            scripts/smoke-platform-release.sh
+            scripts/rollback-platform-release.sh
+          retention-days: 7
+
   deploy:
     runs-on: ubuntu-latest
     needs: package
@@ -104,3 +139,42 @@ jobs:
             curl -fsS -u "$ANALYTICS_AUTH_USER:$ANALYTICS_AUTH_PASSWORD" \
               -o /dev/null http://127.0.0.1:3000/
             echo "Deploy OK"
+
+  platform-stage:
+    runs-on: ubuntu-latest
+    needs: platform-package
+    if: github.repository == 'icube1/analytics'
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: platform-release-bundle
+      - uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: >-
+            platform-release.tar.gz,
+            deploy/blue-green/finance-api.service,
+            scripts/deploy-platform-release.sh,
+            scripts/smoke-platform-release.sh
+          target: /tmp/analytics-platform-deploy
+      - uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+            if [[ "${PLATFORM_CUTOVER:-0}" == "1" ]]; then
+              echo "Refusing automated stage when PLATFORM_CUTOVER=1" >&2
+              exit 1
+            fi
+            DEPLOY_ROOT=/tmp/analytics-platform-deploy
+            TARBALL="$DEPLOY_ROOT/platform-release.tar.gz"
+            install -d /opt/analytics-platform
+            chmod +x "$DEPLOY_ROOT/scripts/"*.sh
+            PLATFORM_APP_ROOT=/opt/analytics-platform \
+              bash "$DEPLOY_ROOT/scripts/deploy-platform-release.sh" "$TARBALL"
+            echo "Platform staged (Next public vhost unchanged)"

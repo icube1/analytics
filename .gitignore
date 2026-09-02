@@ -55,6 +55,9 @@ next-env.d.ts
 apps/web/node_modules
 /ci-reports/
 deploy.tar.gz
+platform-release*.tar.gz
+.platform-local/
+.platform-release-staging/
 
 # capacitor native shells (generated locally; snippets under apps/mobile/native-config/)
 /apps/mobile/ios/
