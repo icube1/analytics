@@ -47,6 +47,7 @@ npm test -- --runTestsByPath __tests__/debt-daycount.test.ts __tests__/upcoming-
 npx tsc --noEmit
 ```
 
-The Rust crate's minimum supported toolchain is Rust 1.83. The differential
-script requires Node.js, npm dependencies, and Cargo; it builds only a local
-test runner and does not alter production bundles.
+The Rust crate's minimum supported toolchain is Rust 1.85 (required by current
+dev-dependency lock resolution). The differential script requires Node.js, npm
+dependencies, and Cargo; it builds only a local test runner and does not alter
+production bundles.

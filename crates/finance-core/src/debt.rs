@@ -23,7 +23,7 @@ pub struct Amortization {
 
 /// Mirrors `clampPaymentDay`: payment days are rounded and restricted to 1–28.
 #[must_use]
-#[allow(clippy::cast_possible_truncation)]
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 pub fn clamp_payment_day(payment_day: f64) -> u8 {
     if payment_day.is_nan() {
         return 1;
@@ -33,10 +33,16 @@ pub fn clamp_payment_day(payment_day: f64) -> u8 {
 
 /// Creates a payment date from a zero-based month, normalizing month overflow
 /// and clamping the payment day like JavaScript's `Date` constructor.
+///
+/// # Panics
+///
+/// Panics if the normalized month index cannot be represented as `u8`. This cannot
+/// happen for inputs produced by the debt day-count helpers.
 #[must_use]
 pub fn payment_date(year: i32, month_index_zero: i32, payment_day: f64) -> CivilDate {
     let normalized_year = year + month_index_zero.div_euclid(12);
-    let month = u8::try_from(month_index_zero.rem_euclid(12) + 1).unwrap();
+    let month_one_based = month_index_zero.rem_euclid(12) + 1;
+    let month = u8::try_from(month_one_based).expect("month index normalizes to 1..=12");
     let day = clamp_payment_day(payment_day).min(days_in_month(normalized_year, month));
     CivilDate::new(normalized_year, month, day).unwrap()
 }
@@ -129,6 +135,11 @@ pub fn amortize_debt_month(
 ///
 /// `None` means the payment never reduces principal. For compatibility, a debt
 /// that still declines after 600 payments returns `Some(600)`.
+///
+/// # Panics
+///
+/// Panics if the payoff loop exceeds `i32::MAX` months. The loop is capped at
+/// 600 iterations, so this cannot happen in practice.
 #[must_use]
 pub fn estimate_payoff_months(
     balance: f64,
@@ -148,12 +159,16 @@ pub fn estimate_payoff_months(
     let mut months = 0;
     let day = resolve_payment_day(payment_day);
     while remaining > 0.01 && months < MAX_PAYOFF_MONTHS {
-        let period_days =
-            simulation_payment_period_days(as_of, i32::try_from(months + 1).unwrap(), day);
+        let period_days = simulation_payment_period_days(
+            as_of,
+            i32::try_from(months + 1).expect("payoff loop is capped at MAX_PAYOFF_MONTHS"),
+            day,
+        );
         let step = amortize_debt_month(
             remaining,
             payment,
             annual_interest_rate,
+            #[allow(clippy::cast_precision_loss)]
             Some(period_days as f64),
         );
         if step.principal <= 0.0 {
@@ -196,7 +211,7 @@ mod tests {
         let dates = surrounding_payment_dates(as_of, 6.0);
         assert_eq!(dates.previous, as_of);
         assert_eq!(dates.next, CivilDate::new(2026, 8, 6).unwrap());
-        assert_eq!(simulation_payment_period_days(as_of, 1, 6.0), 30);
+        assert_eq!(simulation_payment_period_days(as_of, 1, 6.0), 31);
     }
 
     #[test]

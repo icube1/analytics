@@ -24,12 +24,14 @@ pub struct RequestBatch {
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(tag = "operation", rename_all = "camelCase")]
 pub enum FinanceRequest {
+    #[serde(rename_all = "camelCase")]
     DayCount {
         id: String,
         as_of: String,
         payment_day: f64,
         simulation_months: Vec<i32>,
     },
+    #[serde(rename_all = "camelCase")]
     Amortize {
         id: String,
         balance: f64,
@@ -38,6 +40,7 @@ pub enum FinanceRequest {
         #[serde(default)]
         period_days: Option<f64>,
     },
+    #[serde(rename_all = "camelCase")]
     EstimatePayoff {
         id: String,
         balance: f64,
@@ -58,6 +61,7 @@ pub struct ResponseBatch {
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(tag = "operation", rename_all = "camelCase")]
 pub enum FinanceResponse {
+    #[serde(rename_all = "camelCase")]
     DayCount {
         id: String,
         previous: String,
@@ -65,16 +69,15 @@ pub enum FinanceResponse {
         current_period_days: i64,
         simulation_period_days: Vec<i64>,
     },
+    #[serde(rename_all = "camelCase")]
     Amortize {
         id: String,
         balance: f64,
         interest: f64,
         principal: f64,
     },
-    EstimatePayoff {
-        id: String,
-        months: Option<u32>,
-    },
+    #[serde(rename_all = "camelCase")]
+    EstimatePayoff { id: String, months: Option<u32> },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
