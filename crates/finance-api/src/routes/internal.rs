@@ -88,24 +88,20 @@ fn authenticate_internal(
     state: &AppState,
     headers: &axum::http::HeaderMap,
 ) -> Result<(), crate::error::ApiError> {
-    if let Ok(token) = std::env::var("OBSERVABILITY_TOKEN") {
-        if !token.is_empty() {
-            let bearer = headers
-                .get("authorization")
-                .and_then(|value| value.to_str().ok())
-                .and_then(|value| value.strip_prefix("Bearer "));
-            if bearer == Some(token.as_str()) {
+    let authorization = headers
+        .get("authorization")
+        .and_then(|value| value.to_str().ok());
+
+    if let Some(bearer) = authorization.and_then(|value| value.strip_prefix("Bearer ")) {
+        if let Ok(token) = std::env::var("OBSERVABILITY_TOKEN") {
+            if !token.is_empty() && bearer == token {
                 return Ok(());
             }
-            return Err(crate::error::ApiError::Unauthorized);
         }
+        return Err(crate::error::ApiError::Unauthorized);
     }
-    authenticate_basic(
-        state.config(),
-        headers
-            .get("authorization")
-            .and_then(|value| value.to_str().ok()),
-    )
+
+    authenticate_basic(state.config(), authorization)
 }
 
 fn current_rss_mb() -> Option<f64> {

@@ -10,6 +10,7 @@ use finance_api::{
 use tempfile::tempdir;
 use uuid::Uuid;
 
+#[allow(dead_code)]
 pub struct TestHarness {
     pub state: AppState,
     pub user_a: Uuid,
