@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:standalone": "next build && bash scripts/prepare-standalone.sh",
     "start": "next start",
     "lint": "eslint",
     "test": "jest --runInBand --forceExit",

@@ -1,0 +1,85 @@
+name: Deploy
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: github.repository == 'icube1/analytics'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install and test
+        run: |
+          npm ci
+          npm test
+
+      - name: Build standalone bundle
+        run: |
+          npm run build
+          bash scripts/prepare-standalone.sh
+          tar -czf deploy.tar.gz -C .next/standalone .
+
+      - name: Upload bundle to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: deploy.tar.gz,deploy/analytics.service,deploy/nginx-analytics.conf
+          target: /tmp/analytics-deploy
+
+      - name: Install release on server
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+
+            APP_DIR=/opt/analytics
+            RELEASE_DIR=/tmp/analytics-deploy
+
+            if ! command -v node >/dev/null; then
+              curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+              apt-get install -y nodejs
+            fi
+
+            if ! command -v nginx >/dev/null; then
+              DEBIAN_FRONTEND=noninteractive apt-get install -y nginx
+            fi
+
+            mkdir -p "$APP_DIR/data/backups" "$APP_DIR/statements"
+
+            # Распаковываем только код приложения — data/ и statements/ не трогаем
+            tar -xzf "$RELEASE_DIR/deploy.tar.gz" -C "$APP_DIR"
+
+            install -m 644 "$RELEASE_DIR/deploy/analytics.service" /etc/systemd/system/analytics.service
+            systemctl daemon-reload
+            systemctl enable analytics
+            systemctl restart analytics
+
+            install -m 644 "$RELEASE_DIR/deploy/nginx-analytics.conf" /etc/nginx/sites-available/analytics
+            ln -sf /etc/nginx/sites-available/analytics /etc/nginx/sites-enabled/analytics
+            rm -f /etc/nginx/sites-enabled/default
+            nginx -t
+            systemctl enable nginx
+            systemctl reload nginx
+
+            sleep 2
+            curl -fsS -o /dev/null http://127.0.0.1:3000/
+            echo "Deploy OK"
