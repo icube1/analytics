@@ -17,6 +17,8 @@ export interface MonteCarloOptions {
   /** Годовая волатильность доходности, % */
   volatilityPercent?: number;
   seed?: number;
+  /** Базовая календарная дата расчёта; обязательна для воспроизводимых прогонов */
+  asOf?: Date;
 }
 
 export interface MonteCarloPercentilePoint {
@@ -91,6 +93,7 @@ function simulateRandomPath(
   rng: () => number,
   volatilityPercent: number,
   months: number,
+  asOf: Date,
 ): number[] {
   const rateMethod = params.monthlyRateMethod ?? "effective";
   const monthlyInflation = monthlyRateFromAnnual(params.inflationPercent, rateMethod);
@@ -160,7 +163,7 @@ function simulateRandomPath(
     if (wealthState && context) {
       const debtStep = stepDebtsMonth(context.customAssets, wealthState, {
         simulationMonth: month,
-        asOf: new Date(),
+        asOf,
       });
       debtPayment = debtStep.totalPayment;
       growCustomAssets(
@@ -168,7 +171,7 @@ function simulateRandomPath(
         wealthState,
         params.inflationPercent,
         rateMethod,
-        { asOf: new Date(), simulationMonth: month },
+        { asOf, simulationMonth: month },
       );
       applyCustomAssetIncome(
         context.customAssets,
@@ -289,13 +292,16 @@ export function runMonteCarloSimulation(
   const simulations = Math.max(50, Math.min(options.simulations ?? 400, 2000));
   const volatilityPercent = Math.max(1, options.volatilityPercent ?? 18);
   const seed = options.seed ?? 42;
+  const asOf = options.asOf ?? new Date();
   const months = Math.max(1, Math.round(params.years * 12));
 
   const paths: number[][] = [];
 
   for (let sim = 0; sim < simulations; sim += 1) {
     const rng = mulberry32(seed + sim * 9973);
-    paths.push(simulateRandomPath(params, context, rng, volatilityPercent, months));
+    paths.push(
+      simulateRandomPath(params, context, rng, volatilityPercent, months, asOf),
+    );
   }
 
   const points: MonteCarloPercentilePoint[] = [];

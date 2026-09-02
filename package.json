@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "build:standalone": "next build && bash scripts/prepare-standalone.sh",
+    "benchmark:finance": "tsx scripts/benchmark-finance.ts",
     "start": "next start",
     "lint": "eslint",
     "test": "jest --runInBand --forceExit",
@@ -29,6 +30,7 @@
     "jest": "^30.4.2",
     "tailwindcss": "^4",
     "ts-jest": "^29.4.11",
+    "tsx": "^4.23.13",
     "typescript": "^5"
   }
 }
