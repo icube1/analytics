@@ -16,6 +16,9 @@ const DEFAULT_FIXTURES = [
 /**
  * Removes customer identity and embedded media while leaving report tables,
  * dates, securities, and monetary values unchanged.
+ *
+ * Sanitizing tracked files does not rewrite git history; older commits may
+ * still contain the original PII. See docs/broker-fixture-sanitization.md.
  */
 export function sanitizeBrokerFixture(input: string): string {
   let html = input;

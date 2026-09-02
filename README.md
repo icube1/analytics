@@ -114,6 +114,8 @@ analytics/
 
 Пример конфигурации портфеля: `data/portfolio.example.json`.
 
+Отслеживаемые HTML-фикстуры брокера обезличиваются скриптом `npm run sanitize:broker-fixtures`. Подробности и **риск остаточных данных в истории git** — в [docs/broker-fixture-sanitization.md](docs/broker-fixture-sanitization.md).
+
 ---
 
 ## 🛠 Стек
