@@ -102,13 +102,17 @@ Native intent-filter / URL-type snippets live in `apps/mobile/native-config/` �
 
 Current stack: **TypeScript worker → optional WASM (`finance-wasm`) → TS fallback**.
 
-Recommended native path (not implemented here):
+Native bindings are implemented in `crates/finance-ffi` (UniFFI, coarse JSON batch
+API). **WASM remains the default** in the Capacitor shell; native compute is
+opt-in via a future plugin.
 
-1. Expose `finance-core` via `uniffi` / `cbindgen` as an iOS `.xcframework` and Android `.so`.
-2. Add a Capacitor plugin (`@analytics/finance-native`) that mirrors `lib/finance-worker/resilience-contract.ts`.
-3. Switch `initCapacitorShell()` to register a native compute bridge when `Capacitor.getPlatform()` is `ios`/`android` and the plugin is present.
-4. Keep WASM/TS paths for parity tests (`npm run compare:finance-core:resilience`).
+1. Build `finance-ffi` (`npm run build:ffi`) for host or mobile targets.
+2. Copy generated Swift/Kotlin bindings from `artifacts/finance-ffi/bindings/`.
+3. Add a Capacitor plugin (`@analytics/finance-native`) that mirrors `lib/finance-worker/resilience-contract.ts`.
+4. Switch `initCapacitorShell()` to register a native compute bridge when `Capacitor.getPlatform()` is `ios`/`android` and the plugin is present.
+5. Keep WASM/TS paths for parity tests (`npm run compare:finance-core:resilience`, `npm run compare:finance-ffi`).
 
+See `docs/finance-native-ffi.md` for memory ownership, error codes, and adapter design.
 See `docs/rust-finance-core.md` for the shared Rust crate layout.
 
 ## What is not committed
