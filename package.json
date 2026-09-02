@@ -31,6 +31,7 @@
     "package:deploy": "bash scripts/package-deploy.sh",
     "package:platform": "bash scripts/package-platform-release.sh",
     "test:platform-package": "bash scripts/test-platform-package.sh",
+    "test:platform-e2e": "bash scripts/test-platform-e2e.sh",
     "benchmark:finance": "tsx scripts/benchmark-finance.ts",
     "benchmark:finance:rust": "tsx scripts/benchmark-finance-rust.ts",
     "benchmark:observability": "bash scripts/benchmark-observability.sh",

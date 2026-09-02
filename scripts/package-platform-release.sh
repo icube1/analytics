@@ -93,6 +93,7 @@ if [[ $SKIP_BUILD -eq 0 ]]; then
 fi
 
 FINANCE_API_BIN="$ROOT/target/release/finance-api"
+MIGRATE_BIN="$ROOT/target/release/finance-api-migrate"
 STANDALONE="$ROOT/.next/standalone"
 WEB_DIST="$ROOT/apps/web/dist"
 SITE_DIST="$ROOT/apps/site/dist"
@@ -100,6 +101,7 @@ METRICS_DIST="$ROOT/apps/metrics-dashboard/dist"
 
 for required in \
   "$FINANCE_API_BIN" \
+  "$MIGRATE_BIN" \
   "$STANDALONE/server.js" \
   "$WEB_DIST/index.html" \
   "$SITE_DIST/index.html" \
@@ -119,6 +121,7 @@ mkdir -p \
   "$RELEASE_DIR/next"
 
 install -m 755 "$FINANCE_API_BIN" "$RELEASE_DIR/finance-api/bin/finance-api"
+install -m 755 "$MIGRATE_BIN" "$RELEASE_DIR/finance-api/bin/finance-api-migrate"
 cp -a "$WEB_DIST/." "$RELEASE_DIR/web/dist/"
 cp -a "$SITE_DIST/." "$RELEASE_DIR/site/dist/"
 cp -a "$METRICS_DIST/." "$RELEASE_DIR/metrics-dashboard/dist/"
@@ -146,6 +149,7 @@ done
 assert_no_secrets "$RELEASE_DIR"
 
 finance_api_bytes="$(file_bytes "$RELEASE_DIR/finance-api/bin/finance-api")"
+migrate_bytes="$(file_bytes "$RELEASE_DIR/finance-api/bin/finance-api-migrate")"
 web_bytes="$(dir_bytes "$RELEASE_DIR/web/dist")"
 site_bytes="$(dir_bytes "$RELEASE_DIR/site/dist")"
 metrics_bytes="$(dir_bytes "$RELEASE_DIR/metrics-dashboard/dist")"
@@ -157,6 +161,7 @@ cat >"$RELEASE_DIR/manifest.json" <<EOF
   "generatedAt": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
   "components": {
     "financeApiBytes": $finance_api_bytes,
+    "financeApiMigrateBytes": $migrate_bytes,
     "webDistBytes": $web_bytes,
     "siteDistBytes": $site_bytes,
     "metricsDistBytes": $metrics_bytes,
@@ -175,6 +180,7 @@ cat >"$REPORT_DIR/platform-release.json" <<EOF
   "tarball": "$OUTPUT",
   "tarballBytes": $tar_bytes,
   "financeApiBytes": $finance_api_bytes,
+  "financeApiMigrateBytes": $migrate_bytes,
   "webDistBytes": $web_bytes,
   "siteDistBytes": $site_bytes,
   "metricsDistBytes": $metrics_bytes,

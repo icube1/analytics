@@ -23,6 +23,7 @@ bash scripts/ci-verify.sh --skip-install
 bash scripts/package-deploy.sh deploy.tar.gz
 bash scripts/package-platform-release.sh platform-release.tar.gz
 bash scripts/test-platform-package.sh
+bash scripts/test-platform-e2e.sh
 ```
 
 See [blue-green-deployment.md](./blue-green-deployment.md) for staging, cutover, and rollback.
