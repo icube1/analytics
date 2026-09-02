@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "operation": "dayCount",
+      "id": "alfa-july-statement",
+      "asOf": "2026-07-19",
+      "paymentDay": 6,
+      "simulationMonths": [1, 2, 7, 12]
+    },
+    {
+      "operation": "dayCount",
+      "id": "payment-date-equality",
+      "asOf": "2026-07-06",
+      "paymentDay": 6,
+      "simulationMonths": [1, 2]
+    },
+    {
+      "operation": "dayCount",
+      "id": "leap-year-rounded-day",
+      "asOf": "2024-02-20",
+      "paymentDay": 27.5,
+      "simulationMonths": [1, 2, 13]
+    },
+    {
+      "operation": "dayCount",
+      "id": "clamped-payment-day",
+      "asOf": "2025-12-31",
+      "paymentDay": 31,
+      "simulationMonths": [1, 3]
+    },
+    {
+      "operation": "amortize",
+      "id": "alfa-august-payment",
+      "balance": 1922641.02,
+      "payment": 55200,
+      "annualInterestRate": 10.5,
+      "periodDays": 31
+    },
+    {
+      "operation": "amortize",
+      "id": "alfa-july-payment",
+      "balance": 1962037.22,
+      "payment": 55200,
+      "annualInterestRate": 10.5,
+      "periodDays": 28
+    },
+    {
+      "operation": "amortize",
+      "id": "default-period",
+      "balance": 500000,
+      "payment": 30000,
+      "annualInterestRate": 14
+    },
+    {
+      "operation": "amortize",
+      "id": "paid-off-debt",
+      "balance": -10,
+      "payment": 1000,
+      "annualInterestRate": 20,
+      "periodDays": 31
+    },
+    {
+      "operation": "estimatePayoff",
+      "id": "ordinary-payoff",
+      "balance": 1922641.02,
+      "payment": 55200,
+      "annualInterestRate": 10.5,
+      "paymentDay": 6,
+      "asOf": "2026-07-19"
+    },
+    {
+      "operation": "estimatePayoff",
+      "id": "non-amortizing",
+      "balance": 100000,
+      "payment": 1,
+      "annualInterestRate": 20,
+      "paymentDay": 6,
+      "asOf": "2026-07-19"
+    }
+  ]
+}
