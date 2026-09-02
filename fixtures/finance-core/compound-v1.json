@@ -1,0 +1,385 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "operation": "compoundProjection",
+      "id": "effective-10y-baseline",
+      "params": {
+        "initialCapital": 100000,
+        "monthlyContribution": 60000,
+        "annualReturnPercent": 12,
+        "inflationPercent": 6,
+        "years": 10,
+        "taxOnProfitPercent": 0,
+        "contributionGrowthPercent": 0,
+        "compoundFrequency": "monthly",
+        "monthlyRateMethod": "effective",
+        "adjustContributionsForInflation": false,
+        "reinvestReturns": true,
+        "withdrawAfterYears": null,
+        "withdrawalMode": "fixed",
+        "monthlyWithdrawal": 0,
+        "annualWithdrawalPercent": 4,
+        "taxDividends": false,
+        "taxableAssetShare": 0.5,
+        "dividendYieldPercent": 9.5,
+        "reinvestFreedDebtPayments": false,
+        "debtPaymentsSeparateFromContribution": false
+      },
+      "options": {
+        "asOf": "2026-01-15"
+      }
+    },
+    {
+      "operation": "compoundProjection",
+      "id": "simple-rate-method",
+      "params": {
+        "initialCapital": 100000,
+        "monthlyContribution": 60000,
+        "annualReturnPercent": 12,
+        "inflationPercent": 6,
+        "years": 10,
+        "taxOnProfitPercent": 0,
+        "contributionGrowthPercent": 0,
+        "compoundFrequency": "monthly",
+        "monthlyRateMethod": "simple",
+        "adjustContributionsForInflation": false,
+        "reinvestReturns": true,
+        "withdrawAfterYears": null,
+        "withdrawalMode": "fixed",
+        "monthlyWithdrawal": 0,
+        "annualWithdrawalPercent": 4,
+        "taxDividends": false,
+        "taxableAssetShare": 0.5,
+        "dividendYieldPercent": 9.5,
+        "reinvestFreedDebtPayments": false,
+        "debtPaymentsSeparateFromContribution": false
+      },
+      "options": {
+        "asOf": "2026-01-15"
+      }
+    },
+    {
+      "operation": "compoundProjection",
+      "id": "inflation-adjusted-contributions",
+      "params": {
+        "initialCapital": 500000,
+        "monthlyContribution": 40000,
+        "annualReturnPercent": 8,
+        "inflationPercent": 5,
+        "years": 5,
+        "taxOnProfitPercent": 0,
+        "contributionGrowthPercent": 0,
+        "compoundFrequency": "monthly",
+        "monthlyRateMethod": "effective",
+        "adjustContributionsForInflation": true,
+        "reinvestReturns": true,
+        "withdrawAfterYears": null,
+        "withdrawalMode": "fixed",
+        "monthlyWithdrawal": 0,
+        "annualWithdrawalPercent": 0,
+        "taxDividends": false,
+        "taxableAssetShare": 0.5,
+        "dividendYieldPercent": 0,
+        "reinvestFreedDebtPayments": false,
+        "debtPaymentsSeparateFromContribution": false
+      },
+      "options": {
+        "asOf": "2026-01-15",
+        "allMonths": true
+      }
+    },
+    {
+      "operation": "compoundProjection",
+      "id": "contribution-growth-yearly",
+      "params": {
+        "initialCapital": 200000,
+        "monthlyContribution": 30000,
+        "annualReturnPercent": 10,
+        "inflationPercent": 4,
+        "years": 3,
+        "taxOnProfitPercent": 0,
+        "contributionGrowthPercent": 6,
+        "compoundFrequency": "monthly",
+        "monthlyRateMethod": "effective",
+        "adjustContributionsForInflation": false,
+        "reinvestReturns": true,
+        "withdrawAfterYears": null,
+        "withdrawalMode": "fixed",
+        "monthlyWithdrawal": 0,
+        "annualWithdrawalPercent": 0,
+        "taxDividends": false,
+        "taxableAssetShare": 0.5,
+        "dividendYieldPercent": 0,
+        "reinvestFreedDebtPayments": false,
+        "debtPaymentsSeparateFromContribution": false
+      },
+      "options": {
+        "asOf": "2026-01-15",
+        "allMonths": true
+      }
+    },
+    {
+      "operation": "compoundProjection",
+      "id": "quarterly-compounding",
+      "params": {
+        "initialCapital": 1000000,
+        "monthlyContribution": 100000,
+        "annualReturnPercent": 15,
+        "inflationPercent": 5,
+        "years": 5,
+        "taxOnProfitPercent": 0,
+        "contributionGrowthPercent": 0,
+        "compoundFrequency": "quarterly",
+        "monthlyRateMethod": "effective",
+        "adjustContributionsForInflation": false,
+        "reinvestReturns": true,
+        "withdrawAfterYears": null,
+        "withdrawalMode": "fixed",
+        "monthlyWithdrawal": 0,
+        "annualWithdrawalPercent": 0,
+        "taxDividends": false,
+        "taxableAssetShare": 0.5,
+        "dividendYieldPercent": 0,
+        "reinvestFreedDebtPayments": false,
+        "debtPaymentsSeparateFromContribution": false
+      },
+      "options": {
+        "asOf": "2026-01-15"
+      }
+    },
+    {
+      "operation": "compoundProjection",
+      "id": "fixed-withdrawal-depletion",
+      "params": {
+        "initialCapital": 100000,
+        "monthlyContribution": 60000,
+        "annualReturnPercent": 5,
+        "inflationPercent": 6,
+        "years": 30,
+        "taxOnProfitPercent": 0,
+        "contributionGrowthPercent": 0,
+        "compoundFrequency": "monthly",
+        "monthlyRateMethod": "effective",
+        "adjustContributionsForInflation": false,
+        "reinvestReturns": true,
+        "withdrawAfterYears": 10,
+        "withdrawalMode": "fixed",
+        "monthlyWithdrawal": 100000,
+        "annualWithdrawalPercent": 0,
+        "taxDividends": false,
+        "taxableAssetShare": 0.5,
+        "dividendYieldPercent": 0,
+        "reinvestFreedDebtPayments": false,
+        "debtPaymentsSeparateFromContribution": false
+      },
+      "options": {
+        "asOf": "2026-01-15"
+      }
+    },
+    {
+      "operation": "compoundProjection",
+      "id": "percent-withdrawal",
+      "params": {
+        "initialCapital": 100000,
+        "monthlyContribution": 60000,
+        "annualReturnPercent": 12,
+        "inflationPercent": 2,
+        "years": 20,
+        "taxOnProfitPercent": 0,
+        "contributionGrowthPercent": 0,
+        "compoundFrequency": "monthly",
+        "monthlyRateMethod": "effective",
+        "adjustContributionsForInflation": false,
+        "reinvestReturns": true,
+        "withdrawAfterYears": 10,
+        "withdrawalMode": "percent",
+        "monthlyWithdrawal": 0,
+        "annualWithdrawalPercent": 4,
+        "taxDividends": false,
+        "taxableAssetShare": 0.5,
+        "dividendYieldPercent": 0,
+        "reinvestFreedDebtPayments": false,
+        "debtPaymentsSeparateFromContribution": false
+      },
+      "options": {
+        "asOf": "2026-01-15"
+      }
+    },
+    {
+      "operation": "compoundProjection",
+      "id": "dividend-tax",
+      "params": {
+        "initialCapital": 1000000,
+        "monthlyContribution": 0,
+        "annualReturnPercent": 10,
+        "inflationPercent": 5,
+        "years": 2,
+        "taxOnProfitPercent": 13,
+        "contributionGrowthPercent": 0,
+        "compoundFrequency": "yearly",
+        "monthlyRateMethod": "effective",
+        "adjustContributionsForInflation": false,
+        "reinvestReturns": true,
+        "withdrawAfterYears": null,
+        "withdrawalMode": "fixed",
+        "monthlyWithdrawal": 0,
+        "annualWithdrawalPercent": 0,
+        "taxDividends": true,
+        "taxableAssetShare": 0.6,
+        "dividendYieldPercent": 8,
+        "reinvestFreedDebtPayments": false,
+        "debtPaymentsSeparateFromContribution": false
+      },
+      "options": {
+        "asOf": "2026-01-15",
+        "allMonths": true
+      }
+    },
+    {
+      "operation": "compoundProjection",
+      "id": "household-debt-separate",
+      "params": {
+        "initialCapital": 3400000,
+        "monthlyContribution": 60000,
+        "annualReturnPercent": 10,
+        "inflationPercent": 5,
+        "years": 2,
+        "taxOnProfitPercent": 13,
+        "contributionGrowthPercent": 3,
+        "compoundFrequency": "monthly",
+        "monthlyRateMethod": "effective",
+        "adjustContributionsForInflation": false,
+        "reinvestReturns": true,
+        "withdrawAfterYears": null,
+        "withdrawalMode": "fixed",
+        "monthlyWithdrawal": 0,
+        "annualWithdrawalPercent": 4,
+        "taxDividends": false,
+        "taxableAssetShare": 0.5,
+        "dividendYieldPercent": 9.5,
+        "reinvestFreedDebtPayments": false,
+        "debtPaymentsSeparateFromContribution": true
+      },
+      "context": {
+        "brokerTotal": 500000,
+        "customAssets": {
+          "items": [
+            {
+              "id": "home",
+              "enabled": true,
+              "label": "Жильё",
+              "value": 5500000,
+              "debt": 3200000,
+              "monthlyDebtPayment": 45000,
+              "debtAnnualRate": 12,
+              "debtPaymentDay": 6,
+              "growsWithInflation": true,
+              "returnMode": "none",
+              "annualReturnPercent": 0,
+              "incomeAmount": 0,
+              "incomePeriod": "monthly",
+              "generatesDividendTax": false,
+              "notes": ""
+            }
+          ],
+          "otherDebts": []
+        }
+      },
+      "options": {
+        "asOf": "2026-01-15",
+        "allMonths": true
+      }
+    },
+    {
+      "operation": "compoundProjection",
+      "id": "term-deposit-maturity",
+      "params": {
+        "initialCapital": 1100000,
+        "monthlyContribution": 0,
+        "annualReturnPercent": 0,
+        "inflationPercent": 5,
+        "years": 1,
+        "taxOnProfitPercent": 0,
+        "contributionGrowthPercent": 0,
+        "compoundFrequency": "monthly",
+        "monthlyRateMethod": "effective",
+        "adjustContributionsForInflation": false,
+        "reinvestReturns": true,
+        "withdrawAfterYears": null,
+        "withdrawalMode": "fixed",
+        "monthlyWithdrawal": 0,
+        "annualWithdrawalPercent": 0,
+        "taxDividends": false,
+        "taxableAssetShare": 0.5,
+        "dividendYieldPercent": 0,
+        "reinvestFreedDebtPayments": false,
+        "debtPaymentsSeparateFromContribution": false
+      },
+      "context": {
+        "brokerTotal": 100000,
+        "customAssets": {
+          "items": [
+            {
+              "id": "dep",
+              "enabled": true,
+              "label": "Вклад 25%",
+              "assetKind": "deposit",
+              "value": 1000000,
+              "debt": 0,
+              "monthlyDebtPayment": 0,
+              "debtAnnualRate": 0,
+              "growsWithInflation": false,
+              "returnMode": "percent",
+              "annualReturnPercent": 25,
+              "incomeAmount": 0,
+              "incomePeriod": "monthly",
+              "generatesDividendTax": false,
+              "depositTermMonths": 1,
+              "depositOpenedAt": "2026-01-15",
+              "depositInterestMode": "atMaturity",
+              "notes": ""
+            }
+          ],
+          "otherDebts": []
+        }
+      },
+      "options": {
+        "asOf": "2026-01-15",
+        "allMonths": true
+      }
+    },
+    {
+      "operation": "monteCarlo",
+      "id": "seeded-baseline",
+      "params": {
+        "initialCapital": 1000000,
+        "monthlyContribution": 60000,
+        "annualReturnPercent": 10,
+        "inflationPercent": 5,
+        "years": 30,
+        "taxOnProfitPercent": 13,
+        "contributionGrowthPercent": 3,
+        "compoundFrequency": "monthly",
+        "monthlyRateMethod": "effective",
+        "adjustContributionsForInflation": false,
+        "reinvestReturns": true,
+        "withdrawAfterYears": null,
+        "withdrawalMode": "fixed",
+        "monthlyWithdrawal": 0,
+        "annualWithdrawalPercent": 4,
+        "taxDividends": false,
+        "taxableAssetShare": 0.5,
+        "dividendYieldPercent": 9.5,
+        "reinvestFreedDebtPayments": false,
+        "debtPaymentsSeparateFromContribution": false
+      },
+      "options": {
+        "simulations": 120,
+        "volatilityPercent": 18,
+        "seed": 42,
+        "asOf": "2026-01-15"
+      }
+    }
+  ]
+}

@@ -3,7 +3,9 @@
 use std::fmt;
 
 /// A validated proleptic-Gregorian calendar date.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(
+    Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord, serde::Deserialize, serde::Serialize,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct CivilDate {
     pub year: i32,

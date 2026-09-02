@@ -21,6 +21,28 @@ No UI code calls Rust yet.
 Monte Carlo, portfolio state mutation, asset growth, deposits, and UI wiring
 remain in TypeScript.
 
+## Compound module
+
+The compound slice ports deterministic projection, contribution growth/inflation,
+withdrawals/taxes/IRR, portfolio/debt context, and seeded Monte Carlo from
+`lib/compound-interest/*`:
+
+- `compound::simulate` — monthly projection with accrual periods and snapshots.
+- `compound::wealth` — debt stepping, custom asset growth, deposits, income.
+- `compound::monte_carlo` — mulberry32-seeded paths with percentile bands.
+- `dto::v1` operations: `compoundProjection`, `monteCarlo`.
+
+Unsupported document fields (not read by Rust): `brokerReport`, `forecastPlans`,
+`brokerSnapshots`, `debtBalanceHistory`. See `UNSUPPORTED_COMPOUND_FIELDS`.
+
+`fixtures/finance-core/compound-v1.json` drives differential tests via
+`npm run compare:finance-core:compound`. Parity tolerance: `1e-10` relative for
+finite `f64` values (same as debt slice). Experimental UI integration is gated by
+`NEXT_PUBLIC_RUST_COMPOUND_PARITY=1`; production keeps TypeScript unless parity
+passes (`lib/compound-wasm.ts`).
+
+Release benchmarks: `npm run benchmark:finance:rust` (TS vs Rust `compound` bench).
+
 ## Resilience module
 
 The resilience slice models liquidity layers described in the product
