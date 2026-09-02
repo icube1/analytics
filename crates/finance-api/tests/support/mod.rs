@@ -135,6 +135,7 @@ impl TestHarness {
         build_app(self.state.clone())
     }
 
+    #[allow(dead_code)]
     pub async fn login_bearer(&self, email: &str, password: &str) -> String {
         let server = axum_test::TestServer::new(self.app()).unwrap();
         let response = server
