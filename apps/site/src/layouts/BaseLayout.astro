@@ -1,0 +1,62 @@
+---
+import "../styles/global.css";
+
+export interface Props {
+  title: string;
+  description: string;
+  canonicalPath?: string;
+  ogType?: string;
+}
+
+const {
+  title,
+  description,
+  canonicalPath = "/",
+  ogType = "website",
+} = Astro.props;
+
+const siteName = "Gala — финансовая устойчивость";
+const canonicalUrl = new URL(canonicalPath, Astro.site).href;
+const appUrl = "https://app.gala-soft.ru";
+---
+
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonicalUrl} />
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#4f46e5" />
+
+    <meta property="og:locale" content="ru_RU" />
+    <meta property="og:type" content={ogType} />
+    <meta property="og:site_name" content={siteName} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonicalUrl} />
+
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Перейти к содержимому</a>
+    <slot name="header" />
+    <main id="main">
+      <slot />
+    </main>
+    <slot name="footer" />
+    <noscript>
+      <p class="container" style="padding-block: 1rem; color: var(--muted);">
+        Демонстрация слоёв резерва работает с JavaScript. Основной текст доступен
+        без скриптов. Приложение: <a href={appUrl}>app.gala-soft.ru</a>
+      </p>
+    </noscript>
+  </body>
+</html>

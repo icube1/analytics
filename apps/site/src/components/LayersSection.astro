@@ -1,0 +1,99 @@
+---
+const layers = [
+  {
+    name: "Операционный остаток",
+    purpose: "Ближайшие обязательные платежи до следующего дохода",
+  },
+  {
+    name: "Стартовая подушка",
+    purpose: "Небольшой быстрый резерв, особенно до ускоренного погашения долгов",
+  },
+  {
+    name: "Основная подушка",
+    purpose: "Потеря дохода, срочный ремонт, незапланированные расходы",
+  },
+  {
+    name: "Расширенный резерв",
+    purpose: "Длительный поиск работы, сезонный доход, высокие семейные риски",
+  },
+  {
+    name: "Целевые фонды",
+    purpose: "Предсказуемые, но нерегулярные траты: страховки, налоги, ремонт",
+  },
+  {
+    name: "Фонд впечатлений",
+    purpose: "Путешествия и события — отдельно от чрезвычайного резерва",
+  },
+];
+---
+
+<section id="layers" class="section" aria-labelledby="layers-heading">
+  <div class="container">
+    <p class="eyebrow">Многослойные резервы</p>
+    <h2 id="layers-heading">Шесть слоёв ликвидности</h2>
+    <p class="lead" style="margin-bottom: var(--space-2xl);">
+      Одна фиксированная «подушка на три месяца» редко подходит всем. Gala
+      моделирует слои и показывает диапазон целевых сумм с пояснением факторов.
+    </p>
+    <ol class="layers">
+      {
+        layers.map((layer, index) => (
+          <li class="card layers__item">
+            <span class="layers__index" aria-hidden="true">
+              {index + 1}
+            </span>
+            <div>
+              <h3>{layer.name}</h3>
+              <p>{layer.purpose}</p>
+            </div>
+          </li>
+        ))
+      }
+    </ol>
+  </div>
+</section>
+
+<style>
+  h2 {
+    margin: 0 0 var(--space-md);
+    font-size: clamp(1.5rem, 3vw, 2rem);
+  }
+
+  .layers {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: var(--space-md);
+  }
+
+  .layers__item {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--space-md);
+    align-items: start;
+  }
+
+  .layers__index {
+    display: grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 700;
+    font-size: 0.9rem;
+  }
+
+  h3 {
+    margin: 0 0 0.25rem;
+    font-size: 1.05rem;
+  }
+
+  .layers__item p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.95rem;
+  }
+</style>

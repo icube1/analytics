@@ -1,0 +1,43 @@
+---
+const appUrl = "https://app.gala-soft.ru";
+---
+
+<section id="privacy" class="section" aria-labelledby="privacy-heading">
+  <div class="container grid-2">
+    <div>
+      <p class="eyebrow">Приватность</p>
+      <h2 id="privacy-heading">Данные остаются у вас</h2>
+      <p class="lead">
+        Этот маркетинговый сайт статичен: без cookies, без сторонних трекеров и
+        без рекламных пикселей. Мы не собираем аналитику посещений здесь.
+      </p>
+    </div>
+    <div class="card">
+      <ul class="privacy-list">
+        <li>Расчёты в приложении выполняются локально или через ваш API — без продажи данных третьим лицам.</li>
+        <li>Токены банков и брокеров не включаются в обычные резервные копии.</li>
+        <li>Демо на этой странице не отправляет введённые числа на сервер — всё в браузере.</li>
+        <li>
+          Подробнее — на странице <a href="/privacy/">политики приватности</a> и в
+          <a href={appUrl}>приложении</a>.
+        </li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<style>
+  h2 {
+    margin: 0 0 var(--space-md);
+    font-size: clamp(1.5rem, 3vw, 2rem);
+  }
+
+  .privacy-list {
+    margin: 0;
+    padding-left: 1.1rem;
+    display: grid;
+    gap: var(--space-sm);
+    color: var(--muted);
+    font-size: 0.95rem;
+  }
+</style>

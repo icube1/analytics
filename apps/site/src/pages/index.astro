@@ -1,0 +1,26 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+import Hero from "../components/Hero.astro";
+import FeatureGrid from "../components/FeatureGrid.astro";
+import LayersSection from "../components/LayersSection.astro";
+import ReserveDemo from "../components/ReserveDemo.astro";
+import PrivacySection from "../components/PrivacySection.astro";
+import CtaSection from "../components/CtaSection.astro";
+
+const title = "Gala — финансовая устойчивость, резервы и планирование с учётом долгов";
+const description =
+  "Образовательный сайт о многослойных резервах, долговом контексте и семейных сценариях. Приватность без трекеров. Приложение: app.gala-soft.ru";
+---
+
+<BaseLayout title={title} description={description} canonicalPath="/">
+  <Header slot="header" />
+  <Hero />
+  <FeatureGrid />
+  <LayersSection />
+  <ReserveDemo />
+  <PrivacySection />
+  <CtaSection />
+  <Footer slot="footer" />
+</BaseLayout>

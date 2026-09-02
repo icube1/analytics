@@ -1,0 +1,77 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+
+const title = "Приватность — Gala";
+const description =
+  "Как устроена приватность маркетингового сайта gala-soft.ru и подход Gala к данным пользователя.";
+---
+
+<BaseLayout title={title} description={description} canonicalPath="/privacy/">
+  <Header slot="header" />
+  <article class="section">
+    <div class="container prose">
+      <p class="eyebrow">Приватность</p>
+      <h1>Политика приватности маркетингового сайта</h1>
+      <p class="lead">
+        Эта страница описывает статический сайт на домене gala-soft.ru. Веб-приложение
+        на <a href="https://app.gala-soft.ru">app.gala-soft.ru</a> может хранить ваши
+        финансовые данные локально — см. документацию внутри приложения.
+      </p>
+
+      <h2>Что мы не делаем на этом сайте</h2>
+      <ul>
+        <li>Не используем сторонние трекеры, пиксели и рекламные сети.</li>
+        <li>Не устанавливаем аналитические cookies.</li>
+        <li>Не собираем персональные данные через формы — их здесь нет.</li>
+      </ul>
+
+      <h2>Демонстрация на главной</h2>
+      <p>
+        Интерактивный блок «Иллюстрация покрытия слоёв» выполняет расчёты только в
+        вашем браузере. Введённые числа никуда не отправляются.
+      </p>
+
+      <h2>Журналы сервера</h2>
+      <p>
+        Хостинг-провайдер может вести стандартные технические логи (IP, user-agent,
+        время запроса) для безопасности и диагностики. Мы не связываем эти логи с
+        личностью посетителя в маркетинговых целях.
+      </p>
+
+      <h2>Связь</h2>
+      <p>
+        Вопросы по приватности — через контакты, указанные в приложении Gala.
+      </p>
+
+      <p><a href="/">← На главную</a></p>
+    </div>
+  </article>
+  <Footer slot="footer" />
+</BaseLayout>
+
+<style>
+  .prose {
+    max-width: 42rem;
+  }
+
+  h1 {
+    margin: 0 0 var(--space-md);
+    font-size: clamp(1.75rem, 3vw, 2.25rem);
+  }
+
+  h2 {
+    margin: var(--space-xl) 0 var(--space-sm);
+    font-size: 1.2rem;
+  }
+
+  p,
+  li {
+    color: var(--muted);
+  }
+
+  ul {
+    padding-left: 1.2rem;
+  }
+</style>

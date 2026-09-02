@@ -1,0 +1,290 @@
+---
+/** Isolated illustrative demo — no server calls, no outcome guarantees. */
+---
+
+<section
+  id="demo"
+  class="section"
+  aria-labelledby="demo-heading"
+  data-reserve-demo
+>
+  <div class="container">
+    <p class="eyebrow">Интерактивное демо</p>
+    <h2 id="demo-heading">Иллюстрация покрытия слоёв</h2>
+    <p class="lead" style="margin-bottom: var(--space-lg);">
+      Упрощённая модель для понимания идеи. Реальные диапазоны в приложении
+      учитывают больше факторов. Это не финансовая рекомендация и не обещание
+      результата.
+    </p>
+
+    <div class="demo card">
+      <form class="demo__form" aria-describedby="demo-disclaimer">
+        <fieldset class="demo__fieldset">
+          <legend class="visually-hidden">Параметры для иллюстрации</legend>
+
+          <label class="demo__field">
+            <span>Обязательные расходы в месяц, ₽</span>
+            <input
+              type="range"
+              name="expenses"
+              min="20000"
+              max="300000"
+              step="5000"
+              value="80000"
+              data-demo-input="expenses"
+            />
+            <output data-demo-output="expenses" for="expenses">80&nbsp;000</output>
+          </label>
+
+          <label class="demo__field">
+            <span>Ликвидные накопления, ₽</span>
+            <input
+              type="range"
+              name="liquid"
+              min="0"
+              max="1500000"
+              step="10000"
+              value="120000"
+              data-demo-input="liquid"
+            />
+            <output data-demo-output="liquid" for="liquid">120&nbsp;000</output>
+          </label>
+
+          <label class="demo__field">
+            <span>Свободный остаток в месяц, ₽</span>
+            <input
+              type="range"
+              name="surplus"
+              min="0"
+              max="100000"
+              step="2500"
+              value="15000"
+              data-demo-input="surplus"
+            />
+            <output data-demo-output="surplus" for="surplus">15&nbsp;000</output>
+          </label>
+        </fieldset>
+      </form>
+
+      <div class="demo__results" aria-live="polite" aria-atomic="true">
+        <p class="demo__summary" data-demo-summary>
+          Покрытие обязательных расходов: около 1,5 мес. Стартовая подушка (≈0,5
+          мес.): частично. Основная подушка (≈3 мес.): есть пробел.
+        </p>
+
+        <ul class="demo__bars" data-demo-bars>
+          <li>
+            <span>Операционный (0,25 мес.)</span>
+            <div class="demo__track" role="presentation">
+              <div class="demo__fill" data-layer="operational" style="width: 60%"></div>
+            </div>
+          </li>
+          <li>
+            <span>Стартовая (0,5 мес.)</span>
+            <div class="demo__track" role="presentation">
+              <div class="demo__fill" data-layer="starter" style="width: 40%"></div>
+            </div>
+          </li>
+          <li>
+            <span>Основная (3 мес.)</span>
+            <div class="demo__track" role="presentation">
+              <div class="demo__fill" data-layer="core" style="width: 15%"></div>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <p id="demo-disclaimer" class="disclaimer">
+        Демонстрация использует округлённые коэффициенты слоёв (0,25 / 0,5 / 3
+        месяца обязательных расходов). Итог зависит от долгов, дохода семьи,
+        страховок и других предположений. Gala не гарантирует достижение
+        каких-либо финансовых результатов.
+      </p>
+    </div>
+  </div>
+</section>
+
+<style>
+  h2 {
+    margin: 0 0 var(--space-md);
+    font-size: clamp(1.5rem, 3vw, 2rem);
+  }
+
+  .demo {
+    display: grid;
+    gap: var(--space-xl);
+  }
+
+  @media (min-width: 48rem) {
+    .demo {
+      grid-template-columns: 1fr 1fr;
+      align-items: start;
+    }
+
+    .disclaimer {
+      grid-column: 1 / -1;
+    }
+  }
+
+  .demo__fieldset {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    display: grid;
+    gap: var(--space-lg);
+  }
+
+  .demo__field {
+    display: grid;
+    gap: var(--space-xs);
+    font-size: 0.95rem;
+  }
+
+  .demo__field span {
+    font-weight: 600;
+  }
+
+  .demo__field output {
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+
+  input[type="range"] {
+    width: 100%;
+    accent-color: var(--accent);
+  }
+
+  .demo__summary {
+    margin: 0 0 var(--space-lg);
+    font-size: 1rem;
+  }
+
+  .demo__bars {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: var(--space-md);
+  }
+
+  .demo__bars li {
+    display: grid;
+    gap: 0.35rem;
+    font-size: 0.9rem;
+    color: var(--muted);
+  }
+
+  .demo__track {
+    height: 0.5rem;
+    border-radius: 999px;
+    background: var(--border);
+    overflow: hidden;
+  }
+
+  .demo__fill {
+    height: 100%;
+    border-radius: inherit;
+    background: var(--accent);
+    transition: width 0.2s ease;
+  }
+
+  .demo__fill[data-state="full"] {
+    background: var(--success);
+  }
+
+  .demo__fill[data-state="gap"] {
+    background: var(--warning);
+  }
+</style>
+
+<script>
+  const LAYER_MONTHS = {
+    operational: 0.25,
+    starter: 0.5,
+    core: 3,
+  } as const;
+
+  function formatRub(value: number): string {
+    return new Intl.NumberFormat("ru-RU").format(value);
+  }
+
+  function clampPercent(value: number): number {
+    return Math.max(0, Math.min(100, value));
+  }
+
+  function initReserveDemo(root: HTMLElement) {
+    const inputs = root.querySelectorAll<HTMLInputElement>("[data-demo-input]");
+    const outputs = root.querySelectorAll<HTMLOutputElement>("[data-demo-output]");
+    const summary = root.querySelector<HTMLParagraphElement>("[data-demo-summary]");
+    const fills = root.querySelectorAll<HTMLElement>("[data-layer]");
+
+    function readValues() {
+      const expenses =
+        Number(root.querySelector<HTMLInputElement>('[data-demo-input="expenses"]')?.value) ||
+        0;
+      const liquid =
+        Number(root.querySelector<HTMLInputElement>('[data-demo-input="liquid"]')?.value) || 0;
+      const surplus =
+        Number(root.querySelector<HTMLInputElement>('[data-demo-input="surplus"]')?.value) || 0;
+      return { expenses, liquid, surplus };
+    }
+
+    function render() {
+      const { expenses, liquid, surplus } = readValues();
+
+      outputs.forEach((output) => {
+        const key = output.getAttribute("data-demo-output");
+        const input = root.querySelector<HTMLInputElement>(`[data-demo-input="${key}"]`);
+        if (input) {
+          output.textContent = formatRub(Number(input.value));
+        }
+      });
+
+      const monthsCovered = expenses > 0 ? liquid / expenses : 0;
+      let cumulativeTarget = 0;
+
+      fills.forEach((fill) => {
+        const layer = fill.getAttribute("data-layer") as keyof typeof LAYER_MONTHS;
+        const layerMonths = LAYER_MONTHS[layer] ?? 0;
+        const layerTarget = expenses * layerMonths;
+        const layerStart = cumulativeTarget;
+        cumulativeTarget += layerTarget;
+
+        const layerLiquid = Math.max(0, Math.min(liquid - layerStart, layerTarget));
+        const percent = layerTarget > 0 ? (layerLiquid / layerTarget) * 100 : 0;
+        fill.style.width = `${clampPercent(percent)}%`;
+        fill.dataset.state =
+          percent >= 99 ? "full" : percent >= 40 ? "neutral" : "gap";
+      });
+
+      const starterTarget = expenses * (LAYER_MONTHS.operational + LAYER_MONTHS.starter);
+      const coreTarget = expenses * LAYER_MONTHS.core;
+      const monthsText =
+        monthsCovered < 0.1
+          ? "менее 0,1"
+          : monthsCovered.toLocaleString("ru-RU", { maximumFractionDigits: 1 });
+
+      const starterStatus =
+        liquid >= starterTarget
+          ? "достигнут"
+          : liquid >= starterTarget * 0.5
+            ? "частично"
+            : "есть пробел";
+      const coreStatus =
+        liquid >= coreTarget ? "достигнут" : liquid >= coreTarget * 0.3 ? "частично" : "есть пробел";
+
+      if (summary) {
+        summary.textContent = `Покрытие обязательных расходов: около ${monthsText} мес. Стартовые слои: ${starterStatus}. Основная подушка (≈3 мес.): ${coreStatus}. При остатке ${formatRub(surplus)} ₽/мес. до полного основного слоя ориентировочно ${surplus > 0 ? Math.ceil(Math.max(0, coreTarget - liquid) / surplus) : "—"} мес. — только для иллюстрации.`;
+      }
+    }
+
+    inputs.forEach((input) => {
+      input.addEventListener("input", render);
+    });
+
+    render();
+  }
+
+  document.querySelectorAll<HTMLElement>("[data-reserve-demo]").forEach(initReserveDemo);
+</script>
