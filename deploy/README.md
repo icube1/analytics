@@ -48,8 +48,16 @@ scp deploy.tar.gz root@5.253.30.126:/tmp/
 ssh root@5.253.30.126 'mkdir -p /opt/analytics/data/backups /opt/analytics/statements && tar -xzf /tmp/deploy.tar.gz -C /opt/analytics && systemctl restart analytics'
 ```
 
-## 5. На сервере
+## Windows: редирект на Google
+
+На сервере порт **443** занят VPN (Amnezia Xray). Chrome на Windows с «Всегда использовать HTTPS» апгрейдит `http://IP` → `https://IP:443` → редирект на Google.
+
+**Решения:**
+
+1. Открывать **http://5.253.30.126:8080** (сайт слушает и 80, и 8080)
+2. Chrome → Настройки → Безопасность → выключить «Всегда используйте защищённые подключения»
+3. Долгосрочно: домен + отдельный порт/конфиг для веба, не трогая VPN на 443
 
 - Приложение: `/opt/analytics` (`node server.js`)
 - Данные: `/opt/analytics/data/`, `/opt/analytics/statements/` (не затираются при деплое)
-- URL: http://5.253.30.126/
+- URL: http://5.253.30.126/ (на Windows с HTTPS-First лучше http://5.253.30.126:8080 — см. ниже)
