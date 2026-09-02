@@ -10,6 +10,10 @@ afterEach(() => {
   process.env = { ...originalEnv };
 });
 
+function setNodeEnv(value: string): void {
+  (process.env as unknown as Record<string, string>).NODE_ENV = value;
+}
+
 function request(authorization?: string): Request {
   return new Request("https://gala-soft.ru/api/portfolio", {
     headers: authorization ? { authorization } : undefined,
@@ -18,7 +22,7 @@ function request(authorization?: string): Request {
 
 describe("temporary server authentication", () => {
   it("allows local development when credentials are absent", () => {
-    process.env.NODE_ENV = "development";
+    setNodeEnv("development");
     delete process.env.ANALYTICS_AUTH_USER;
     delete process.env.ANALYTICS_AUTH_PASSWORD;
 
@@ -26,7 +30,7 @@ describe("temporary server authentication", () => {
   });
 
   it("fails closed in production when credentials are absent", () => {
-    process.env.NODE_ENV = "production";
+    setNodeEnv("production");
     delete process.env.ANALYTICS_AUTH_USER;
     delete process.env.ANALYTICS_AUTH_PASSWORD;
 
@@ -34,7 +38,7 @@ describe("temporary server authentication", () => {
   });
 
   it("challenges invalid credentials and accepts valid credentials", () => {
-    process.env.NODE_ENV = "production";
+    setNodeEnv("production");
     process.env.ANALYTICS_AUTH_USER = "owner";
     process.env.ANALYTICS_AUTH_PASSWORD = "correct horse battery staple";
 
