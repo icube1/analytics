@@ -27,8 +27,9 @@ bash scripts/package-deploy.sh deploy.tar.gz
 
 Pinned to **1.88.0** via `rust-toolchain.toml`. CI uses `dtolnay/rust-toolchain` + `Swatinem/rust-cache`.
 
-The same gate validates Jest, Vite and Astro (typecheck, static build and
-accessibility checks) before building the Next.js deployment artifact.
+The same gate validates Jest, Vite, mobile shell (Capacitor config/runtime tests and
+bundle verification), and Astro (typecheck, static build and accessibility checks)
+before building the Next.js deployment artifact.
 
 ## Turbopack NFT fix
 

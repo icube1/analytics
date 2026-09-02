@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AppShell } from "./shell/app-shell";
+import { AuthCallbackPage } from "./pages/auth-callback-page";
 import { HomePage } from "./pages/home-page";
 import { InvestmentsPage } from "./pages/investments-page";
 import { ResiliencePage } from "./pages/resilience-page";
@@ -7,6 +8,7 @@ import { ResiliencePage } from "./pages/resilience-page";
 export function AppRoutes() {
   return (
     <Routes>
+      <Route path="auth/callback" element={<AuthCallbackPage />} />
       <Route element={<AppShell />}>
         <Route index element={<HomePage />} />
         <Route path="resilience" element={<ResiliencePage />} />

@@ -65,4 +65,13 @@ describe("AppRoutes", () => {
       screen.getByRole("link", { name: "Устойчивость" }),
     ).toBeInTheDocument();
   });
+
+  it("handles auth callback route and redirects home", () => {
+    render(
+      <MemoryRouter initialEntries={["/auth/callback?access_token=test"]}>
+        <AppRoutes />
+      </MemoryRouter>,
+    );
+    expect(screen.getByTestId("dashboard-page")).toBeInTheDocument();
+  });
 });
