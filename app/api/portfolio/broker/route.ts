@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { parsePortfolioHtml } from "@/lib/parse-portfolio-html";
+import { importBrokerReport } from "@/lib/broker-adapters";
 import {
   readPortfolioDocument,
   writeBrokerHtml,
@@ -39,13 +39,27 @@ export async function POST(request: Request) {
       fileName = body.fileName ?? fileName;
     }
 
-    const report = parsePortfolioHtml(html);
-    if (report.securities.length === 0 && report.assetsEnd === 0) {
+    const imported = importBrokerReport({
+      content: html,
+      fileName,
+      mimeType: contentType || undefined,
+    });
+
+    if (!imported.ok || !imported.report) {
+      const message =
+        imported.errors[0]?.message ?? "Не удалось распознать данные в отчёте";
       return NextResponse.json(
-        { error: "Не удалось распознать данные в отчёте" },
-        { status: 422 },
+        {
+          error: message,
+          errors: imported.errors,
+          warnings: imported.warnings,
+          detection: imported.detection,
+        },
+        { status: imported.errors[0]?.code === "NO_ADAPTER_MATCH" ? 415 : 422 },
       );
     }
+
+    const report = imported.report;
 
     writeBrokerHtml(html);
 
@@ -59,6 +73,9 @@ export async function POST(request: Request) {
     return NextResponse.json({
       report,
       fileName,
+      provenance: imported.provenance,
+      warnings: imported.warnings,
+      reconciliation: imported.reconciliation,
       savedTo: ["data/portfolio.json", "data/broker-report.html"],
     });
   } catch (error) {
