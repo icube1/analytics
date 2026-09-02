@@ -161,5 +161,7 @@ export function effectiveBrokerTotalFromReport(report: BrokerReport): number {
     (sum, position) => sum + resolveSecurityPosition(position).value,
     0,
   );
-  return securities + sumEffectiveCashRub(report);
+  const fromPositions = securities + sumEffectiveCashRub(report);
+  if (fromPositions > 0) return fromPositions;
+  return report.assetsEnd;
 }

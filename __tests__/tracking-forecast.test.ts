@@ -140,8 +140,8 @@ describe("tracking-forecast", () => {
       },
       { items: [], otherDebts: [] },
       100_000,
+      "2026-07-01T00:00:00.000Z",
     );
-    plan.savedAt = "2026-07-01T00:00:00.000Z";
 
     expect(scenarioWithdrawCalendarMonth(plan)).toBe("2036-07");
 
@@ -181,8 +181,8 @@ describe("tracking-forecast", () => {
       },
       { items: [], otherDebts: [] },
       100_000,
+      "2026-07-01T00:00:00.000Z",
     );
-    plan.savedAt = "2026-07-01T00:00:00.000Z";
 
     const months = scenarioRemainingMonths(plan, new Date(2026, 6, 19));
     expect(months).toBe(119);

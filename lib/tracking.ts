@@ -135,17 +135,18 @@ export function buildTrackingMonths(
   currentCustomDebt: number,
   currentCustomAssetsTotal: number,
   debtBalanceHistory: DebtBalanceEntry[] = [],
+  asOf: Date = new Date(),
 ): TrackingMonthRow[] {
   const depositsByMonth = aggregateBrokerDepositsByMonth(snapshots);
   const balancesByMonth = getBalanceFactsByMonth(snapshots);
   const latest = getLatestSnapshot(snapshots);
-  const currentMonth = calendarMonthFromIso(new Date().toISOString());
+  const currentMonth = calendarMonthFromIso(asOf.toISOString());
   const debtObservations = collectDebtObservations(
     debtBalanceHistory,
     snapshots,
     currentCustomDebt,
     currentMonth,
-    new Date().toISOString(),
+    asOf.toISOString(),
     plans,
   );
   const principalByMonth = debtPrincipalPaidByMonth(debtObservations);

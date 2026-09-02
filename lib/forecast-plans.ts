@@ -34,8 +34,8 @@ export function buildForecastPlan(
   params: CompoundParams,
   customAssets: CustomAssets,
   brokerTotal: number,
+  savedAt: string = new Date().toISOString(),
 ): SavedForecastPlan {
-  const savedAt = new Date().toISOString();
   const result = calculateCompoundInterest(
     params,
     { customAssets, brokerTotal },

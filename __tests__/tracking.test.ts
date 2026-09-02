@@ -149,8 +149,8 @@ describe("tracking snapshots", () => {
       },
       { items: [], otherDebts: [] },
       100_000,
+      "2026-07-01T00:00:00.000Z",
     );
-    plan.savedAt = "2026-07-01T00:00:00.000Z";
 
     const first = plan.points.find((p) => p.calendarMonth === "2026-07");
     expect(first).toBeDefined();
@@ -170,8 +170,8 @@ describe("tracking snapshots", () => {
       },
       { items: [], otherDebts: [] },
       100_000,
+      "2026-07-01T00:00:00.000Z",
     );
-    plan.savedAt = "2026-07-01T00:00:00.000Z";
 
     const snapshot = createBrokerSnapshot(
       report,
@@ -221,8 +221,8 @@ describe("tracking snapshots", () => {
       },
       customAssets,
       100_000,
+      "2026-07-01T00:00:00.000Z",
     );
-    plan.savedAt = "2026-07-01T00:00:00.000Z";
 
     const julySnapshot = createBrokerSnapshot(
       {
@@ -254,6 +254,8 @@ describe("tracking snapshots", () => {
       [julySnapshot, augustSnapshot],
       1_961_666,
       3_000_000 - 1_961_666,
+      [],
+      new Date(2026, 7, 5),
     );
 
     const july = rows.find((row) => row.calendarMonth === "2026-07");
@@ -282,7 +284,7 @@ describe("tracking snapshots", () => {
       },
     ];
 
-    const rows = buildTrackingMonths([], [], 1_980_000, 0, history);
+    const rows = buildTrackingMonths([], [], 1_980_000, 0, history, new Date(2026, 6, 31));
     const july = rows.find((row) => row.calendarMonth === "2026-07");
     expect(july?.fact.debtPrincipalPaid).toBe(20_000);
   });
@@ -319,10 +321,17 @@ describe("tracking snapshots", () => {
         otherDebts: [],
       },
       100_000,
+      "2026-06-01T00:00:00.000Z",
     );
-    plan.savedAt = "2026-06-01T00:00:00.000Z";
 
-    const rows = buildTrackingMonths([plan], [], 1_960_000, 1_040_000, []);
+    const rows = buildTrackingMonths(
+      [plan],
+      [],
+      1_960_000,
+      1_040_000,
+      [],
+      new Date(2026, 6, 15),
+    );
     const july = rows.find((row) => row.calendarMonth === "2026-07");
     expect(july?.fact.debtPrincipalPaid).toBe(40_000);
   });
