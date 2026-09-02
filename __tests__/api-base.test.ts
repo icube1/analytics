@@ -31,10 +31,9 @@ describe("api-base", () => {
   });
 
   it("honors runtime window override", () => {
-    // @ts-expect-error test shim
     global.window = {
       __ANALYTICS_API_BASE__: "https://runtime.example.com",
-    };
+    } as unknown as Window & typeof globalThis;
     expect(getApiBase()).toBe("https://runtime.example.com");
   });
 
