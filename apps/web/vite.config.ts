@@ -18,6 +18,7 @@ export default defineConfig(({ mode }) => {
     envDir: path.dirname(fileURLToPath(import.meta.url)),
     define: {
       __VITE_API_BASE__: JSON.stringify(env.VITE_API_BASE ?? ""),
+      __VITE_WEB_SESSION_SYNC__: JSON.stringify(env.VITE_WEB_SESSION_SYNC ?? ""),
     },
     resolve: {
       alias: {

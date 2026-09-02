@@ -3,6 +3,7 @@ import {
   exportAnalyticsBackup,
   markBackupCompleted,
 } from "./backup";
+import { isNextBackupDefaultPath } from "./session-sync/backup-adapter";
 
 let backupTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -16,6 +17,7 @@ export function scheduleServerBackupSync(): void {
 }
 
 export async function syncBackupToServer(): Promise<boolean> {
+  if (!isNextBackupDefaultPath()) return false;
   try {
     const backup = await exportAnalyticsBackup();
     const response = await apiFetch("/api/backup", {
