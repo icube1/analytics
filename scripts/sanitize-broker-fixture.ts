@@ -1,6 +1,5 @@
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 
 export const SANITIZED_INVESTOR = "Тестовый Инвестор";
 export const SANITIZED_CONTRACT = "SANITIZED-CONTRACT";
@@ -94,6 +93,6 @@ function runCli(): void {
 }
 
 const entryPoint = process.argv[1];
-if (entryPoint && path.resolve(entryPoint) === fileURLToPath(import.meta.url)) {
+if (entryPoint && path.basename(entryPoint) === "sanitize-broker-fixture.ts") {
   runCli();
 }
