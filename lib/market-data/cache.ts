@@ -17,14 +17,27 @@ let memoryCache: MarketDataCacheFile | null = null;
 
 let resolvedCachePath: string | null | undefined;
 
+function isServerlessRuntime(): boolean {
+  return Boolean(
+    process.env.VERCEL ||
+      process.env.AWS_LAMBDA_FUNCTION_NAME ||
+      process.env.NETLIFY,
+  );
+}
+
 function candidateCacheDirs(): string[] {
-  const dirs = [
+  if (isServerlessRuntime()) {
+    // Vercel/Lambda: каталог приложения read-only, пишем только во временный каталог.
+    return [process.env.MARKET_CACHE_DIR, path.join("/tmp", "analytics")].filter(
+      (dir): dir is string => Boolean(dir),
+    );
+  }
+
+  return [
     process.env.MARKET_CACHE_DIR,
     getDataDir(),
     path.join("/tmp", "analytics"),
-  ];
-
-  return dirs.filter((dir): dir is string => Boolean(dir));
+  ].filter((dir): dir is string => Boolean(dir));
 }
 
 function resolveCachePath(): string | null {
@@ -79,7 +92,8 @@ export function writeMarketCache(cache: MarketDataCacheFile): void {
   try {
     fs.writeFileSync(filePath, `${JSON.stringify(cache, null, 2)}\n`, "utf-8");
   } catch {
-    // Serverless deployments often have a read-only app dir — memory cache is enough.
+    // Больше не пробуем этот путь в текущем инстансе.
+    resolvedCachePath = null;
   }
 }
 
@@ -95,4 +109,8 @@ export function isCacheFresh(
 export function resetMarketCacheForTests(): void {
   memoryCache = null;
   resolvedCachePath = undefined;
+}
+
+export function getMarketCachePathForTests(): string | null {
+  return cachePath();
 }
