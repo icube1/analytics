@@ -68,6 +68,9 @@ step "broker fixture privacy (sanitizer --check)" npm run sanitize:broker-fixtur
 step "vite typecheck" npm run typecheck:web
 step "vite tests" npm run test:web
 step "vite build" npm run build:web
+step "astro typecheck" npm run typecheck:site
+step "astro build and static checks" npm run test:site
+step "astro accessibility checks" npm run test:site:a11y
 step "next build" npm run build
 step "prepare standalone" bash scripts/prepare-standalone.sh
 step "bundle budgets" node scripts/measure-bundles.mjs --skip-build --ci

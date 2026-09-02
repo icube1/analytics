@@ -11,6 +11,10 @@ See `scripts/ci-verify.sh` for the deterministic local entry point.
 
 Deploy never runs unless `verify` passes. Production stays on **Next.js standalone** (not Vite/Axum).
 
+The reusable verification job uses **Node.js 22.20** so the Astro toolchain meets
+its Node ≥22.19 runtime requirement. The standalone production server remains on
+Node.js 20 until the Next runtime is retired.
+
 ## Local run
 
 ```bash
@@ -22,6 +26,9 @@ bash scripts/package-deploy.sh deploy.tar.gz
 ## Rust
 
 Pinned to **1.88.0** via `rust-toolchain.toml`. CI uses `dtolnay/rust-toolchain` + `Swatinem/rust-cache`.
+
+The same gate validates Jest, Vite and Astro (typecheck, static build and
+accessibility checks) before building the Next.js deployment artifact.
 
 ## Turbopack NFT fix
 
