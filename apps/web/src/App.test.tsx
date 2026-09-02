@@ -19,6 +19,10 @@ vi.mock("@/components/resilience/resilience-dashboard", () => ({
   ),
 }));
 
+vi.mock("@/components/journey/journey-dashboard", () => ({
+  JourneyDashboard: () => <div data-testid="journey-page">Journey</div>,
+}));
+
 vi.mock("@/components/data-backup-menu", () => ({
   DataBackupMenu: () => <button type="button">Бэкап</button>,
 }));
@@ -64,6 +68,16 @@ describe("AppRoutes", () => {
     expect(
       screen.getByRole("link", { name: "Устойчивость" }),
     ).toBeInTheDocument();
+  });
+
+  it("renders journey on /journey", () => {
+    render(
+      <MemoryRouter initialEntries={["/journey"]}>
+        <AppRoutes />
+      </MemoryRouter>,
+    );
+    expect(screen.getByTestId("journey-page")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Путь" })).toBeInTheDocument();
   });
 
   it("handles auth callback route and redirects home", () => {

@@ -3,6 +3,7 @@ import { AppShell } from "./shell/app-shell";
 import { AuthCallbackPage } from "./pages/auth-callback-page";
 import { HomePage } from "./pages/home-page";
 import { InvestmentsPage } from "./pages/investments-page";
+import { JourneyPage } from "./pages/journey-page";
 import { ResiliencePage } from "./pages/resilience-page";
 
 export function AppRoutes() {
@@ -12,6 +13,7 @@ export function AppRoutes() {
       <Route element={<AppShell />}>
         <Route index element={<HomePage />} />
         <Route path="resilience" element={<ResiliencePage />} />
+        <Route path="journey" element={<JourneyPage />} />
         <Route path="investments" element={<InvestmentsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

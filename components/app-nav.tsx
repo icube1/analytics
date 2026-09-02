@@ -8,6 +8,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 const links = [
   { href: "/", label: "Выписка" },
   { href: "/resilience", label: "Устойчивость" },
+  { href: "/journey", label: "Путь" },
   { href: "/investments", label: "Инвестиции" },
 ];
 
