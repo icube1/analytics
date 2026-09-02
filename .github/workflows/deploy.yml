@@ -63,10 +63,34 @@ jobs:
               DEBIAN_FRONTEND=noninteractive apt-get install -y nginx
             fi
 
-            mkdir -p "$APP_DIR/data/backups" "$APP_DIR/statements"
+            if ! id analytics >/dev/null 2>&1; then
+              useradd --system --home-dir "$APP_DIR" --shell /usr/sbin/nologin analytics
+            fi
+
+            AUTH_ENV=/etc/analytics-auth.env
+            AUTH_FILE=/etc/nginx/.htpasswd-analytics
+            if [ ! -s "$AUTH_ENV" ]; then
+              ANALYTICS_AUTH_USER=owner
+              ANALYTICS_AUTH_PASSWORD="$(openssl rand -base64 24 | tr -d '\n')"
+              umask 077
+              printf 'ANALYTICS_AUTH_USER=%s\nANALYTICS_AUTH_PASSWORD=%s\n' \
+                "$ANALYTICS_AUTH_USER" "$ANALYTICS_AUTH_PASSWORD" > "$AUTH_ENV"
+            fi
+
+            # shellcheck disable=SC1090
+            . "$AUTH_ENV"
+            if [ ! -s "$AUTH_FILE" ]; then
+              AUTH_HASH="$(openssl passwd -apr1 "$ANALYTICS_AUTH_PASSWORD")"
+              printf '%s:%s\n' "$ANALYTICS_AUTH_USER" "$AUTH_HASH" > "$AUTH_FILE"
+              chmod 600 "$AUTH_FILE"
+            fi
+
+            install -d -o analytics -g analytics -m 700 \
+              "$APP_DIR/data" "$APP_DIR/data/backups" "$APP_DIR/statements"
 
             # Распаковываем только код приложения — data/ и statements/ не трогаем
             tar -xzf "$RELEASE_DIR/deploy.tar.gz" -C "$APP_DIR"
+            chown -R analytics:analytics "$APP_DIR"
 
             install -m 644 "$RELEASE_DIR/deploy/analytics.service" /etc/systemd/system/analytics.service
             systemctl daemon-reload
@@ -81,5 +105,6 @@ jobs:
             systemctl reload nginx
 
             sleep 2
-            curl -fsS -o /dev/null http://127.0.0.1:3000/
+            curl -fsS -u "$ANALYTICS_AUTH_USER:$ANALYTICS_AUTH_PASSWORD" \
+              -o /dev/null http://127.0.0.1:3000/
             echo "Deploy OK"
