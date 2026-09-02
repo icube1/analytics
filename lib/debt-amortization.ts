@@ -152,6 +152,7 @@ export function estimatePayoffMonths(
 export function initWealthSimulationState(
   assets: CustomAssets,
   brokerTotal: number,
+  asOf: Date = new Date(),
 ): WealthSimulationState {
   return {
     investmentBalance: brokerTotal,
@@ -160,7 +161,7 @@ export function initWealthSimulationState(
       grossValue: item.value,
       debtBalance: item.debt,
       depositPrincipal: isDepositItem(item) ? item.value : undefined,
-      depositMatured: isDepositItem(item) ? !isDepositActive(item) : undefined,
+      depositMatured: isDepositItem(item) ? !isDepositActive(item, asOf) : undefined,
     })),
     otherDebts: getEnabledDebts(assets).map((debt) => debt.balance),
   };

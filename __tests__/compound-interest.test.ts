@@ -250,12 +250,8 @@ describe("calculateCompoundInterest", () => {
   });
 
   it("moves matured term deposit to broker balance", () => {
-    const now = new Date();
-    const openedAt = [
-      now.getFullYear(),
-      String(now.getMonth() + 1).padStart(2, "0"),
-      String(now.getDate()).padStart(2, "0"),
-    ].join("-");
+    const asOf = new Date("2026-01-15T12:00:00.000Z");
+    const openedAt = "2026-01-15";
 
     const result = calculateCompoundInterest(
       {
@@ -293,7 +289,7 @@ describe("calculateCompoundInterest", () => {
           otherDebts: [],
         },
       },
-      { allMonths: true },
+      { allMonths: true, asOf },
     );
 
     const start = result.points[0];

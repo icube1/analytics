@@ -22,6 +22,8 @@ import {
 export interface CalculateCompoundInterestOptions {
   /** Сохранять снимок каждого месяца (для трекинга), а не ~48 точек */
   allMonths?: boolean;
+  /** Базовая календарная дата расчёта; обязательна для воспроизводимых прогонов */
+  asOf?: Date;
 }
 
 export function calculateCompoundInterest(
@@ -29,6 +31,7 @@ export function calculateCompoundInterest(
   context?: CompoundContext,
   options?: CalculateCompoundInterestOptions,
 ): CompoundResult {
+  const asOf = options?.asOf ?? new Date();
   const months = Math.max(1, Math.round(params.years * 12));
   const rateMethod = params.monthlyRateMethod ?? "effective";
   const monthlyInflation = monthlyRateFromAnnual(params.inflationPercent, rateMethod);
@@ -47,7 +50,7 @@ export function calculateCompoundInterest(
       : null;
 
   const wealthState = context
-    ? initWealthSimulationState(context.customAssets, context.brokerTotal)
+    ? initWealthSimulationState(context.customAssets, context.brokerTotal, asOf)
     : null;
 
   let balance = params.initialCapital;
@@ -210,7 +213,7 @@ export function calculateCompoundInterest(
     if (wealthState && context) {
       const debtStep = stepDebtsMonth(context.customAssets, wealthState, {
         simulationMonth: month,
-        asOf: new Date(),
+        asOf,
       });
       debtPayment = debtStep.totalPayment;
       debtPrincipal = debtStep.totalPrincipal;
@@ -221,7 +224,7 @@ export function calculateCompoundInterest(
         wealthState,
         params.inflationPercent,
         rateMethod,
-        { asOf: new Date(), simulationMonth: month },
+        { asOf, simulationMonth: month },
       );
       const assetIncome = applyCustomAssetIncome(
         context.customAssets,
