@@ -1,9 +1,12 @@
 mod auth;
 mod billing;
+mod broker_imports;
+mod export;
 mod health;
 mod internal;
 mod jobs;
 mod portfolio;
+mod statements;
 
 use axum::middleware::from_fn_with_state;
 use axum::Router;
@@ -17,6 +20,9 @@ pub fn router(state: &AppState) -> Router<AppState> {
     let protected = Router::new()
         .merge(portfolio::router())
         .merge(jobs::router())
+        .merge(statements::router())
+        .merge(broker_imports::router())
+        .merge(export::router())
         .layer(session_layer);
 
     Router::new()

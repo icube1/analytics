@@ -4,8 +4,10 @@ mod credential;
 mod device;
 mod household;
 mod idempotency;
+mod import_blob;
 mod job;
 mod membership;
+mod migration_run;
 mod portfolio;
 mod session;
 mod statement;
@@ -16,8 +18,12 @@ pub use credential::CredentialRepository;
 pub use device::{DeviceRecord, DeviceRepository};
 pub use household::{HouseholdRecord, HouseholdRepository};
 pub use idempotency::IdempotencyRepository;
+pub use import_blob::{ImportBlobRecord, ImportBlobRepository};
 pub use job::{JobRecord, JobRepository, JobStatus, JOB_KIND_RESILIENCE};
 pub use membership::{MembershipRecord, MembershipRepository, MembershipRole};
+pub use migration_run::{
+    MigrationRunRecord, MigrationRunRepository, MigrationRunStatus, MIGRATION_VERSION,
+};
 pub use portfolio::{PortfolioDocumentHead, PortfolioRepository, PortfolioRevisionRecord};
 pub use session::{ClientKind, CreatedSession, SessionRecord, SessionRepository};
 pub use statement::{StatementRecord, StatementRepository};
