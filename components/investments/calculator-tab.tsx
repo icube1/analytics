@@ -229,6 +229,8 @@ export function CalculatorTab({
 
   useEffect(() => {
     skipPersistRef.current = true;
+    // Incoming saved scenarios intentionally replace the local editable draft.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDraft(savedParams);
   }, [savedParams]);
 
@@ -251,8 +253,8 @@ export function CalculatorTab({
   >(() => new Set());
   const [showMonteCarlo, setShowMonteCarlo] = useState(false);
   const [monteCarloVolatility, setMonteCarloVolatility] = useState(18);
-  const monteCarloAsOfRef = useRef(
-    new Date(new Date().toISOString().slice(0, 10)).toISOString(),
+  const [monteCarloAsOf] = useState(
+    () => new Date(new Date().toISOString().slice(0, 10)).toISOString(),
   );
 
   const toggleChartLine = useCallback((dataKey: string) => {
@@ -359,7 +361,7 @@ export function CalculatorTab({
     simulations: 300,
     volatilityPercent: monteCarloVolatility,
     seed: 42,
-    asOf: monteCarloAsOfRef.current,
+    asOf: monteCarloAsOf,
   });
 
   const mcByMonth = useMemo(() => {

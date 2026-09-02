@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import type { MonteCarloResult } from "../compound-interest/monte-carlo";
 import type { CompoundContext } from "../compound-interest/types";
 import type { CompoundParams } from "../portfolio-types";
+import { createFinanceWorker } from "./browser-worker";
 import {
-  createFinanceWorker,
   createMonteCarloWorkerRequest,
   FinanceWorkerCancelledError,
   startMonteCarloWorkerJob,
@@ -46,23 +46,28 @@ export function useMonteCarloWorker({
 
   useEffect(() => {
     if (!enabled) {
-      setState(IDLE_STATE);
       return;
     }
 
+    let active = true;
     let worker;
     try {
       worker = createFinanceWorker();
     } catch (error) {
-      setState({
-        result: null,
-        isLoading: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Web Worker is unavailable in this browser",
+      queueMicrotask(() => {
+        if (!active) return;
+        setState({
+          result: null,
+          isLoading: false,
+          error:
+            error instanceof Error
+              ? error.message
+              : "Web Worker is unavailable in this browser",
+        });
       });
-      return;
+      return () => {
+        active = false;
+      };
     }
 
     const request = createMonteCarloWorkerRequest({
@@ -77,16 +82,21 @@ export function useMonteCarloWorker({
     });
     const job = startMonteCarloWorkerJob(worker, request);
 
-    setState((current) => ({
-      result: current.result,
-      isLoading: true,
-      error: null,
-    }));
+    queueMicrotask(() => {
+      if (!active) return;
+      setState((current) => ({
+        result: current.result,
+        isLoading: true,
+        error: null,
+      }));
+    });
 
     void job.promise.then(
-      (result) => setState({ result, isLoading: false, error: null }),
+      (result) => {
+        if (active) setState({ result, isLoading: false, error: null });
+      },
       (error: unknown) => {
-        if (error instanceof FinanceWorkerCancelledError) return;
+        if (!active || error instanceof FinanceWorkerCancelledError) return;
         setState({
           result: null,
           isLoading: false,
@@ -98,7 +108,10 @@ export function useMonteCarloWorker({
       },
     );
 
-    return () => job.cancel();
+    return () => {
+      active = false;
+      job.cancel();
+    };
   }, [
     enabled,
     params,
@@ -109,5 +122,5 @@ export function useMonteCarloWorker({
     asOf,
   ]);
 
-  return state;
+  return enabled ? state : IDLE_STATE;
 }

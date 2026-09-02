@@ -32,13 +32,6 @@ export interface FinanceWorkerJob {
   cancel(): void;
 }
 
-export function createFinanceWorker(): FinanceWorkerPort {
-  return new Worker(new URL("./finance.worker.ts", import.meta.url), {
-    type: "module",
-    name: "finance-calculations",
-  });
-}
-
 export function startMonteCarloWorkerJob(
   worker: FinanceWorkerPort,
   request: MonteCarloWorkerRequest,
