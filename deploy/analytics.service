@@ -11,6 +11,7 @@ EnvironmentFile=/etc/analytics-auth.env
 Environment=NODE_ENV=production
 Environment=PORT=3000
 Environment=HOSTNAME=127.0.0.1
+Environment=MARKET_CACHE_DIR=/opt/analytics/data
 Environment=NODE_OPTIONS=--max-old-space-size=192
 ExecStart=/usr/bin/node server.js
 Restart=on-failure

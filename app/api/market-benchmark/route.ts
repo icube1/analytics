@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { getMarketBenchmarkReturns } from "@/lib/market-data/service";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +22,7 @@ export async function GET(request: Request) {
       );
     }
 
+    const { getMarketBenchmarkReturns } = await import("@/lib/market-data/service");
     const data = await getMarketBenchmarkReturns(fromDate, toDate);
     return NextResponse.json(data);
   } catch (error) {

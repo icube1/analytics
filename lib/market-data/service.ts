@@ -10,12 +10,7 @@ import {
   returnPctFromCloses,
   type DailyClose,
 } from "./moex-client";
-import {
-  isCacheFresh,
-  readMarketCache,
-  writeMarketCache,
-  type MarketDataCacheFile,
-} from "./cache";
+import type { MarketDataCacheFile } from "./cache-types";
 
 export interface MarketBenchmarkResponse {
   fromDate: string;
@@ -94,6 +89,10 @@ export async function getMarketBenchmarkReturns(
   fromDate: string,
   toDate: string,
 ): Promise<MarketBenchmarkResponse> {
+  const { isCacheFresh, readMarketCache, writeMarketCache } = await import(
+    /* turbopackIgnore: true */ "./cache"
+  );
+
   const existing = readMarketCache();
   const cache: MarketDataCacheFile = isCacheFresh(existing)
     ? existing
