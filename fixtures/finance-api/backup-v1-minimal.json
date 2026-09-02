@@ -1,0 +1,29 @@
+{
+  "formatVersion": 1,
+  "exportedAt": "2026-09-02T12:00:00.000Z",
+  "portfolio": {
+    "version": 1,
+    "updatedAt": "2026-09-02T12:00:00.000Z",
+    "lastBrokerFileName": null,
+    "customAssets": { "items": [] },
+    "compoundParams": {
+      "initialBalance": 100000,
+      "monthlyContribution": 10000,
+      "annualReturnPercent": 10,
+      "years": 10,
+      "inflationPercent": 5,
+      "taxRatePercent": 13,
+      "withdrawalRatePercent": 4
+    },
+    "brokerReport": null,
+    "brokerSnapshots": [],
+    "debtBalanceHistory": [],
+    "forecastPlans": []
+  },
+  "statements": [
+    {
+      "fileName": "sample.csv",
+      "content": "date,amount,description\n2026-01-01,-100,grocery\n"
+    }
+  ]
+}

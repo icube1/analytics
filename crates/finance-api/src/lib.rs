@@ -6,6 +6,8 @@ pub mod config;
 pub mod db;
 pub mod entitlements;
 pub mod error;
+pub mod import;
+pub mod migration;
 pub mod models;
 pub mod observability;
 pub mod repositories;

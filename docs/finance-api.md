@@ -16,6 +16,9 @@ finance-api (binary)
 │   ├── /health
 │   ├── /api/v1/auth/*
 │   ├── /api/v1/portfolio
+│   ├── /api/v1/statements
+│   ├── /api/v1/broker/imports
+│   ├── /api/v1/backup/export
 │   ├── /api/v1/jobs/*
 │   └── /api/v1/billing/webhook
 ├── repositories    # tenant-scoped SQLite access
@@ -42,17 +45,24 @@ finance-api (binary)
 | GET | `/api/v1/jobs/:id` | session |
 | POST | `/api/v1/jobs/:id/cancel` | session |
 | POST | `/api/v1/billing/webhook` | HMAC signature (Test provider) |
+| GET/POST | `/api/v1/statements` | session |
+| GET | `/api/v1/statements/:id(/content)` | session |
+| GET/POST | `/api/v1/broker/imports` | session |
+| GET | `/api/v1/broker/imports/:id(/content)` | session |
+| GET | `/api/v1/backup/export` | session |
 
 ## Schema (SQLite WAL)
 
-Migrations: `001_initial.sql`, `002_product_backend.sql`
+Migrations: `001_initial.sql`, `002_product_backend.sql`, `003_import_storage.sql`
 
 | Table | Purpose |
 | --- | --- |
 | `sessions` | opaque web/mobile sessions |
 | `local_credentials` | Argon2id password hashes |
-| `statements` | statement import metadata |
-| `broker_accounts` / `broker_imports` | broker import metadata |
+| `statements` | statement import metadata + blob FK |
+| `import_content_blobs` | immutable deduped import payloads |
+| `broker_accounts` / `broker_imports` | broker import metadata (+ delegated parse flag) |
+| `data_migration_runs` | CLI migration idempotency + rollback snapshots |
 | `jobs` | bounded queue (+ timing/cancel columns) |
 | (existing) | users, households, memberships, portfolio, billing, entitlements |
 
@@ -76,7 +86,10 @@ cargo +1.88.0 fmt --all
 cargo +1.88.0 clippy -p finance-api --all-targets -- -D warnings
 cargo +1.88.0 test -p finance-api
 cargo +1.88.0 run -p finance-api
+cargo +1.88.0 run -p finance-api --bin finance-api-migrate -- import --help
 ```
+
+See `docs/data-migration.md` for migration/import CLI and endpoint details.
 
 ### Startup / RSS measurement
 
@@ -93,4 +106,5 @@ kill $PID
 1. **Production routing** — reverse proxy still points at Next.js.
 2. **OAuth/SSO** — local bootstrap accounts only; no external IdP.
 3. **Real billing provider** — Test/Null webhook verifier only.
-4. **Payload storage** — statements/broker tables store metadata only.
+4. **Payload storage** — implemented in `003_import_storage.sql`; production routing still on Next.js.
+5. **Broker parsing** — Rust stores raw imports only; parsing delegated to TS pipeline.

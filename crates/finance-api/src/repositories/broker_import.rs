@@ -1,10 +1,34 @@
 use chrono::{DateTime, Utc};
+use sqlx::FromRow;
 use sqlx::SqlitePool;
 use uuid::Uuid;
 
 use crate::auth::TenantScope;
 use crate::db::parse_timestamp;
 use crate::error::{ApiError, ApiResult};
+use crate::import::sha256_hex;
+use crate::repositories::ImportBlobRepository;
+
+#[derive(FromRow)]
+struct BrokerImportRow {
+    id: String,
+    household_id: String,
+    broker_account_id: String,
+    source_type: String,
+    file_name: String,
+    content_type: Option<String>,
+    byte_size: i64,
+    checksum_sha256: Option<String>,
+    content_blob_id: Option<String>,
+    provenance_source: String,
+    retention_until: Option<String>,
+    parse_delegated: i64,
+    status: String,
+    error_message: Option<String>,
+    imported_by_user_id: Option<String>,
+    imported_at: String,
+    metadata_json: String,
+}
 
 #[derive(Clone, Debug)]
 pub struct BrokerAccountRecord {
@@ -27,6 +51,10 @@ pub struct BrokerImportRecord {
     pub content_type: Option<String>,
     pub byte_size: i64,
     pub checksum_sha256: Option<String>,
+    pub content_blob_id: Option<Uuid>,
+    pub provenance_source: String,
+    pub retention_until: Option<DateTime<Utc>>,
+    pub parse_delegated: bool,
     pub status: String,
     pub error_message: Option<String>,
     pub imported_by_user_id: Option<Uuid>,
@@ -126,24 +154,34 @@ impl BrokerImportRepository {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub async fn create_import(
+    pub async fn create_import_with_content(
         &self,
         scope: TenantScope,
         broker_account_id: Uuid,
         source_type: &str,
         file_name: &str,
         content_type: Option<&str>,
-        byte_size: i64,
-        checksum_sha256: Option<&str>,
+        bytes: &[u8],
+        provenance_source: &str,
+        parse_delegated: bool,
         imported_by_user_id: Option<Uuid>,
         metadata_json: &str,
     ) -> ApiResult<BrokerImportRecord> {
+        let checksum = sha256_hex(bytes);
+        if let Some(existing) = self.find_by_checksum(scope, &checksum).await? {
+            return Ok(existing);
+        }
+
+        let blobs = ImportBlobRepository::new(self.pool.clone());
+        let blob = blobs.insert_if_absent(scope, content_type, bytes).await?;
+
         let id = Uuid::new_v4();
         sqlx::query(
             "INSERT INTO broker_imports
              (id, household_id, broker_account_id, source_type, file_name, content_type,
-              byte_size, checksum_sha256, imported_by_user_id, metadata_json)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+              byte_size, checksum_sha256, content_blob_id, provenance_source, parse_delegated,
+              imported_by_user_id, metadata_json, status)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, 'pending')",
         )
         .bind(id.to_string())
         .bind(scope.household_id().to_string())
@@ -151,8 +189,11 @@ impl BrokerImportRepository {
         .bind(source_type)
         .bind(file_name)
         .bind(content_type)
-        .bind(byte_size)
-        .bind(checksum_sha256)
+        .bind(i64::try_from(bytes.len()).map_err(|_| ApiError::PayloadTooLarge)?)
+        .bind(&checksum)
+        .bind(blob.id.to_string())
+        .bind(provenance_source)
+        .bind(i64::from(parse_delegated))
         .bind(imported_by_user_id.map(|value| value.to_string()))
         .bind(metadata_json)
         .execute(&self.pool)
@@ -161,31 +202,36 @@ impl BrokerImportRepository {
         self.get_import(scope, id).await
     }
 
+    pub async fn find_by_checksum(
+        &self,
+        scope: TenantScope,
+        checksum_sha256: &str,
+    ) -> ApiResult<Option<BrokerImportRecord>> {
+        let row = sqlx::query_as::<_, BrokerImportRow>(
+            "SELECT id, household_id, broker_account_id, source_type, file_name, content_type,
+                    byte_size, checksum_sha256, content_blob_id, provenance_source,
+                    retention_until, parse_delegated, status, error_message, imported_by_user_id,
+                    imported_at, metadata_json
+             FROM broker_imports
+             WHERE household_id = ?1 AND checksum_sha256 = ?2",
+        )
+        .bind(scope.household_id().to_string())
+        .bind(checksum_sha256)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        row.map(map_import_row).transpose()
+    }
+
     pub async fn get_import(
         &self,
         scope: TenantScope,
         import_id: Uuid,
     ) -> ApiResult<BrokerImportRecord> {
-        let row = sqlx::query_as::<
-            _,
-            (
-                String,
-                String,
-                String,
-                String,
-                String,
-                Option<String>,
-                i64,
-                Option<String>,
-                String,
-                Option<String>,
-                Option<String>,
-                String,
-                String,
-            ),
-        >(
+        let row = sqlx::query_as::<_, BrokerImportRow>(
             "SELECT id, household_id, broker_account_id, source_type, file_name, content_type,
-                    byte_size, checksum_sha256, status, error_message, imported_by_user_id,
+                    byte_size, checksum_sha256, content_blob_id, provenance_source,
+                    retention_until, parse_delegated, status, error_message, imported_by_user_id,
                     imported_at, metadata_json
              FROM broker_imports
              WHERE household_id = ?1 AND id = ?2",
@@ -203,26 +249,10 @@ impl BrokerImportRepository {
         &self,
         scope: TenantScope,
     ) -> ApiResult<Vec<BrokerImportRecord>> {
-        let rows = sqlx::query_as::<
-            _,
-            (
-                String,
-                String,
-                String,
-                String,
-                String,
-                Option<String>,
-                i64,
-                Option<String>,
-                String,
-                Option<String>,
-                Option<String>,
-                String,
-                String,
-            ),
-        >(
+        let rows = sqlx::query_as::<_, BrokerImportRow>(
             "SELECT id, household_id, broker_account_id, source_type, file_name, content_type,
-                    byte_size, checksum_sha256, status, error_message, imported_by_user_id,
+                    byte_size, checksum_sha256, content_blob_id, provenance_source,
+                    retention_until, parse_delegated, status, error_message, imported_by_user_id,
                     imported_at, metadata_json
              FROM broker_imports
              WHERE household_id = ?1
@@ -234,41 +264,46 @@ impl BrokerImportRepository {
 
         rows.into_iter().map(map_import_row).collect()
     }
+
+    pub async fn read_content(&self, scope: TenantScope, import_id: Uuid) -> ApiResult<Vec<u8>> {
+        let record = self.get_import(scope, import_id).await?;
+        let blob_id = record.content_blob_id.ok_or(ApiError::NotFound)?;
+        ImportBlobRepository::new(self.pool.clone())
+            .read_bytes(scope, blob_id)
+            .await
+    }
 }
 
-fn map_import_row(
-    row: (
-        String,
-        String,
-        String,
-        String,
-        String,
-        Option<String>,
-        i64,
-        Option<String>,
-        String,
-        Option<String>,
-        Option<String>,
-        String,
-        String,
-    ),
-) -> ApiResult<BrokerImportRecord> {
+fn map_import_row(row: BrokerImportRow) -> ApiResult<BrokerImportRecord> {
     Ok(BrokerImportRecord {
-        id: row.0.parse().map_err(|_| ApiError::Internal)?,
-        household_id: row.1.parse().map_err(|_| ApiError::Internal)?,
-        broker_account_id: row.2.parse().map_err(|_| ApiError::Internal)?,
-        source_type: row.3,
-        file_name: row.4,
-        content_type: row.5,
-        byte_size: row.6,
-        checksum_sha256: row.7,
-        status: row.8,
-        error_message: row.9,
-        imported_by_user_id: row
-            .10
+        id: row.id.parse().map_err(|_| ApiError::Internal)?,
+        household_id: row.household_id.parse().map_err(|_| ApiError::Internal)?,
+        broker_account_id: row
+            .broker_account_id
+            .parse()
+            .map_err(|_| ApiError::Internal)?,
+        source_type: row.source_type,
+        file_name: row.file_name,
+        content_type: row.content_type,
+        byte_size: row.byte_size,
+        checksum_sha256: row.checksum_sha256,
+        content_blob_id: row
+            .content_blob_id
             .map(|value| value.parse().map_err(|_| ApiError::Internal))
             .transpose()?,
-        imported_at: parse_timestamp(&row.11)?,
-        metadata_json: row.12,
+        provenance_source: row.provenance_source,
+        retention_until: row
+            .retention_until
+            .map(|value| parse_timestamp(&value))
+            .transpose()?,
+        parse_delegated: row.parse_delegated != 0,
+        status: row.status,
+        error_message: row.error_message,
+        imported_by_user_id: row
+            .imported_by_user_id
+            .map(|value| value.parse().map_err(|_| ApiError::Internal))
+            .transpose()?,
+        imported_at: parse_timestamp(&row.imported_at)?,
+        metadata_json: row.metadata_json,
     })
 }
