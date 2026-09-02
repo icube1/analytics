@@ -10,6 +10,10 @@ description = "Low-resource Axum modular-monolith API foundation"
 name = "finance-api"
 path = "src/main.rs"
 
+[[bin]]
+name = "finance-api-migrate"
+path = "src/bin/finance-api-migrate.rs"
+
 [dependencies]
 argon2 = "0.5.3"
 axum = { version = "0.7.9", features = ["macros"] }
