@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ "${OBSERVABILITY_CUTOVER:-0}" != "1" ]]; then
+  echo "Observability install is disabled. Set OBSERVABILITY_CUTOVER=1 to proceed." >&2
+  exit 0
+fi
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+install -d -m 755 /etc/nginx/snippets
+install -m 644 "$ROOT/deploy/observability/nginx-timing-log.snippet.conf.disabled" /etc/nginx/snippets/analytics-timing-log.conf
+install -m 644 "$ROOT/deploy/observability/nginx-metrics-site.conf.disabled" /etc/nginx/sites-available/analytics-metrics
+install -m 644 "$ROOT/deploy/observability/logrotate-observability.conf.disabled" /etc/logrotate.d/analytics-observability
+install -d -o analytics -g analytics -m 750 /var/lib/analytics/observability
+install -m 644 "$ROOT/deploy/observability/analytics-metrics-collector.service.disabled" /etc/systemd/system/analytics-metrics-collector.service
+install -m 644 "$ROOT/deploy/observability/analytics-metrics-collector.timer.disabled" /etc/systemd/system/analytics-metrics-collector.timer
+systemctl daemon-reload
+echo "Observability units installed (enable timer/vhost after DNS/TLS)."

@@ -1,0 +1,15 @@
+[Unit]
+Description=Analytics observability collector
+After=network-online.target analytics.service
+[Service]
+Type=oneshot
+User=analytics
+Group=analytics
+EnvironmentFile=-/etc/analytics-observability.env
+WorkingDirectory=/opt/analytics
+ExecStart=/usr/bin/npx tsx observability/collector/run.ts
+Nice=10
+IOSchedulingClass=idle
+ReadWritePaths=/var/lib/analytics/observability
+[Install]
+WantedBy=multi-user.target

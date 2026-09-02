@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { importBrokerReport } from "@/lib/broker-adapters";
+import { recordBrokerImportOutcome } from "@/lib/observability/runtime-metrics";
 import {
   readPortfolioDocument,
   writeBrokerHtml,
@@ -46,6 +47,7 @@ export async function POST(request: Request) {
     });
 
     if (!imported.ok || !imported.report) {
+      recordBrokerImportOutcome(false);
       const message =
         imported.errors[0]?.message ?? "Не удалось распознать данные в отчёте";
       return NextResponse.json(
@@ -60,6 +62,7 @@ export async function POST(request: Request) {
     }
 
     const report = imported.report;
+    recordBrokerImportOutcome(true);
 
     writeBrokerHtml(html);
 

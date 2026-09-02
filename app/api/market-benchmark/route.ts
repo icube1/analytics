@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 
+import { finishApiTimer, startApiTimer } from "@/lib/observability/api-timing";
+
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
+  const startedAt = startApiTimer();
   try {
     const url = new URL(request.url);
     const fromDate = url.searchParams.get("from");
@@ -24,10 +27,12 @@ export async function GET(request: Request) {
 
     const { getMarketBenchmarkReturns } = await import("@/lib/market-data/service");
     const data = await getMarketBenchmarkReturns(fromDate, toDate);
+    finishApiTimer(startedAt, 200);
     return NextResponse.json(data);
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Не удалось загрузить бенчмарки";
+    finishApiTimer(startedAt, 502);
     return NextResponse.json({ error: message }, { status: 502 });
   }
 }

@@ -3,6 +3,7 @@ use std::sync::Arc;
 use sqlx::SqlitePool;
 
 use crate::config::Config;
+use crate::observability::HttpMetrics;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -12,12 +13,17 @@ pub struct AppState {
 struct AppStateInner {
     pub pool: SqlitePool,
     pub config: Config,
+    pub metrics: Arc<HttpMetrics>,
 }
 
 impl AppState {
     pub fn new(pool: SqlitePool, config: Config) -> Self {
         Self {
-            inner: Arc::new(AppStateInner { pool, config }),
+            inner: Arc::new(AppStateInner {
+                pool,
+                config,
+                metrics: HttpMetrics::new(),
+            }),
         }
     }
 
@@ -27,5 +33,9 @@ impl AppState {
 
     pub fn config(&self) -> &Config {
         &self.inner.config
+    }
+
+    pub fn metrics(&self) -> &Arc<HttpMetrics> {
+        &self.inner.metrics
     }
 }

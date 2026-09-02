@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gala-soft.ru/schemas/observability/metrics-v1.json",
+  "title": "Analytics lightweight observability snapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "collectedAt", "host", "services"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "collectedAt": { "type": "string", "format": "date-time" },
+    "host": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cpuPercent", "memoryRssMb", "disk"],
+      "properties": {
+        "cpuPercent": { "type": "number", "minimum": 0 },
+        "memoryRssMb": { "type": "number", "minimum": 0 },
+        "load1": { "type": "number", "minimum": 0 },
+        "disk": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["usedPercent", "freeMb"],
+          "properties": {
+            "usedPercent": { "type": "number", "minimum": 0, "maximum": 100 },
+            "freeMb": { "type": "number", "minimum": 0 }
+          }
+        }
+      }
+    },
+    "nginx": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "windowSecs": { "type": "integer", "minimum": 0 },
+        "requests": { "type": "integer", "minimum": 0 },
+        "latencyMs": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "p50": { "type": "number", "minimum": 0 },
+            "p95": { "type": "number", "minimum": 0 },
+            "p99": { "type": "number", "minimum": 0 }
+          }
+        },
+        "status": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "2xx": { "type": "integer", "minimum": 0 },
+            "3xx": { "type": "integer", "minimum": 0 },
+            "4xx": { "type": "integer", "minimum": 0 },
+            "5xx": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    },
+    "services": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "financeApi": { "$ref": "#/$defs/serviceSnapshot" },
+        "nodeApp": { "$ref": "#/$defs/serviceSnapshot" }
+      }
+    }
+  },
+  "$defs": {
+    "serviceSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uptimeSecs", "http"],
+      "properties": {
+        "uptimeSecs": { "type": "number", "minimum": 0 },
+        "memoryRssMb": { "type": "number", "minimum": 0 },
+        "heapUsedMb": { "type": "number", "minimum": 0 },
+        "http": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["requests", "latencyMs", "status"],
+          "properties": {
+            "requests": { "type": "integer", "minimum": 0 },
+            "latencyMs": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "p50": { "type": "number", "minimum": 0 },
+                "p95": { "type": "number", "minimum": 0 },
+                "p99": { "type": "number", "minimum": 0 }
+              }
+            },
+            "status": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "2xx": { "type": "integer", "minimum": 0 },
+                "3xx": { "type": "integer", "minimum": 0 },
+                "4xx": { "type": "integer", "minimum": 0 },
+                "5xx": { "type": "integer", "minimum": 0 }
+              }
+            }
+          }
+        },
+        "jobs": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "pending": { "type": "integer", "minimum": 0 },
+            "running": { "type": "integer", "minimum": 0 },
+            "failed": { "type": "integer", "minimum": 0 },
+            "completed": { "type": "integer", "minimum": 0 },
+            "byKind": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } }
+          }
+        },
+        "cache": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "marketBenchmark": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "fresh": { "type": "boolean" },
+                "sizeKb": { "type": "number", "minimum": 0 }
+              }
+            }
+          }
+        },
+        "imports": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "brokerSuccess": { "type": "integer", "minimum": 0 },
+            "brokerFailed": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "database": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "ok": { "type": "boolean" },
+            "poolSize": { "type": "integer", "minimum": 0 },
+            "poolIdle": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    }
+  }
+}

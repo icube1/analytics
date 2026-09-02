@@ -1,0 +1,18 @@
+/var/log/nginx/analytics-timing.log {
+    daily
+    rotate 7
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 www-data adm
+}
+/var/lib/analytics/observability/*.jsonl {
+    daily
+    rotate 7
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 analytics analytics
+}

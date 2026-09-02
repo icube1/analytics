@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::time::Duration;
 
 use axum::body::Body;
@@ -11,14 +12,17 @@ use tracing::Level;
 
 use crate::config::Config;
 use crate::error::ApiError;
+use crate::observability::record_http_metrics;
 use crate::routes;
 use crate::state::AppState;
 
 pub fn build_app(state: AppState) -> axum::Router {
     let max_bytes = state.config().max_request_bytes;
+    let metrics = Arc::clone(state.metrics());
     routes::router()
         .layer(RequestBodyLimitLayer::new(max_bytes))
         .layer(TraceLayer::new_for_http())
+        .layer(from_fn_with_state(metrics, record_http_metrics))
         .layer(from_fn_with_state(
             state.clone(),
             reject_oversized_content_length,
@@ -48,6 +52,13 @@ async fn reject_oversized_content_length(
 pub fn init_tracing() {
     tracing_subscriber::fmt()
         .json()
+        .with_current_span(false)
+        .with_span_list(false)
+        .with_target(true)
+        .with_thread_ids(false)
+        .with_thread_names(false)
+        .with_file(false)
+        .with_line_number(false)
         .with_max_level(Level::INFO)
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
