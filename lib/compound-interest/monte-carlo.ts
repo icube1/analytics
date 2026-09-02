@@ -109,7 +109,7 @@ function simulateRandomPath(
       : null;
 
   const wealthState = context
-    ? initWealthSimulationState(context.customAssets, context.brokerTotal)
+    ? initWealthSimulationState(context.customAssets, context.brokerTotal, asOf)
     : null;
 
   let balance = params.initialCapital;
@@ -148,7 +148,7 @@ function simulateRandomPath(
     ? getMonthlyDebtService(context.customAssets)
     : 0;
 
-  let withdrawalState: WithdrawalState = {
+  const withdrawalState: WithdrawalState = {
     withdrawalStartLiquidity: null,
     withdrawalStartPayoutNominal: 0,
     withdrawalStartPayoutReal: 0,

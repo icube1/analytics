@@ -50,7 +50,7 @@ export function calculateCompoundInterest(
       : null;
 
   const wealthState = context
-    ? initWealthSimulationState(context.customAssets, context.brokerTotal)
+    ? initWealthSimulationState(context.customAssets, context.brokerTotal, asOf)
     : null;
 
   let balance = params.initialCapital;
