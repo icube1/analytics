@@ -82,6 +82,7 @@ step "metrics dashboard typecheck" npm run typecheck:metrics
 step "metrics dashboard tests" npm run test:metrics
 step "metrics dashboard build" npm run build:metrics-dashboard
 step "observability benchmark" bash scripts/benchmark-observability.sh --ci
+step "platform e2e" bash scripts/test-platform-e2e.sh
 
 write_timings
 total_ms=0

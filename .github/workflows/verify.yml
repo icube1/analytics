@@ -30,4 +30,5 @@ jobs:
             ci-reports/timings.json
             ci-reports/bundle-report.json
             ci-reports/observability-benchmark.json
+            ci-reports/platform-e2e.json
           if-no-files-found: ignore

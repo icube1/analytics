@@ -55,6 +55,7 @@ echo "=== Platform release smoke ($RELEASE_DIR) ==="
 
 for path in \
   "$RELEASE_DIR/finance-api/bin/finance-api" \
+  "$RELEASE_DIR/finance-api/bin/finance-api-migrate" \
   "$RELEASE_DIR/web/dist/index.html" \
   "$RELEASE_DIR/site/dist/index.html" \
   "$RELEASE_DIR/metrics-dashboard/dist/index.html" \
@@ -95,7 +96,18 @@ echo "$health_json" | rg -q '"database"\s*:\s*"ok"' || {
   exit 1
 }
 
+BACKUP_FIXTURE="$ROOT/fixtures/finance-api/backup-v1-minimal.json"
+if [[ -f "$RELEASE_DIR/finance-api/bin/finance-api-migrate" && -f "$BACKUP_FIXTURE" ]]; then
+  MIGRATE_DATA="$(mktemp -d)"
+  FINANCE_API_DATA_DIR="$MIGRATE_DATA" \
+    "$RELEASE_DIR/finance-api/bin/finance-api-migrate" checksum \
+      --backup "$BACKUP_FIXTURE" \
+    | jq -e '.sourceFingerprint != null and .sourceFingerprint != ""' >/dev/null
+  rm -rf "$MIGRATE_DATA"
+fi
+
 finance_api_bytes="$(jq -r '.components.financeApiBytes // 0' "$MANIFEST")"
+migrate_bytes="$(jq -r '.components.financeApiMigrateBytes // 0' "$MANIFEST")"
 web_bytes="$(jq -r '.components.webDistBytes // 0' "$MANIFEST")"
 site_bytes="$(jq -r '.components.siteDistBytes // 0' "$MANIFEST")"
 metrics_bytes="$(jq -r '.components.metricsDistBytes // 0' "$MANIFEST")"
@@ -109,6 +121,7 @@ cat >"$REPORT_DIR/platform-smoke.json" <<EOF
   "financeApiRssKb": $rss_kb,
   "artifactBytes": {
     "financeApi": $finance_api_bytes,
+    "financeApiMigrate": $migrate_bytes,
     "web": $web_bytes,
     "site": $site_bytes,
     "metrics": $metrics_bytes,
@@ -121,6 +134,7 @@ echo "Health OK: $health_json"
 echo "finance-api RSS: ${rss_kb} KiB"
 echo "Artifacts:"
 echo "  finance-api: $(human_bytes "$finance_api_bytes")"
+echo "  migrate:     $(human_bytes "$migrate_bytes")"
 echo "  web:         $(human_bytes "$web_bytes")"
 echo "  site:        $(human_bytes "$site_bytes")"
 echo "  metrics:     $(human_bytes "$metrics_bytes")"
