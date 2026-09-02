@@ -1,17 +1,24 @@
 mod billing;
+mod broker_import;
+mod credential;
 mod device;
 mod household;
 mod idempotency;
 mod job;
 mod membership;
 mod portfolio;
+mod session;
+mod statement;
 mod user;
-
 pub use billing::{BillingRepository, EntitlementRecord, SubscriptionRecord};
+pub use broker_import::{BrokerAccountRecord, BrokerImportRecord, BrokerImportRepository};
+pub use credential::CredentialRepository;
 pub use device::{DeviceRecord, DeviceRepository};
 pub use household::{HouseholdRecord, HouseholdRepository};
 pub use idempotency::IdempotencyRepository;
-pub use job::{JobRecord, JobRepository, JobStatus};
+pub use job::{JobRecord, JobRepository, JobStatus, JOB_KIND_RESILIENCE};
 pub use membership::{MembershipRecord, MembershipRepository, MembershipRole};
 pub use portfolio::{PortfolioDocumentHead, PortfolioRepository, PortfolioRevisionRecord};
+pub use session::{ClientKind, CreatedSession, SessionRecord, SessionRepository};
+pub use statement::{StatementRecord, StatementRepository};
 pub use user::{UserRecord, UserRepository};

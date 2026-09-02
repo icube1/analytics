@@ -1,4 +1,4 @@
-# finance-api foundation
+# finance-api product backend
 
 `crates/finance-api` is a low-resource Axum modular-monolith backend foundation.
 It is **not wired into production routing** yet; the existing Next.js API routes
@@ -8,102 +8,68 @@ remain authoritative.
 
 ```text
 finance-api (binary)
-├── config          # env-driven settings, pool/worker limits
-├── app             # router assembly, tracing, request limits
-├── auth            # temporary owner Basic auth + session-ready TenantScope
+├── auth            # opaque sessions, Argon2id, CSRF, login/logout/me
+├── worker          # bounded SQLite job executor (finance-core resilience)
+├── billing         # provider-neutral webhook ingestion (Null/Test only)
+├── entitlements    # feature checks (e.g. resilience.compute)
 ├── routes
 │   ├── /health
-│   └── /api/v1/portfolio   # sync vertical slice
+│   ├── /api/v1/auth/*
+│   ├── /api/v1/portfolio
+│   ├── /api/v1/jobs/*
+│   └── /api/v1/billing/webhook
 ├── repositories    # tenant-scoped SQLite access
-├── billing         # provider-neutral BillingProvider trait (Null impl)
 └── db              # SQLite WAL pool + embedded migrations
 ```
 
-Tenant boundary: every repository method takes `TenantScope { household_id }`.
-Handlers resolve `AuthContext` from `X-User-Id` + `X-Household-Id` after auth and
-membership checks.
+## Auth
+
+- **Sessions**: opaque server-side tokens; SHA-256 hashed at rest
+- **Web**: `finance_session` HttpOnly cookie + `X-CSRF-Token` on mutations
+- **Mobile**: `Authorization: Bearer <token>` (CSRF exempt)
+- **Passwords**: Argon2id via `local_credentials` (bootstrap env only)
+- **Tenant context**: membership-based `household_id` from session, never client headers
+
+### Endpoints
+
+| Method | Path | Auth |
+| --- | --- | --- |
+| POST | `/api/v1/auth/login` | public |
+| POST | `/api/v1/auth/logout` | session |
+| GET | `/api/v1/auth/me` | session |
+| GET/PUT | `/api/v1/portfolio` | session |
+| POST | `/api/v1/jobs` | session + entitlement |
+| GET | `/api/v1/jobs/:id` | session |
+| POST | `/api/v1/jobs/:id/cancel` | session |
+| POST | `/api/v1/billing/webhook` | HMAC signature (Test provider) |
 
 ## Schema (SQLite WAL)
 
-Migration: `crates/finance-api/migrations/001_initial.sql`
+Migrations: `001_initial.sql`, `002_product_backend.sql`
 
 | Table | Purpose |
 | --- | --- |
-| `users` | global identity |
-| `households` | tenant root |
-| `household_members` | memberships (`owner` / `member` / `viewer`) |
-| `devices` | registered clients per household |
-| `portfolio_documents` | revision head per household |
-| `portfolio_revisions` | immutable document payloads |
-| `jobs` | bounded job queue rows |
-| `subscriptions` | provider-neutral subscription state |
-| `entitlements` | feature grants per household |
-| `billing_events` | append-only billing audit log |
-| `idempotency_responses` | cached HTTP responses |
+| `sessions` | opaque web/mobile sessions |
+| `local_credentials` | Argon2id password hashes |
+| `statements` | statement import metadata |
+| `broker_accounts` / `broker_imports` | broker import metadata |
+| `jobs` | bounded queue (+ timing/cancel columns) |
+| (existing) | users, households, memberships, portfolio, billing, entitlements |
 
-All tenant-owned tables include `household_id`. Unique indexes include the tenant key.
-
-## Resource-conscious defaults
+## Resource limits
 
 | Setting | Default | Env var |
 | --- | --- | --- |
 | DB pool size | 2 | `FINANCE_API_DB_MAX_CONNECTIONS` |
-| DB acquire timeout | 5s | `FINANCE_API_DB_ACQUIRE_TIMEOUT_MS` |
 | Worker concurrency | 1 | `FINANCE_API_WORKER_CONCURRENCY` |
+| Job timeout | 120s | `FINANCE_API_JOB_TIMEOUT_SECS` |
+| Max pending jobs/household | 4 | `FINANCE_API_MAX_PENDING_JOBS_PER_HOUSEHOLD` |
+| Session TTL | 7d | `FINANCE_API_SESSION_TTL_SECS` |
 | Max request body | 10 MiB | `FINANCE_API_MAX_REQUEST_BYTES` |
-| Idempotency TTL | 24h | `FINANCE_API_IDEMPOTENCY_TTL_SECS` |
-
-SQLite uses WAL + `synchronous=NORMAL` on connect.
-
-## Auth boundary
-
-Mirrors `lib/server-auth.ts`:
-
-- development: open when `ANALYTICS_AUTH_USER` / `ANALYTICS_AUTH_PASSWORD` absent
-- production: fails closed (`503`) without credentials; `401` on invalid Basic auth
-
-Session-ready headers (required for `/api/v1/*`):
-
-- `X-User-Id`: UUID
-- `X-Household-Id`: UUID (must match membership)
-
-## Portfolio sync contract
-
-`GET /api/v1/portfolio`
-
-```json
-{
-  "schemaVersion": 1,
-  "revision": 0,
-  "householdId": "...",
-  "document": {},
-  "updatedAt": "..."
-}
-```
-
-`PUT /api/v1/portfolio`
-
-Request:
-
-```json
-{
-  "schemaVersion": 1,
-  "baseRevision": 0,
-  "document": { "version": 1 }
-}
-```
-
-Headers: `Idempotency-Key` (optional, deduplicates for 24h).
-
-Semantics:
-
-- `baseRevision` mismatch → `409 revision_conflict`
-- duplicate idempotency key → replay stored response
-- revision stored immutably in `portfolio_revisions`
 
 ## Commands
 
-Requires Rust **1.88+** (transitive `axum` / `sqlx` dependency floor).
+Requires Rust **1.88+**.
 
 ```bash
 cargo +1.88.0 fmt --all
@@ -124,8 +90,7 @@ kill $PID
 
 ## Blockers / next steps
 
-1. **Production routing** — reverse proxy still points at Next.js; wire `api.gala-soft.ru` separately.
-2. **Real sessions** — replace header-based tenant resolution with signed session tokens.
-3. **Job worker loop** — schema + repository exist; bounded executor not started yet.
-4. **Billing provider** — `NullBillingProvider` only; no external credentials by design.
-5. **MSRV split** — `finance-core` remains 1.85; `finance-api` needs 1.88 until deps are pinned down.
+1. **Production routing** — reverse proxy still points at Next.js.
+2. **OAuth/SSO** — local bootstrap accounts only; no external IdP.
+3. **Real billing provider** — Test/Null webhook verifier only.
+4. **Payload storage** — statements/broker tables store metadata only.

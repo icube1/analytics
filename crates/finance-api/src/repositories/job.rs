@@ -1,10 +1,11 @@
+use crate::auth::TenantScope;
+use crate::db::{parse_optional_timestamp, parse_timestamp};
+use crate::error::{ApiError, ApiResult};
 use chrono::{DateTime, Utc};
 use sqlx::SqlitePool;
 use uuid::Uuid;
 
-use crate::auth::TenantScope;
-use crate::db::parse_timestamp;
-use crate::error::{ApiError, ApiResult};
+pub const JOB_KIND_RESILIENCE: &str = "resilience.evaluate";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum JobStatus {
@@ -14,9 +15,8 @@ pub enum JobStatus {
     Failed,
     Cancelled,
 }
-
 impl JobStatus {
-    fn as_str(self) -> &'static str {
+    pub fn as_str(self) -> &'static str {
         match self {
             Self::Pending => "pending",
             Self::Running => "running",
@@ -37,20 +37,39 @@ pub struct JobRecord {
     pub payload_json: String,
     pub result_json: Option<String>,
     pub error_message: Option<String>,
+    pub started_at: Option<DateTime<Utc>>,
+    pub finished_at: Option<DateTime<Utc>>,
+    pub timeout_at: Option<DateTime<Utc>>,
+    pub cancelled_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
+type JobRow = (
+    String,
+    String,
+    String,
+    String,
+    Option<String>,
+    String,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    String,
+    String,
+);
+const SEL: &str = "SELECT id,household_id,kind,status,idempotency_key,payload_json,result_json,error_message,started_at,finished_at,timeout_at,cancelled_at,created_at,updated_at";
 
 #[derive(Clone)]
 pub struct JobRepository {
     pool: SqlitePool,
 }
-
 impl JobRepository {
     pub fn new(pool: SqlitePool) -> Self {
         Self { pool }
     }
-
     pub async fn enqueue(
         &self,
         scope: TenantScope,
@@ -58,108 +77,113 @@ impl JobRepository {
         payload_json: &str,
         idempotency_key: Option<&str>,
     ) -> ApiResult<JobRecord> {
-        if let Some(key) = idempotency_key {
-            if let Some(existing) = self.get_by_idempotency(scope, key).await? {
-                return Ok(existing);
+        if let Some(k) = idempotency_key {
+            if let Some(e) = self.get_by_idempotency(scope, k).await? {
+                return Ok(e);
             }
         }
-
         let id = Uuid::new_v4();
-        let household_id = scope.household_id();
-        sqlx::query(
-            "INSERT INTO jobs (id, household_id, kind, status, idempotency_key, payload_json)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-        )
-        .bind(id.to_string())
-        .bind(household_id.to_string())
-        .bind(kind)
-        .bind(JobStatus::Pending.as_str())
-        .bind(idempotency_key)
-        .bind(payload_json)
-        .execute(&self.pool)
-        .await?;
-
+        sqlx::query("INSERT INTO jobs (id,household_id,kind,status,idempotency_key,payload_json) VALUES (?1,?2,?3,?4,?5,?6)")
+            .bind(id.to_string()).bind(scope.household_id().to_string()).bind(kind).bind(JobStatus::Pending.as_str()).bind(idempotency_key).bind(payload_json).execute(&self.pool).await?;
         self.get(scope, id).await
     }
-
     pub async fn get(&self, scope: TenantScope, job_id: Uuid) -> ApiResult<JobRecord> {
-        let row = sqlx::query_as::<
-            _,
-            (
-                String,
-                String,
-                String,
-                String,
-                Option<String>,
-                String,
-                Option<String>,
-                Option<String>,
-                String,
-                String,
-            ),
-        >(
-            "SELECT id, household_id, kind, status, idempotency_key, payload_json,
-                    result_json, error_message, created_at, updated_at
-             FROM jobs
-             WHERE household_id = ?1 AND id = ?2",
-        )
-        .bind(scope.household_id().to_string())
-        .bind(job_id.to_string())
-        .fetch_optional(&self.pool)
-        .await?
-        .ok_or(ApiError::NotFound)?;
-
-        map_job_row(row)
+        let q = format!("{SEL} FROM jobs WHERE household_id=?1 AND id=?2");
+        let row = sqlx::query_as::<_, JobRow>(&q)
+            .bind(scope.household_id().to_string())
+            .bind(job_id.to_string())
+            .fetch_optional(&self.pool)
+            .await?
+            .ok_or(ApiError::NotFound)?;
+        map(row)
     }
-
     pub async fn get_by_idempotency(
         &self,
         scope: TenantScope,
-        idempotency_key: &str,
+        key: &str,
     ) -> ApiResult<Option<JobRecord>> {
-        let row = sqlx::query_as::<
-            _,
-            (
-                String,
-                String,
-                String,
-                String,
-                Option<String>,
-                String,
-                Option<String>,
-                Option<String>,
-                String,
-                String,
-            ),
-        >(
-            "SELECT id, household_id, kind, status, idempotency_key, payload_json,
-                    result_json, error_message, created_at, updated_at
-             FROM jobs
-             WHERE household_id = ?1 AND idempotency_key = ?2",
+        let q = format!("{SEL} FROM jobs WHERE household_id=?1 AND idempotency_key=?2");
+        let row = sqlx::query_as::<_, JobRow>(&q)
+            .bind(scope.household_id().to_string())
+            .bind(key)
+            .fetch_optional(&self.pool)
+            .await?;
+        row.map(map).transpose()
+    }
+    pub async fn count_active_for_household(&self, household_id: Uuid) -> ApiResult<i64> {
+        Ok(sqlx::query_scalar(
+            "SELECT COUNT(1) FROM jobs WHERE household_id=?1 AND status IN ('pending','running')",
         )
-        .bind(scope.household_id().to_string())
-        .bind(idempotency_key)
-        .fetch_optional(&self.pool)
-        .await?;
-
-        row.map(map_job_row).transpose()
+        .bind(household_id.to_string())
+        .fetch_one(&self.pool)
+        .await?)
+    }
+    pub async fn claim_next(&self, timeout_at: DateTime<Utc>) -> ApiResult<Option<JobRecord>> {
+        let mut tx = self.pool.begin().await?;
+        let q = format!("{SEL} FROM jobs WHERE status='pending' ORDER BY created_at ASC LIMIT 1");
+        let row = sqlx::query_as::<_, JobRow>(&q)
+            .fetch_optional(&mut *tx)
+            .await?;
+        let Some(row) = row else {
+            tx.commit().await?;
+            return Ok(None);
+        };
+        let job_id = row.0.clone();
+        let hh: Uuid = row.1.parse().map_err(|_| ApiError::Internal)?;
+        let now = Utc::now().to_rfc3339();
+        let u = sqlx::query("UPDATE jobs SET status='running',started_at=?1,timeout_at=?2,updated_at=?1 WHERE id=?3 AND status='pending'").bind(&now).bind(timeout_at.to_rfc3339()).bind(&job_id).execute(&mut *tx).await?;
+        if u.rows_affected() == 0 {
+            tx.commit().await?;
+            return Ok(None);
+        }
+        tx.commit().await?;
+        self.get(
+            TenantScope { household_id: hh },
+            job_id.parse().map_err(|_| ApiError::Internal)?,
+        )
+        .await
+        .map(Some)
+    }
+    pub async fn mark_completed(&self, job_id: Uuid, result_json: &str) -> ApiResult<()> {
+        let now = Utc::now().to_rfc3339();
+        sqlx::query("UPDATE jobs SET status='completed',result_json=?1,finished_at=?2,updated_at=?2 WHERE id=?3 AND status='running'").bind(result_json).bind(&now).bind(job_id.to_string()).execute(&self.pool).await?;
+        Ok(())
+    }
+    pub async fn mark_failed(&self, job_id: Uuid, msg: &str) -> ApiResult<()> {
+        let now = Utc::now().to_rfc3339();
+        sqlx::query("UPDATE jobs SET status='failed',error_message=?1,finished_at=?2,updated_at=?2 WHERE id=?3 AND status IN ('pending','running')").bind(msg).bind(&now).bind(job_id.to_string()).execute(&self.pool).await?;
+        Ok(())
+    }
+    pub async fn request_cancel(&self, scope: TenantScope, job_id: Uuid) -> ApiResult<JobRecord> {
+        let now = Utc::now().to_rfc3339();
+        let u = sqlx::query("UPDATE jobs SET status='cancelled',cancelled_at=?1,finished_at=?1,updated_at=?1 WHERE household_id=?2 AND id=?3 AND status IN ('pending','running')").bind(&now).bind(scope.household_id().to_string()).bind(job_id.to_string()).execute(&self.pool).await?;
+        if u.rows_affected() == 0 {
+            let j = self.get(scope, job_id).await?;
+            if matches!(j.status.as_str(), "cancelled" | "completed" | "failed") {
+                return Ok(j);
+            }
+            return Err(ApiError::BadRequest {
+                message: "job cannot be cancelled".into(),
+            });
+        }
+        self.get(scope, job_id).await
+    }
+    pub async fn is_cancel_requested(&self, job_id: Uuid) -> ApiResult<bool> {
+        Ok(matches!(
+            sqlx::query_scalar::<_, String>("SELECT status FROM jobs WHERE id=?1")
+                .bind(job_id.to_string())
+                .fetch_optional(&self.pool)
+                .await?
+                .as_deref(),
+            Some("cancelled")
+        ))
+    }
+    pub async fn reap_timed_out(&self) -> ApiResult<u64> {
+        let now = Utc::now().to_rfc3339();
+        Ok(sqlx::query("UPDATE jobs SET status='failed',error_message='execution timed out',finished_at=?1,updated_at=?1 WHERE status='running' AND timeout_at IS NOT NULL AND timeout_at<?1").bind(&now).execute(&self.pool).await?.rows_affected())
     }
 }
-
-fn map_job_row(
-    row: (
-        String,
-        String,
-        String,
-        String,
-        Option<String>,
-        String,
-        Option<String>,
-        Option<String>,
-        String,
-        String,
-    ),
-) -> ApiResult<JobRecord> {
+fn map(row: JobRow) -> ApiResult<JobRecord> {
     Ok(JobRecord {
         id: row.0.parse().map_err(|_| ApiError::Internal)?,
         household_id: row.1.parse().map_err(|_| ApiError::Internal)?,
@@ -169,7 +193,11 @@ fn map_job_row(
         payload_json: row.5,
         result_json: row.6,
         error_message: row.7,
-        created_at: parse_timestamp(&row.8)?,
-        updated_at: parse_timestamp(&row.9)?,
+        started_at: parse_optional_timestamp(row.8)?,
+        finished_at: parse_optional_timestamp(row.9)?,
+        timeout_at: parse_optional_timestamp(row.10)?,
+        cancelled_at: parse_optional_timestamp(row.11)?,
+        created_at: parse_timestamp(&row.12)?,
+        updated_at: parse_timestamp(&row.13)?,
     })
 }
