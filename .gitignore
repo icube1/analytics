@@ -38,6 +38,7 @@ yarn-error.log*
 .env*
 !.env.example
 apps/web/.env.example
+apps/mobile/.env.example
 
 # vercel
 .vercel
@@ -54,3 +55,16 @@ next-env.d.ts
 apps/web/node_modules
 /ci-reports/
 deploy.tar.gz
+
+# capacitor native shells (generated locally; snippets under apps/mobile/native-config/)
+/apps/mobile/ios/
+/apps/mobile/android/
+/apps/mobile/.env.local
+**/DerivedData/
+**/*.xcworkspace/xcuserdata/
+**/*.xcodeproj/xcuserdata/
+**/*.ipa
+**/*.apk
+**/*.aab
+**/.gradle/
+**/local.properties

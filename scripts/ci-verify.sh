@@ -68,6 +68,8 @@ step "broker fixture privacy (sanitizer --check)" npm run sanitize:broker-fixtur
 step "vite typecheck" npm run typecheck:web
 step "vite tests" npm run test:web
 step "vite build" npm run build:web
+step "mobile runtime tests" npm run test:mobile
+step "mobile bundle prepare and verify" bash -c "npm run prepare:mobile && npm run verify:mobile"
 step "astro typecheck" npm run typecheck:site
 step "astro build and static checks" npm run test:site
 step "astro accessibility checks" npm run test:site:a11y

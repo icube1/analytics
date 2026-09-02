@@ -94,3 +94,7 @@ If the SPA is hosted at `https://example.com/app/`:
 1. Build and deploy `apps/web/dist` to `app.gala-soft.ru` (per architecture roadmap).
 2. Point `/api` to Rust/Axum when ready; update `VITE_API_BASE` only if API moves to another host.
 3. Retire Next.js UI after parity validation; keep or migrate API routes separately.
+
+## Mobile shell (Capacitor)
+
+A parallel iOS/Android wrapper lives in `apps/mobile/`. See [mobile-capacitor.md](./mobile-capacitor.md) for build/sync commands, deep-link auth design, WebView limitations, and the path to native Rust bindings. No production cutover is included on that track.
