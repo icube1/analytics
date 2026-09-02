@@ -12,7 +12,7 @@ import { normalizeCompoundParams } from "./normalize-compound-params";
 import { parsePortfolioHtml } from "./parse-portfolio-html";
 import { apiFetch } from "./api-base";
 import { readPortfolioFromDb, writePortfolioToDb } from "./browser-idb";
-import { scheduleServerBackupSync } from "./backup-sync";
+import { schedulePortfolioPersistence } from "./session-sync/backup-adapter";
 import {
   DEFAULT_DOCUMENT,
   type PortfolioDocument,
@@ -60,7 +60,7 @@ async function writeStoredDocument(doc: PortfolioDocument): Promise<PortfolioDoc
     updatedAt: new Date().toISOString(),
   };
   await writePortfolioToDb(payload);
-  scheduleServerBackupSync();
+  schedulePortfolioPersistence();
   return payload;
 }
 

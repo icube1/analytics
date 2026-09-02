@@ -1,5 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { DataBackupMenu } from "@/components/data-backup-menu";
+import { SessionAuthMenu } from "@/components/session-sync/session-auth-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 const links = [
@@ -31,6 +32,7 @@ export function AppNav() {
           ))}
         </div>
         <div className="flex items-center gap-2">
+          <SessionAuthMenu />
           <DataBackupMenu />
           <ThemeToggle />
         </div>

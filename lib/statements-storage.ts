@@ -3,7 +3,7 @@ import {
   listStatementsFromDb,
   saveStatementToDb,
 } from "./browser-idb";
-import { scheduleServerBackupSync } from "./backup-sync";
+import { schedulePortfolioPersistence } from "./session-sync/backup-adapter";
 import {
   loadStatementsFromRecords,
   sanitizeStatementFileName,
@@ -35,7 +35,7 @@ export async function uploadStatementFiles(files: FileList | File[]) {
   }
 
   const payload = await loadFromBrowser();
-  scheduleServerBackupSync();
+  schedulePortfolioPersistence();
   return { ...payload, savedFiles };
 }
 
@@ -43,6 +43,6 @@ export async function deleteStatementFile(fileName: string) {
   const safeName = sanitizeStatementFileName(fileName);
   await deleteStatementFromDb(safeName);
   const payload = await loadFromBrowser();
-  scheduleServerBackupSync();
+  schedulePortfolioPersistence();
   return payload;
 }
