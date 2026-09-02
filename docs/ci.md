@@ -7,9 +7,9 @@ See `scripts/ci-verify.sh` for the deterministic local entry point.
 | Workflow | Trigger | Jobs |
 |----------|---------|------|
 | `ci.yml` | PR, push to `master`/`main` | `verify` |
-| `deploy.yml` | push to `master`, manual | `verify` → `package` → `deploy` |
+| `deploy.yml` | push to `master`, manual | `verify` → `package` + `platform-package` → `deploy` / `platform-stage` |
 
-Deploy never runs unless `verify` passes. Production stays on **Next.js standalone** (not Vite/Axum).
+Deploy never runs unless `verify` passes. Production stays on **Next.js standalone** (not Vite/Axum) until `PLATFORM_CUTOVER=1`.
 
 The reusable verification job uses **Node.js 22.20** so the Astro toolchain meets
 its Node ≥22.19 runtime requirement. The standalone production server remains on
@@ -21,7 +21,11 @@ Node.js 20 until the Next runtime is retired.
 npm ci
 bash scripts/ci-verify.sh --skip-install
 bash scripts/package-deploy.sh deploy.tar.gz
+bash scripts/package-platform-release.sh platform-release.tar.gz
+bash scripts/test-platform-package.sh
 ```
+
+See [blue-green-deployment.md](./blue-green-deployment.md) for staging, cutover, and rollback.
 
 ## Rust
 

@@ -34,6 +34,9 @@ export type ObservabilitySnapshot = {
   services: { financeApi?: ServiceSnapshot; nodeApp?: ServiceSnapshot };
 };
 
+export type HostSnapshot = ObservabilitySnapshot["host"];
+export type NginxSnapshot = NonNullable<ObservabilitySnapshot["nginx"]>;
+
 export function emptyStatusBreakdown(): StatusBreakdown {
   return { "2xx": 0, "3xx": 0, "4xx": 0, "5xx": 0 };
 }

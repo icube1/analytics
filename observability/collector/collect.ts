@@ -148,7 +148,7 @@ function mapFinanceApi(payload: Record<string, unknown>): ObservabilitySnapshot[
   };
 }
 
-function mapNode(payload: Record<string, unknown>): ObservabilitySnapshot["services"]["nodeApp"] {
+function mapNode(payload: Record<string, unknown>): ServiceSnapshot {
   const http = payload.http as Record<string, unknown>;
   return {
     uptimeSecs: Number(payload.uptimeSecs ?? 0),

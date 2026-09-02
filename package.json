@@ -29,6 +29,8 @@
     "measure:bundles": "node scripts/measure-bundles.mjs",
     "ci:verify": "bash scripts/ci-verify.sh",
     "package:deploy": "bash scripts/package-deploy.sh",
+    "package:platform": "bash scripts/package-platform-release.sh",
+    "test:platform-package": "bash scripts/test-platform-package.sh",
     "benchmark:finance": "tsx scripts/benchmark-finance.ts",
     "benchmark:observability": "bash scripts/benchmark-observability.sh",
     "sanitize:broker-fixtures": "tsx scripts/sanitize-broker-fixture.ts",
