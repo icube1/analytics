@@ -1,4 +1,5 @@
 import { ASSUMED_RETURNS } from "./portfolio-assumptions";
+import { randomId } from "./random-id";
 import { getDepositDisplayValue, isDepositActive, isDepositItem } from "./term-deposits";
 import type {
   ApartmentAsset,
@@ -24,7 +25,7 @@ export function createCustomAsset(
   partial: Partial<CustomAssetItem> = {},
 ): CustomAssetItem {
   return {
-    id: partial.id ?? crypto.randomUUID(),
+    id: partial.id ?? randomId(),
     enabled: partial.enabled ?? true,
     label: partial.label ?? "Новый актив",
     assetKind: partial.assetKind ?? "standard",

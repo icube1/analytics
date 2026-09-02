@@ -15,6 +15,7 @@ import {
   debtPrincipalPaidByMonth,
 } from "./debt-history";
 import { findPlanPointForCalendarMonth, resolvePlanPointCalendarMonth } from "./forecast-plans";
+import { randomId } from "./random-id";
 import type {
   BrokerBalanceSnapshot,
   BrokerReport,
@@ -239,7 +240,7 @@ export function createBrokerSnapshot(
   const deposits = extractBrokerDeposits(report);
 
   return {
-    id: crypto.randomUUID(),
+    id: randomId(),
     uploadedAt: new Date().toISOString(),
     fileName,
     periodStart: report.periodStart,
