@@ -12,6 +12,7 @@ const config = {
     "<rootDir>/.next/",
     "<rootDir>/.platform-local/",
     "<rootDir>/.platform-release-staging/",
+    "<rootDir>/apps/.*/dist/",
   ],
 };
 
