@@ -22,10 +22,11 @@ import {
   getMonthlyDebtService,
   getTotalDebtBalance,
 } from "@/lib/debt-amortization";
-import { calculateCompoundInterest, runMonteCarloSimulation } from "@/lib/compound-interest";
+import { calculateCompoundInterest } from "@/lib/compound-interest";
 import type { MonteCarloPercentilePoint } from "@/lib/compound-interest/monte-carlo";
 import { buildForecastPlan } from "@/lib/forecast-plans";
 import { getCustomAssetsMonthlyIncome } from "@/lib/custom-assets";
+import { useMonteCarloWorker } from "@/lib/finance-worker/use-monte-carlo-worker";
 import { formatMoney } from "@/lib/portfolio-wealth";
 import { computeSafeWithdrawalAdvice } from "@/lib/safe-withdrawal";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
@@ -228,6 +229,8 @@ export function CalculatorTab({
 
   useEffect(() => {
     skipPersistRef.current = true;
+    // Incoming saved scenarios intentionally replace the local editable draft.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDraft(savedParams);
   }, [savedParams]);
 
@@ -250,6 +253,9 @@ export function CalculatorTab({
   >(() => new Set());
   const [showMonteCarlo, setShowMonteCarlo] = useState(false);
   const [monteCarloVolatility, setMonteCarloVolatility] = useState(18);
+  const [monteCarloAsOf] = useState(
+    () => new Date(new Date().toISOString().slice(0, 10)).toISOString(),
+  );
 
   const toggleChartLine = useCallback((dataKey: string) => {
     setHiddenChartLines((prev) => {
@@ -340,17 +346,23 @@ export function CalculatorTab({
     [simParams, customAssets, brokerTotal],
   );
 
-  const monteCarlo = useMemo(() => {
-    if (!showMonteCarlo) return null;
-    return runMonteCarloSimulation(
-      simParams,
-      { customAssets, brokerTotal },
-      {
-        volatilityPercent: monteCarloVolatility,
-        simulations: 300,
-      },
-    );
-  }, [showMonteCarlo, simParams, customAssets, brokerTotal, monteCarloVolatility]);
+  const monteCarloContext = useMemo(
+    () => ({ customAssets, brokerTotal }),
+    [customAssets, brokerTotal],
+  );
+  const {
+    result: monteCarlo,
+    isLoading: isMonteCarloLoading,
+    error: monteCarloError,
+  } = useMonteCarloWorker({
+    enabled: showMonteCarlo,
+    params: simParams,
+    context: monteCarloContext,
+    simulations: 300,
+    volatilityPercent: monteCarloVolatility,
+    seed: 42,
+    asOf: monteCarloAsOf,
+  });
 
   const mcByMonth = useMemo(() => {
     if (!monteCarlo) return new Map<number, MonteCarloPercentilePoint>();
@@ -1374,6 +1386,14 @@ export function CalculatorTab({
                 пересчёт…
               </span>
             )}
+            {showMonteCarlo && isMonteCarloLoading && (
+              <span
+                className="text-[10px] font-medium text-violet-500 dark:text-violet-400"
+                role="status"
+              >
+                Monte Carlo…
+              </span>
+            )}
             <label className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-300">
               <input
                 type="checkbox"
@@ -1419,6 +1439,14 @@ export function CalculatorTab({
             {monteCarlo.simulations} сценариев при волатильности {monteCarlo.volatilityPercent}%/год.
             Линии P10–P90 — диапазон исходов; медиана P50. Долги и вклады без случайности, случайна
             только доходность брокерского портфеля.
+          </p>
+        )}
+        {showMonteCarlo && monteCarloError && (
+          <p
+            className="mb-3 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200"
+            role="alert"
+          >
+            Monte Carlo временно недоступен: {monteCarloError}
           </p>
         )}
         <ResponsiveContainer width="100%" height={300}>
