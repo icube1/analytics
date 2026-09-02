@@ -1,0 +1,12 @@
+{
+  "accounts": [
+    {
+      "id": "SANITIZED-ACCOUNT-001",
+      "type": "ACCOUNT_TYPE_TINKOFF",
+      "name": "Synthetic Brokerage",
+      "status": "ACCOUNT_STATUS_OPEN",
+      "openedDate": "2024-01-15T00:00:00.000Z",
+      "accessLevel": "ACCOUNT_ACCESS_LEVEL_FULL_ACCESS"
+    }
+  ]
+}

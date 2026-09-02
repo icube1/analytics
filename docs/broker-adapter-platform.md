@@ -61,6 +61,10 @@ npm run sanitize:broker-fixtures
 
 See [broker-fixture-sanitization.md](./broker-fixture-sanitization.md).
 
+## API connectors (experimental)
+
+Read-only brokerage API sync is implemented separately in `lib/broker-connectors/`. See [broker-connectors.md](./broker-connectors.md). File adapters below remain the production import path.
+
 ## Planned adapters (fixtures required)
 
 No production parser is registered until sanitized sample files exist in `__tests__/fixtures/`.
