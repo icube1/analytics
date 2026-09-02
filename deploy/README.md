@@ -48,16 +48,28 @@ scp deploy.tar.gz root@5.253.30.126:/tmp/
 ssh root@5.253.30.126 'mkdir -p /opt/analytics/data/backups /opt/analytics/statements && tar -xzf /tmp/deploy.tar.gz -C /opt/analytics && systemctl restart analytics'
 ```
 
-## Windows: редирект на Google
+## 5. Доступ и временная авторизация
 
-На сервере порт **443** занят VPN (Amnezia Xray). Chrome на Windows с «Всегда использовать HTTPS» апгрейдит `http://IP` → `https://IP:443` → редирект на Google.
+Production доступен по адресу **https://gala-soft.ru**. Nginx использует HTTP/2
+и TLS 1.2 для совместимости с российскими сетями.
 
-**Решения:**
+До появления multi-user auth весь сайт закрыт HTTP Basic Authentication.
+При первом деплое workflow автоматически создаёт:
 
-1. Открывать **http://5.253.30.126:8080** (сайт слушает и 80, и 8080)
-2. Chrome → Настройки → Безопасность → выключить «Всегда используйте защищённые подключения»
-3. Долгосрочно: домен + отдельный порт/конфиг для веба, не трогая VPN на 443
+- `/etc/analytics-auth.env` — credentials для приложения;
+- `/etc/nginx/.htpasswd-analytics` — hash пароля для Nginx.
 
-- Приложение: `/opt/analytics` (`node server.js`)
-- Данные: `/opt/analytics/data/`, `/opt/analytics/statements/` (не затираются при деплое)
-- URL: http://5.253.30.126/ (на Windows с HTTPS-First лучше http://5.253.30.126:8080 — см. ниже)
+Оба файла доступны только `root`. Посмотреть первоначальные credentials:
+
+```bash
+sudo cat /etc/analytics-auth.env
+```
+
+Приложение:
+
+- runtime: `/opt/analytics` (`node server.js`);
+- данные: `/opt/analytics/data/`, `/opt/analytics/statements/`;
+- system user: `analytics`;
+- Node слушает только `127.0.0.1:3000`;
+- внешний HTTP перенаправляется на HTTPS;
+- открытый fallback на `8080` отключён.

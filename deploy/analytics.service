@@ -4,13 +4,29 @@ After=network.target
 
 [Service]
 Type=simple
-User=root
+User=analytics
+Group=analytics
 WorkingDirectory=/opt/analytics
+EnvironmentFile=/etc/analytics-auth.env
 Environment=NODE_ENV=production
 Environment=PORT=3000
+Environment=HOSTNAME=127.0.0.1
+Environment=NODE_OPTIONS=--max-old-space-size=192
 ExecStart=/usr/bin/node server.js
 Restart=on-failure
 RestartSec=5
+MemoryMax=256M
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/analytics/data /opt/analytics/statements
+CapabilityBoundingSet=
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictRealtime=true
+SystemCallArchitectures=native
 
 [Install]
 WantedBy=multi-user.target

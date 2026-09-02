@@ -5,10 +5,18 @@ import {
   writeBrokerHtml,
   writePortfolioDocument,
 } from "@/lib/persist-server";
+import {
+  rejectOversizedPrivateRequest,
+  requireServerAuth,
+} from "@/lib/server-auth";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
+  const rejected =
+    requireServerAuth(request) ?? rejectOversizedPrivateRequest(request);
+  if (rejected) return rejected;
+
   try {
     const contentType = request.headers.get("content-type") ?? "";
     let html = "";

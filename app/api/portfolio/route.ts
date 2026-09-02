@@ -5,10 +5,17 @@ import {
   writePortfolioDocument,
 } from "@/lib/persist-server";
 import type { PortfolioDocument } from "@/lib/portfolio-types";
+import {
+  rejectOversizedPrivateRequest,
+  requireServerAuth,
+} from "@/lib/server-auth";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const rejected = requireServerAuth(request);
+  if (rejected) return rejected;
+
   try {
     const doc = readPortfolioDocument();
     return NextResponse.json({
@@ -23,6 +30,10 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
+  const rejected =
+    requireServerAuth(request) ?? rejectOversizedPrivateRequest(request);
+  if (rejected) return rejected;
+
   try {
     const body = (await request.json()) as Partial<PortfolioDocument>;
     const current = readPortfolioDocument();
