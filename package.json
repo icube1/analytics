@@ -2,13 +2,23 @@
   "name": "analytics",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
   "scripts": {
     "dev": "next dev",
+    "dev:web": "npm run dev --workspace @analytics/web",
     "build": "next build",
+    "build:web": "npm run build --workspace @analytics/web",
     "build:standalone": "next build && bash scripts/prepare-standalone.sh",
+    "preview:web": "npm run preview --workspace @analytics/web",
+    "typecheck:web": "npm run typecheck --workspace @analytics/web",
+    "test:web": "npm run test --workspace @analytics/web",
+    "measure:bundles": "node scripts/measure-bundles.mjs",
     "benchmark:finance": "tsx scripts/benchmark-finance.ts",
     "sanitize:broker-fixtures": "tsx scripts/sanitize-broker-fixture.ts",
     "compare:finance-core": "tsx scripts/compare-finance-core.ts",
+    "compare:finance-core:resilience": "tsx scripts/compare-finance-core-resilience.ts",
     "start": "next start",
     "lint": "eslint",
     "test": "jest --runInBand --forceExit",

@@ -10,6 +10,7 @@ import { mergePortfolioStorage, isEmptyDocument } from "./merge-portfolio-storag
 import { enrichBrokerReport } from "./broker-positions";
 import { normalizeCompoundParams } from "./normalize-compound-params";
 import { parsePortfolioHtml } from "./parse-portfolio-html";
+import { apiFetch } from "./api-base";
 import { readPortfolioFromDb, writePortfolioToDb } from "./browser-idb";
 import { scheduleServerBackupSync } from "./backup-sync";
 import {
@@ -75,7 +76,7 @@ async function migrateLegacyLocalStorage(): Promise<PortfolioDocument | null> {
 
 async function migrateFromServerIfEmpty(): Promise<PortfolioDocument | null> {
   try {
-    const res = await fetch("/api/portfolio");
+    const res = await apiFetch("/api/portfolio");
     if (!res.ok) return null;
 
     const data = (await res.json()) as PortfolioDocument;

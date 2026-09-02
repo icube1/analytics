@@ -1,3 +1,4 @@
+import { apiFetch } from "./api-base";
 import {
   exportAnalyticsBackup,
   markBackupCompleted,
@@ -17,7 +18,7 @@ export function scheduleServerBackupSync(): void {
 export async function syncBackupToServer(): Promise<boolean> {
   try {
     const backup = await exportAnalyticsBackup();
-    const response = await fetch("/api/backup", {
+    const response = await apiFetch("/api/backup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(backup),
