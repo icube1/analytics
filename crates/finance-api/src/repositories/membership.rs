@@ -14,7 +14,7 @@ pub enum MembershipRole {
 }
 
 impl MembershipRole {
-    fn as_str(self) -> &'static str {
+    pub fn as_str(self) -> &'static str {
         match self {
             Self::Owner => "owner",
             Self::Member => "member",
@@ -95,6 +95,33 @@ impl MembershipRepository {
             role: MembershipRole::parse(&row.3).ok_or(ApiError::Internal)?,
             created_at: parse_timestamp(&row.4)?,
         })
+    }
+
+    pub async fn list_households_for_user(
+        &self,
+        user_id: Uuid,
+    ) -> ApiResult<Vec<MembershipRecord>> {
+        let rows = sqlx::query_as::<_, (String, String, String, String, String)>(
+            "SELECT id, household_id, user_id, role, created_at
+             FROM household_members
+             WHERE user_id = ?1
+             ORDER BY created_at ASC",
+        )
+        .bind(user_id.to_string())
+        .fetch_all(&self.pool)
+        .await?;
+
+        rows.into_iter()
+            .map(|row| {
+                Ok(MembershipRecord {
+                    id: row.0.parse().map_err(|_| ApiError::Internal)?,
+                    household_id: row.1.parse().map_err(|_| ApiError::Internal)?,
+                    user_id: row.2.parse().map_err(|_| ApiError::Internal)?,
+                    role: MembershipRole::parse(&row.3).ok_or(ApiError::Internal)?,
+                    created_at: parse_timestamp(&row.4)?,
+                })
+            })
+            .collect()
     }
 
     pub async fn ensure_membership(&self, scope: TenantScope, user_id: Uuid) -> ApiResult<()> {

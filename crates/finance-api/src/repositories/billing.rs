@@ -179,6 +179,21 @@ impl BillingRepository {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
+    pub async fn upsert_subscription(
+        &self,
+        scope: crate::auth::TenantScope,
+        subscription_id: uuid::Uuid,
+        plan_id: &str,
+        status: &str,
+        provider: Option<&str>,
+        external_id: Option<&str>,
+        event_time: chrono::DateTime<chrono::Utc>,
+    ) -> crate::error::ApiResult<SubscriptionRecord> {
+        sqlx::query("INSERT INTO subscriptions (id,household_id,plan_id,status,provider,external_id,updated_at) VALUES (?1,?2,?3,?4,?5,?6,?7) ON CONFLICT(id) DO UPDATE SET plan_id=excluded.plan_id,status=excluded.status,provider=excluded.provider,external_id=excluded.external_id,updated_at=excluded.updated_at").bind(subscription_id.to_string()).bind(scope.household_id().to_string()).bind(plan_id).bind(status).bind(provider).bind(external_id).bind(event_time.to_rfc3339()).execute(&self.pool).await?;
+        self.get_subscription(scope, subscription_id).await
+    }
+
     pub async fn get_subscription(
         &self,
         scope: TenantScope,

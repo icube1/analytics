@@ -19,7 +19,7 @@ use crate::state::AppState;
 pub fn build_app(state: AppState) -> axum::Router {
     let max_bytes = state.config().max_request_bytes;
     let metrics = Arc::clone(state.metrics());
-    routes::router()
+    routes::router(&state)
         .layer(RequestBodyLimitLayer::new(max_bytes))
         .layer(TraceLayer::new_for_http())
         .layer(from_fn_with_state(metrics, record_http_metrics))
@@ -74,6 +74,7 @@ pub fn startup_banner(config: &Config) {
         worker_concurrency = config.worker_concurrency,
         max_request_bytes = config.max_request_bytes,
         auth_configured = config.auth_configured(),
+        local_auth_enabled = config.local_auth_enabled(),
         "finance-api starting"
     );
 }

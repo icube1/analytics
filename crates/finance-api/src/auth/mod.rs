@@ -1,5 +1,14 @@
 mod context;
+mod csrf;
+mod middleware;
 mod owner;
-
+mod password;
+mod service;
+mod token;
 pub use context::{AuthContext, TenantScope};
+pub use csrf::CSRF_HEADER;
+pub use middleware::{require_session, Authenticated, SESSION_COOKIE};
 pub use owner::authenticate_basic;
+pub use password::{hash_password, verify_password};
+pub use service::AuthService;
+pub use token::{generate_opaque_token, hash_token};

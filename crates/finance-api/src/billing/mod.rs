@@ -1,38 +1,34 @@
-//! Provider-neutral billing boundary without external credentials.
+mod signature;
+mod transitions;
 
+use crate::auth::TenantScope;
+use crate::billing::signature::HmacSha256Verifier;
+use crate::billing::transitions::apply_subscription_event;
+use crate::error::{ApiError, ApiResult};
+use crate::repositories::BillingRepository;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::auth::TenantScope;
-use crate::error::ApiResult;
-use crate::repositories::{BillingRepository, EntitlementRecord};
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CheckoutRequest {
-    pub plan_id: String,
-    pub success_url: String,
-    pub cancel_url: String,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CheckoutResponse {
-    pub checkout_url: Option<String>,
-    pub status: String,
-}
+pub use signature::SignatureVerifier;
+pub use transitions::transition_subscription_status;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WebhookEnvelope {
     pub provider: String,
     pub event_type: String,
+    pub household_id: Uuid,
     pub payload: serde_json::Value,
     pub idempotency_key: Option<String>,
+    pub event_time: Option<String>,
+    pub subscription_id: Option<Uuid>,
+    pub plan_id: Option<String>,
+    pub subscription_status: Option<String>,
+    pub feature_key: Option<String>,
+    pub granted_until: Option<String>,
 }
 
 pub trait BillingProvider: Send + Sync {
-    fn create_checkout(&self, request: &CheckoutRequest) -> Result<CheckoutResponse, String>;
     fn verify_webhook(
         &self,
         raw_body: &[u8],
@@ -44,19 +40,31 @@ pub trait BillingProvider: Send + Sync {
 pub struct NullBillingProvider;
 
 impl BillingProvider for NullBillingProvider {
-    fn create_checkout(&self, _request: &CheckoutRequest) -> Result<CheckoutResponse, String> {
-        Ok(CheckoutResponse {
-            checkout_url: None,
-            status: "provider_not_configured".to_owned(),
-        })
+    fn verify_webhook(&self, _: &[u8], _: Option<&str>) -> Result<WebhookEnvelope, String> {
+        Err("billing provider is not configured".to_owned())
     }
+}
 
+pub struct TestBillingProvider {
+    verifier: HmacSha256Verifier,
+}
+
+impl TestBillingProvider {
+    pub fn new(secret: impl Into<Vec<u8>>) -> Self {
+        Self {
+            verifier: HmacSha256Verifier::new(secret),
+        }
+    }
+}
+
+impl BillingProvider for TestBillingProvider {
     fn verify_webhook(
         &self,
-        _raw_body: &[u8],
-        _signature: Option<&str>,
+        raw_body: &[u8],
+        signature: Option<&str>,
     ) -> Result<WebhookEnvelope, String> {
-        Err("billing provider is not configured".to_owned())
+        self.verifier.verify(raw_body, signature)?;
+        serde_json::from_slice(raw_body).map_err(|e| e.to_string())
     }
 }
 
@@ -66,31 +74,69 @@ pub struct BillingService {
 }
 
 impl BillingService {
-    pub fn new(repo: BillingRepository, provider: Box<dyn BillingProvider>) -> Self {
-        Self { repo, provider }
+    pub fn null(pool: sqlx::SqlitePool) -> Self {
+        Self {
+            repo: BillingRepository::new(pool),
+            provider: Box::new(NullBillingProvider),
+        }
     }
-
-    pub async fn list_entitlements(&self, scope: TenantScope) -> ApiResult<Vec<EntitlementRecord>> {
-        self.repo.list_entitlements(scope).await
+    pub fn test(pool: sqlx::SqlitePool, secret: impl Into<Vec<u8>>) -> Self {
+        Self {
+            repo: BillingRepository::new(pool),
+            provider: Box::new(TestBillingProvider::new(secret)),
+        }
     }
-
-    pub async fn record_provider_event(
+    pub async fn ingest_webhook(
         &self,
-        scope: TenantScope,
-        envelope: &WebhookEnvelope,
+        raw_body: &[u8],
+        signature: Option<&str>,
     ) -> ApiResult<Uuid> {
-        self.repo
+        let env = self
+            .provider
+            .verify_webhook(raw_body, signature)
+            .map_err(|m| ApiError::BadRequest { message: m })?;
+        let scope = TenantScope {
+            household_id: env.household_id,
+        };
+        let id = self
+            .repo
             .record_event(
                 scope,
-                &envelope.event_type,
-                Some(&envelope.provider),
-                &serde_json::to_string(&envelope.payload).unwrap_or_else(|_| "{}".to_owned()),
-                envelope.idempotency_key.as_deref(),
+                &env.event_type,
+                Some(&env.provider),
+                &serde_json::to_string(&env.payload).unwrap_or_else(|_| "{}".into()),
+                env.idempotency_key.as_deref(),
             )
-            .await
-    }
-
-    pub fn create_checkout(&self, request: &CheckoutRequest) -> Result<CheckoutResponse, String> {
-        self.provider.create_checkout(request)
+            .await?;
+        if let (Some(sid), Some(st)) = (env.subscription_id, env.subscription_status.as_deref()) {
+            let t = env
+                .event_time
+                .as_deref()
+                .and_then(|v| chrono::DateTime::parse_from_rfc3339(v).ok())
+                .map(|v| v.with_timezone(&chrono::Utc))
+                .unwrap_or_else(chrono::Utc::now);
+            apply_subscription_event(
+                &self.repo,
+                scope,
+                sid,
+                st,
+                t,
+                env.plan_id.as_deref(),
+                Some(&env.provider),
+                env.payload.get("externalId").and_then(|v| v.as_str()),
+            )
+            .await?;
+        }
+        if let Some(fk) = env.feature_key.as_deref() {
+            let gu = env
+                .granted_until
+                .as_deref()
+                .and_then(|v| chrono::DateTime::parse_from_rfc3339(v).ok())
+                .map(|v| v.with_timezone(&chrono::Utc));
+            self.repo
+                .upsert_entitlement(scope, fk, gu, env.subscription_id)
+                .await?;
+        }
+        Ok(id)
     }
 }
