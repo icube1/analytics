@@ -27,6 +27,9 @@ describe("monte carlo simulation", () => {
     expect(result.finalBalance.p50).toBeGreaterThan(params.initialCapital);
     expect(result.finalBalance.p90).toBeGreaterThan(result.finalBalance.p50);
     expect(result.finalBalance.p10).toBeLessThan(result.finalBalance.p50);
+    expect(result.finalBalance.p10).toBeCloseTo(4_728_076.13, 2);
+    expect(result.finalBalance.p50).toBeCloseTo(5_853_848.01, 2);
+    expect(result.finalBalance.p90).toBeCloseTo(7_565_929.71, 2);
     expect(repeated).toEqual(result);
   });
 });
