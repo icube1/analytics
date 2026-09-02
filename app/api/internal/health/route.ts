@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const rejected = requireInternalObservabilityAuth(request);
   if (rejected) return rejected;
-  const snapshot = buildNodeHealthSnapshot();
+  const snapshot = await buildNodeHealthSnapshot();
   return NextResponse.json({
     schemaVersion: OBSERVABILITY_SCHEMA_VERSION,
     collectedAt: new Date().toISOString(),

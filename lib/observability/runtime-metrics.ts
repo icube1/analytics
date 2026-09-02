@@ -1,6 +1,3 @@
-import fs from "node:fs";
-
-import { isCacheFresh, readMarketCache } from "@/lib/market-data/cache";
 import {
   emptyLatencyPercentiles,
   emptyStatusBreakdown,
@@ -33,17 +30,16 @@ function percentile(samples: number[], quantile: number): number {
   return sorted[Math.min(sorted.length - 1, Math.ceil(sorted.length * quantile) - 1)] ?? 0;
 }
 
-export function buildNodeHealthSnapshot(): ServiceSnapshot {
+export async function buildNodeHealthSnapshot(): Promise<ServiceSnapshot> {
   const memory = process.memoryUsage();
   const samples = httpCounters.latencySamples;
-  const cacheDir = process.env.MARKET_CACHE_DIR;
-  let sizeKb = 0;
-  if (cacheDir) {
-    try {
-      const filePath = `${cacheDir}/market-benchmark-cache.json`;
-      if (fs.existsSync(filePath)) sizeKb = Math.round(fs.statSync(filePath).size / 1024);
-    } catch { /* ignore */ }
-  }
+  const { isCacheFresh, readMarketCache } = await import(
+    /* turbopackIgnore: true */ "@/lib/market-data/cache"
+  );
+  const marketCache = readMarketCache();
+  const sizeKb = Math.round(
+    Buffer.byteLength(JSON.stringify(marketCache), "utf8") / 1024,
+  );
   return {
     uptimeSecs: (Date.now() - startedAt) / 1000,
     memoryRssMb: Math.round((memory.rss / (1024 * 1024)) * 10) / 10,
@@ -53,7 +49,7 @@ export function buildNodeHealthSnapshot(): ServiceSnapshot {
       latencyMs: { p50: percentile(samples, 0.5), p95: percentile(samples, 0.95), p99: percentile(samples, 0.99) },
       status: { ...httpCounters.status },
     },
-    cache: { marketBenchmark: { fresh: isCacheFresh(readMarketCache()), sizeKb } },
+    cache: { marketBenchmark: { fresh: isCacheFresh(marketCache), sizeKb } },
     imports: { brokerSuccess: importCounters.brokerSuccess, brokerFailed: importCounters.brokerFailed },
   };
 }
