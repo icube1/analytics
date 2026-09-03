@@ -205,6 +205,13 @@ function authResponse(status: 401 | 503, message: string): Response {
   });
 }
 
+function sessionCookieSecure(): boolean {
+  const override = process.env.ANALYTICS_SESSION_COOKIE_SECURE;
+  if (override === "0" || override === "false") return false;
+  if (override === "1" || override === "true") return true;
+  return process.env.NODE_ENV === "production";
+}
+
 export function sessionCookieOptions(token: string): {
   name: string;
   value: string;
@@ -219,7 +226,7 @@ export function sessionCookieOptions(token: string): {
     value: token,
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: sessionCookieSecure(),
     path: "/",
     maxAge: SESSION_MAX_AGE_SECONDS,
   };

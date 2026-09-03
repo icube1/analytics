@@ -8,6 +8,7 @@ See `scripts/ci-verify.sh` for the deterministic local entry point.
 |----------|---------|------|
 | `ci.yml` | PR, push to `master`/`main` | `verify` |
 | `deploy.yml` | push to `master`, manual | `verify` → `package` + `platform-package` → `deploy` / `platform-stage` |
+| `deploy-test.yml` | PR to `master`, manual | Next standalone → `test.gala-soft.ru` (`/opt/analytics-test`) |
 
 Deploy never runs unless `verify` passes. Production stays on **Next.js standalone** (not Vite/Axum) until `PLATFORM_CUTOVER=1`.
 

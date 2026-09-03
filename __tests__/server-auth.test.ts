@@ -7,6 +7,7 @@ import {
   requireServerAuth,
   resolveOwnerSession,
   safeNextPath,
+  sessionCookieOptions,
   verifyOwnerCredentials,
   wantsHtmlResponse,
 } from "@/lib/server-auth";
@@ -145,5 +146,13 @@ describe("owner session authentication", () => {
     });
 
     expect(rejectOversizedPrivateRequest(oversized)?.status).toBe(413);
+  });
+
+  it("lets the test slot disable Secure cookies over HTTP", () => {
+    setNodeEnv("production");
+    process.env.ANALYTICS_SESSION_COOKIE_SECURE = "0";
+    expect(sessionCookieOptions("token").secure).toBe(false);
+    process.env.ANALYTICS_SESSION_COOKIE_SECURE = "1";
+    expect(sessionCookieOptions("token").secure).toBe(true);
   });
 });
