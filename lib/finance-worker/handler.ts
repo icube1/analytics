@@ -3,7 +3,9 @@ import { runMonteCarloSimulation } from "../compound-interest/monte-carlo";
 import {
   evaluateCompoundWithOptionalWasm,
   evaluateMonteCarloWithOptionalWasm,
+  evaluateSafeWithdrawalWithOptionalWasm,
 } from "../compound-wasm";
+import { computeSafeWithdrawalAdvice } from "../safe-withdrawal";
 import {
   FINANCE_WORKER_PROTOCOL_VERSION,
   isFinanceWorkerRequest,
@@ -55,6 +57,32 @@ export async function handleFinanceWorkerRequest(
   }
 
   try {
+    if (request.type === "safe-withdrawal.run") {
+      const evaluation = await evaluateSafeWithdrawalWithOptionalWasm(
+        () =>
+          computeSafeWithdrawalAdvice(
+            request.payload.params,
+            request.payload.context,
+            { asOf },
+          ),
+        request.payload.params,
+        request.payload.context,
+        {
+          asOf: request.payload.options.asOf,
+          preferWasm: request.payload.options.preferWasm === true,
+          checkParity: request.payload.options.checkParity === true,
+        },
+      );
+      return {
+        version: FINANCE_WORKER_PROTOCOL_VERSION,
+        requestId,
+        type: "safe-withdrawal.result",
+        payload: evaluation.result,
+        engine: evaluation.engine,
+        parityVerified: evaluation.parityVerified,
+      };
+    }
+
     if (request.type === "compound-projection.run") {
       const evaluation = await evaluateCompoundWithOptionalWasm(
         () =>

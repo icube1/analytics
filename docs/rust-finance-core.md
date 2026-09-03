@@ -39,16 +39,19 @@ withdrawals/taxes/IRR, portfolio/debt context, and seeded Monte Carlo from
 - `compound::simulate` — monthly projection with accrual periods and snapshots.
 - `compound::wealth` — debt stepping, custom asset growth, deposits, income.
 - `compound::monte_carlo` — mulberry32-seeded paths with percentile bands.
-- `dto::v1` operations: `compoundProjection`, `monteCarlo`.
+- `compound::safe_withdrawal` — binary-search safe percent and fixed monthly limits.
+- `dto::v1` operations: `compoundProjection`, `monteCarlo`, `safeWithdrawal`.
 
 Unsupported document fields (not read by Rust): `brokerReport`, `forecastPlans`,
 `brokerSnapshots`, `debtBalanceHistory`. See `UNSUPPORTED_COMPOUND_FIELDS`.
 
 `fixtures/finance-core/compound-v1.json` drives differential tests via
-`npm run compare:finance-core:compound`. Parity tolerance: `1e-10` relative for
-finite `f64` values (same as debt slice). Experimental UI integration is gated by
-`NEXT_PUBLIC_RUST_COMPOUND_PARITY=1`; production keeps TypeScript unless parity
-passes (`lib/compound-wasm.ts`).
+`npm run compare:finance-core:compound`. Safe-withdrawal search uses
+`fixtures/finance-core/safe-withdrawal-v1.json` and
+`npm run compare:finance-core:safe-withdrawal`. Parity tolerance: `1e-10`
+relative for compound/`f64` values; safe-withdrawal compare uses `1e-8`.
+Experimental UI integration is gated by `NEXT_PUBLIC_RUST_COMPOUND_PARITY=1`;
+production keeps TypeScript unless parity passes (`lib/compound-wasm.ts`).
 
 Release benchmarks: `npm run benchmark:finance:rust` (TS vs Rust `compound` bench).
 

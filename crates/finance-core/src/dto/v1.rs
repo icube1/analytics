@@ -6,8 +6,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     compound::{
-        calculate_compound_interest, run_monte_carlo_simulation, CompoundContext, CompoundError,
-        CompoundOptions, CompoundParams, CompoundResult, MonteCarloOptions, MonteCarloResult,
+        calculate_compound_interest, compute_safe_withdrawal_advice, run_monte_carlo_simulation,
+        CompoundContext, CompoundError, CompoundOptions, CompoundParams, CompoundResult,
+        MonteCarloOptions, MonteCarloResult, SafeWithdrawalAdvice,
     },
     date::CivilDate,
     debt::{
@@ -76,6 +77,15 @@ pub enum FinanceRequest {
         context: Option<CompoundContext>,
         #[serde(default)]
         options: MonteCarloOptions,
+    },
+    #[serde(rename_all = "camelCase")]
+    SafeWithdrawal {
+        id: String,
+        params: CompoundParams,
+        #[serde(default)]
+        context: Option<CompoundContext>,
+        #[serde(default)]
+        options: CompoundOptions,
     },
     #[serde(rename_all = "camelCase")]
     MoneyRound {
@@ -164,6 +174,11 @@ pub enum FinanceResponse {
     MonteCarlo {
         id: String,
         result: Box<MonteCarloResult>,
+    },
+    #[serde(rename_all = "camelCase")]
+    SafeWithdrawal {
+        id: String,
+        advice: Option<Box<SafeWithdrawalAdvice>>,
     },
     #[serde(rename_all = "camelCase")]
     MoneyRound {
@@ -345,6 +360,19 @@ fn evaluate_case(request: FinanceRequest) -> Result<FinanceResponse, BoundaryErr
             Ok(FinanceResponse::MonteCarlo {
                 id,
                 result: Box::new(result),
+            })
+        }
+        FinanceRequest::SafeWithdrawal {
+            id,
+            params,
+            context,
+            options,
+        } => {
+            let advice = compute_safe_withdrawal_advice(&params, context.as_ref(), &options)
+                .map_err(|error| map_compound_error(&id, &error))?;
+            Ok(FinanceResponse::SafeWithdrawal {
+                id,
+                advice: advice.map(Box::new),
             })
         }
         FinanceRequest::MoneyRound {

@@ -39,6 +39,7 @@
     "compare:finance-core": "tsx scripts/compare-finance-core.ts",
     "compare:finance-core:resilience": "tsx scripts/compare-finance-core-resilience.ts",
     "compare:finance-core:compound": "tsx scripts/compare-finance-core-compound.ts",
+    "compare:finance-core:safe-withdrawal": "tsx scripts/compare-finance-core-safe-withdrawal.ts",
     "compare:finance-core:money": "tsx scripts/compare-finance-core-money.ts",
     "build:wasm": "bash scripts/build-finance-wasm.sh",
     "build:ffi": "bash scripts/build-finance-ffi.sh",

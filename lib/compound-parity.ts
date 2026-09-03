@@ -1,5 +1,6 @@
 import type { CompoundResult } from "./compound-interest/types";
 import type { MonteCarloResult } from "./compound-interest/monte-carlo";
+import type { SafeWithdrawalAdvice } from "./safe-withdrawal";
 
 const DEFAULT_TOLERANCE = 1e-10;
 
@@ -86,6 +87,14 @@ export function compoundResultsMatch(
 export function monteCarloResultsMatch(
   left: MonteCarloResult,
   right: MonteCarloResult,
+  tolerance = DEFAULT_TOLERANCE,
+): boolean {
+  return compareCompoundValues(left, right, "$", tolerance).length === 0;
+}
+
+export function safeWithdrawalAdviceMatch(
+  left: SafeWithdrawalAdvice | null,
+  right: SafeWithdrawalAdvice | null,
   tolerance = DEFAULT_TOLERANCE,
 ): boolean {
   return compareCompoundValues(left, right, "$", tolerance).length === 0;

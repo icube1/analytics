@@ -29,6 +29,7 @@ pub mod deposits;
 pub mod irr;
 pub mod monte_carlo;
 pub mod rates;
+pub mod safe_withdrawal;
 pub mod simulate;
 pub mod snapshot;
 pub mod taxes;
@@ -37,6 +38,10 @@ pub mod wealth;
 pub mod withdrawal;
 
 pub use monte_carlo::run_monte_carlo_simulation;
+pub use safe_withdrawal::{
+    compute_safe_withdrawal_advice, fixed_real_to_nominal_percent, is_withdrawal_sustainable,
+    SafeWithdrawalAdvice,
+};
 pub use simulate::{calculate_compound_interest, CompoundError};
 pub use types::{
     CompoundContext, CompoundOptions, CompoundParams, CompoundResult, MonteCarloOptions,

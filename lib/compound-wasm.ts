@@ -1,7 +1,12 @@
 import type { CompoundParams } from "./portfolio-types";
 import type { CompoundContext, CompoundResult } from "./compound-interest/types";
 import type { MonteCarloOptions, MonteCarloResult } from "./compound-interest/monte-carlo";
-import { compoundResultsMatch, monteCarloResultsMatch } from "./compound-parity";
+import type { SafeWithdrawalAdvice } from "./safe-withdrawal";
+import {
+  compoundResultsMatch,
+  monteCarloResultsMatch,
+  safeWithdrawalAdviceMatch,
+} from "./compound-parity";
 
 interface WasmExports {
   evaluate_finance_core: (requestJson: string) => string;
@@ -19,6 +24,12 @@ export interface CompoundWasmEvaluation {
 
 export interface MonteCarloWasmEvaluation {
   result: MonteCarloResult;
+  parityVerified: boolean | null;
+  engine: "typescript" | "wasm";
+}
+
+export interface SafeWithdrawalWasmEvaluation {
+  result: SafeWithdrawalAdvice | null;
   parityVerified: boolean | null;
   engine: "typescript" | "wasm";
 }
@@ -149,6 +160,83 @@ export async function evaluateCompoundWithOptionalWasm(
       return { result: wasmResult, parityVerified: null, engine: "wasm" };
     }
     const parityVerified = compoundResultsMatch(tsResult, wasmResult);
+    return {
+      result: parityVerified ? wasmResult : tsResult,
+      parityVerified,
+      engine: parityVerified ? "wasm" : "typescript",
+    };
+  } catch {
+    return {
+      result: tsResult,
+      parityVerified: options.checkParity ? false : null,
+      engine: "typescript",
+    };
+  }
+}
+
+function evaluateSafeWithdrawalWithWasm(
+  module: WasmExports,
+  params: CompoundParams,
+  context: CompoundContext | undefined,
+  options: { asOf?: string },
+): SafeWithdrawalAdvice | null {
+  const request = {
+    schemaVersion: 1,
+    cases: [
+      {
+        operation: "safeWithdrawal",
+        id: "ui",
+        params,
+        context,
+        options: {
+          asOf: options.asOf,
+        },
+      },
+    ],
+  };
+  const response = JSON.parse(module.evaluate_finance_core(JSON.stringify(request))) as {
+    cases?: Array<{ advice?: SafeWithdrawalAdvice | null }>;
+    error?: { message: string };
+  };
+  if (response.error) {
+    throw new Error(response.error.message);
+  }
+  if (!response.cases?.[0] || !("advice" in response.cases[0])) {
+    throw new Error("WASM safe-withdrawal evaluation failed");
+  }
+  return response.cases[0].advice ?? null;
+}
+
+export async function evaluateSafeWithdrawalWithOptionalWasm(
+  calculateTs: () => SafeWithdrawalAdvice | null,
+  params: CompoundParams,
+  context: CompoundContext | undefined,
+  options: {
+    asOf?: string;
+    preferWasm?: boolean;
+    checkParity?: boolean;
+  },
+): Promise<SafeWithdrawalWasmEvaluation> {
+  const tsResult = calculateTs();
+  if (!options.preferWasm) {
+    return { result: tsResult, parityVerified: null, engine: "typescript" };
+  }
+
+  const wasm = await loadWasmModule();
+  if (!wasm) {
+    return {
+      result: tsResult,
+      parityVerified: options.checkParity ? true : null,
+      engine: "typescript",
+    };
+  }
+
+  try {
+    const wasmResult = evaluateSafeWithdrawalWithWasm(wasm, params, context, options);
+    if (!options.checkParity) {
+      return { result: wasmResult, parityVerified: null, engine: "wasm" };
+    }
+    const parityVerified = safeWithdrawalAdviceMatch(tsResult, wasmResult);
     return {
       result: parityVerified ? wasmResult : tsResult,
       parityVerified,

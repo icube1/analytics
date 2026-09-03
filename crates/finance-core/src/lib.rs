@@ -30,9 +30,9 @@ pub mod money;
 pub mod resilience;
 
 pub use compound::{
-    calculate_compound_interest, run_monte_carlo_simulation, CompoundContext, CompoundError,
-    CompoundOptions, CompoundParams, CompoundResult, MonteCarloOptions, MonteCarloResult,
-    UNSUPPORTED_COMPOUND_FIELDS,
+    calculate_compound_interest, compute_safe_withdrawal_advice, run_monte_carlo_simulation,
+    CompoundContext, CompoundError, CompoundOptions, CompoundParams, CompoundResult,
+    MonteCarloOptions, MonteCarloResult, SafeWithdrawalAdvice, UNSUPPORTED_COMPOUND_FIELDS,
 };
 pub use date::CivilDate;
 pub use money::{

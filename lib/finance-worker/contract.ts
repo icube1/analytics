@@ -3,6 +3,7 @@ import type {
 } from "../compound-interest/monte-carlo";
 import type { CompoundContext, CompoundResult } from "../compound-interest/types";
 import type { CompoundParams } from "../portfolio-types";
+import type { SafeWithdrawalAdvice } from "../safe-withdrawal";
 
 export const FINANCE_WORKER_PROTOCOL_VERSION = 1 as const;
 
@@ -20,6 +21,13 @@ export interface CompoundProjectionWorkerOptions {
   /** ISO-8601 timestamp; dates are never inferred inside the worker. */
   asOf: string;
   allMonths?: boolean;
+  preferWasm?: boolean;
+  checkParity?: boolean;
+}
+
+export interface SafeWithdrawalWorkerOptions {
+  /** ISO-8601 timestamp; dates are never inferred inside the worker. */
+  asOf: string;
   preferWasm?: boolean;
   checkParity?: boolean;
 }
@@ -46,9 +54,21 @@ export interface CompoundProjectionWorkerRequest {
   };
 }
 
+export interface SafeWithdrawalWorkerRequest {
+  version: typeof FINANCE_WORKER_PROTOCOL_VERSION;
+  requestId: string;
+  type: "safe-withdrawal.run";
+  payload: {
+    params: CompoundParams;
+    context?: CompoundContext;
+    options: SafeWithdrawalWorkerOptions;
+  };
+}
+
 export type FinanceWorkerRequest =
   | MonteCarloWorkerRequest
-  | CompoundProjectionWorkerRequest;
+  | CompoundProjectionWorkerRequest
+  | SafeWithdrawalWorkerRequest;
 
 export interface MonteCarloWorkerSuccess {
   version: typeof FINANCE_WORKER_PROTOCOL_VERSION;
@@ -76,9 +96,19 @@ export interface FinanceWorkerFailure {
   };
 }
 
+export interface SafeWithdrawalWorkerSuccess {
+  version: typeof FINANCE_WORKER_PROTOCOL_VERSION;
+  requestId: string;
+  type: "safe-withdrawal.result";
+  payload: SafeWithdrawalAdvice | null;
+  engine?: "typescript" | "wasm";
+  parityVerified?: boolean | null;
+}
+
 export type FinanceWorkerResponse =
   | MonteCarloWorkerSuccess
   | CompoundProjectionWorkerSuccess
+  | SafeWithdrawalWorkerSuccess
   | FinanceWorkerFailure;
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -109,7 +139,10 @@ export function isFinanceWorkerRequest(
     );
   }
 
-  return value.type === "compound-projection.run";
+  return (
+    value.type === "compound-projection.run" ||
+    value.type === "safe-withdrawal.run"
+  );
 }
 
 export function isFinanceWorkerResponse(
@@ -128,6 +161,10 @@ export function isFinanceWorkerResponse(
     value.type === "compound-projection.result"
   ) {
     return isObject(value.payload);
+  }
+
+  if (value.type === "safe-withdrawal.result") {
+    return value.payload === null || isObject(value.payload);
   }
 
   return (

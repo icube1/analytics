@@ -95,4 +95,37 @@ describe("finance worker protocol v1", () => {
       expect(response.engine).toBe("typescript");
     }
   });
+
+  it("computes safe withdrawal with an explicit asOf", async () => {
+    const input = {
+      version: FINANCE_WORKER_PROTOCOL_VERSION,
+      requestId: "safe-withdrawal-test",
+      type: "safe-withdrawal.run" as const,
+      payload: {
+        params: {
+          ...DEFAULT_COMPOUND_PARAMS,
+          initialCapital: 1_000_000,
+          monthlyContribution: 50_000,
+          years: 12,
+          withdrawAfterYears: 4,
+          withdrawalMode: "percent" as const,
+          annualWithdrawalPercent: 4,
+          monthlyWithdrawal: 0,
+          taxOnProfitPercent: 0,
+        },
+        options: {
+          asOf: "2026-01-15T00:00:00.000Z",
+        },
+      },
+    };
+
+    expect(isFinanceWorkerRequest(input)).toBe(true);
+    const response = await handleFinanceWorkerRequest(input);
+    expect(response.type).toBe("safe-withdrawal.result");
+    if (response.type === "safe-withdrawal.result") {
+      expect(response.payload).not.toBeNull();
+      expect(response.payload!.maxAnnualPercent).toBeGreaterThan(0);
+      expect(response.engine).toBe("typescript");
+    }
+  });
 });

@@ -14,6 +14,7 @@ import { buildForecastPlan } from "@/lib/forecast-plans";
 import { getCustomAssetsMonthlyIncome } from "@/lib/custom-assets";
 import { useCompoundWorker } from "@/lib/finance-worker/use-compound-worker";
 import { useMonteCarloWorker } from "@/lib/finance-worker/use-monte-carlo-worker";
+import { useSafeWithdrawalWorker } from "@/lib/finance-worker/use-safe-withdrawal-worker";
 import { formatMoney } from "@/lib/portfolio-wealth";
 import { computeSafeWithdrawalAdvice } from "@/lib/safe-withdrawal";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
@@ -385,14 +386,27 @@ export function CalculatorTab({
     return new Map(monteCarlo.points.map((point) => [point.month, point]));
   }, [monteCarlo]);
 
-  const safeWithdrawalAdvice = useMemo(
-    () =>
-      computeSafeWithdrawalAdvice(simParams, {
-        customAssets,
-        brokerTotal,
-      }),
-    [simParams, customAssets, brokerTotal],
+  const {
+    result: workerSafeWithdrawal,
+    error: safeWithdrawalError,
+  } = useSafeWithdrawalWorker({
+    params: simParams,
+    context: monteCarloContext,
+    asOf: monteCarloAsOf,
+  });
+  const [seedSafeWithdrawal] = useState(() =>
+    computeSafeWithdrawalAdvice(simParams, monteCarloContext, {
+      asOf: new Date(monteCarloAsOf),
+    }),
   );
+  const lastSafeWithdrawalRef = useRef(seedSafeWithdrawal);
+  if (workerSafeWithdrawal !== undefined) {
+    lastSafeWithdrawalRef.current = workerSafeWithdrawal;
+  }
+  const safeWithdrawalAdvice =
+    workerSafeWithdrawal !== undefined
+      ? workerSafeWithdrawal
+      : lastSafeWithdrawalRef.current;
 
   const withdrawalPayoutPreview = useMemo(() => {
     if (simParams.withdrawAfterYears == null) return null;
@@ -1032,6 +1046,14 @@ export function CalculatorTab({
                     </p>
                   )}
                 </div>
+              )}
+              {safeWithdrawalError && (
+                <p
+                  className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200 sm:col-span-2 lg:col-span-3"
+                  role="alert"
+                >
+                  Оценка безопасного вывода временно недоступна: {safeWithdrawalError}
+                </p>
               )}
               {safeWithdrawalAdvice && (
                 <div
