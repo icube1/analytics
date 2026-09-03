@@ -86,12 +86,18 @@ hosts:
 - `evaluate_finance_core(request_json) -> response_json`
 - `finance_core_schema_version() -> u16`
 
-This adapter does not replace production TypeScript calculations yet. Build for
-the `wasm32-unknown-unknown` target when the toolchain is available:
+This adapter does not replace production TypeScript calculations yet. The
+committed `public/wasm/finance-wasm` package is what Vite copies into
+`apps/web/dist/wasm/`. Rebuild after DTO changes (`safeWithdrawal`, compound,
+money) so the gated Worker path can evaluate the current schema:
 
 ```bash
 npm run build:wasm
 ```
+
+CI bundle budgets fail if that `.wasm` is missing from the source tree or the
+Vite dist. Production UI still uses TypeScript unless
+`NEXT_PUBLIC_RUST_COMPOUND_PARITY=1`.
 
 The resilience UI (`/resilience`) lazy-loads this package from a dedicated Web
 Worker with TypeScript fallback and non-production parity checks. See
