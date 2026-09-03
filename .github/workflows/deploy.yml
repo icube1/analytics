@@ -159,22 +159,9 @@ jobs:
               exit 1
             fi
             COOKIE_JAR="$(mktemp)"
-            LOGIN_JSON="$(python3 - <<'PY'
-from pathlib import Path
-import json
-vals = {}
-for raw in Path("/etc/analytics-auth.env").read_text(encoding="utf-8").splitlines():
-    line = raw.strip()
-    if not line or line.startswith("#") or "=" not in line:
-        continue
-    key, _, value = line.partition("=")
-    vals[key.strip()] = value.strip().strip("'\"")
-print(json.dumps({
-    "login": vals.get("ANALYTICS_ADMIN_LOGIN") or "admin",
-    "password": vals["ANALYTICS_AUTH_PASSWORD"],
-}))
-PY
-)"
+            # One physical line: appleboy/ssh-action script_stop injects shell between lines,
+            # and an unindented heredoc also breaks GitHub workflow YAML.
+            LOGIN_JSON="$(python3 -c 'from pathlib import Path; import json; vals={k.strip():v.strip().strip(chr(39)+chr(34)) for k,_,v in (line.partition("=") for raw in Path("/etc/analytics-auth.env").read_text(encoding="utf-8").splitlines() for line in [raw.strip()] if line and not line.startswith("#") and "=" in line)}; print(json.dumps({"login": vals.get("ANALYTICS_ADMIN_LOGIN") or "admin", "password": vals["ANALYTICS_AUTH_PASSWORD"]}))')"
             login_ok=0
             for _ in 1 2 3 4 5; do
               if curl -fsS -c "$COOKIE_JAR" -H 'Content-Type: application/json' \

@@ -57,6 +57,7 @@ if [[ $SKIP_INSTALL -eq 0 ]]; then
   step "npm ci" npm ci
 fi
 
+step "github workflow yaml" bash scripts/check-github-workflows.sh
 step "rustc version" rustc --version
 step "cargo fmt --check" cargo fmt --all -- --check
 step "cargo clippy" cargo clippy --workspace --all-targets -- -D warnings
