@@ -810,8 +810,9 @@ Webhook:
 - bounded jobs (`resilience.evaluate` и `finance.evaluate` с кэшем
   `calculation_results` по `ENGINE_ID` + hash; Monte Carlo на сервере
   требует entitlement `finance.heavy`);
-- encrypted backup and restore drills;
-- audit trail.
+- encrypted backup and restore drills (`analytics.backup.encrypted.v1`,
+  client-side PBKDF2 + AES-GCM; passphrase never stored on the server);
+- audit trail (`GET /api/v1/audit-events`, household-scoped, no amounts).
 
 ### Phase 5. Resilience journey
 

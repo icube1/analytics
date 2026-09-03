@@ -40,6 +40,10 @@ impl BillingRepository {
         Self { pool }
     }
 
+    pub(crate) fn pool(&self) -> SqlitePool {
+        self.pool.clone()
+    }
+
     pub async fn record_event(
         &self,
         scope: TenantScope,

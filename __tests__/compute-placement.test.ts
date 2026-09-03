@@ -1,4 +1,7 @@
-import { chooseComputePlacement } from "@/lib/compute-placement";
+import {
+  chooseComputePlacement,
+  detectComputeEnvironment,
+} from "@/lib/compute-placement";
 import { parseCivilDate, toCivilDateString } from "@/lib/civil-date";
 
 describe("compute placement", () => {
@@ -39,6 +42,22 @@ describe("compute placement", () => {
         serverJobsEnabled: true,
         heavyEntitled: true,
         batterySaver: true,
+      }),
+    ).toBe("local-worker");
+  });
+});
+
+describe("compute environment", () => {
+  it("reads only connectivity hints and never enables server jobs by itself", () => {
+    const env = detectComputeEnvironment();
+    expect(typeof env.online).toBe("boolean");
+    expect(env.batterySaver).toBe(false);
+    expect(
+      chooseComputePlacement({
+        kind: "monteCarlo",
+        simulations: 800,
+        horizonMonths: 360,
+        online: env.online,
       }),
     ).toBe("local-worker");
   });

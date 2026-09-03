@@ -13,7 +13,7 @@ use crate::billing::signature::HmacSha256Verifier;
 use crate::billing::transitions::apply_subscription_event;
 use crate::billing::yookassa::YooKassaBillingProvider;
 use crate::error::{ApiError, ApiResult};
-use crate::repositories::BillingRepository;
+use crate::repositories::{AuditRepository, BillingRepository, ACTION_BILLING_WEBHOOK};
 use serde::{Deserialize, Serialize};
 
 pub use signature::SignatureVerifier;
@@ -206,6 +206,18 @@ impl BillingService {
                 .upsert_entitlement(scope, fk, gu, env.subscription_id)
                 .await?;
         }
+        AuditRepository::new(self.repo.pool())
+            .record_best_effort(
+                Some(env.household_id),
+                None,
+                ACTION_BILLING_WEBHOOK,
+                serde_json::json!({
+                    "provider": env.provider,
+                    "eventType": env.event_type,
+                    "subscriptionStatus": env.subscription_status,
+                }),
+            )
+            .await;
         Ok(id)
     }
 }

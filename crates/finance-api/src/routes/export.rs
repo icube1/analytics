@@ -6,7 +6,7 @@ use chrono::Utc;
 use crate::auth::Authenticated;
 use crate::error::{ApiError, ApiResult};
 use crate::models::import::backup_export;
-use crate::repositories::{PortfolioRepository, StatementRepository};
+use crate::repositories::{PortfolioRepository, StatementRepository, ACTION_BACKUP_EXPORT};
 use crate::state::AppState;
 
 pub fn router() -> Router<AppState> {
@@ -35,5 +35,14 @@ async fn export_backup(
         statements.push((record.file_name, content));
     }
 
+    state
+        .audit()
+        .record_best_effort(
+            Some(auth.context.household_id),
+            Some(auth.context.user_id),
+            ACTION_BACKUP_EXPORT,
+            serde_json::json!({ "statementCount": statements.len() }),
+        )
+        .await;
     Ok(Json(backup_export(Utc::now(), portfolio, statements)))
 }

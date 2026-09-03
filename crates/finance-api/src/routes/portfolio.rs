@@ -3,7 +3,7 @@ use crate::error::ApiResult;
 use crate::models::portfolio::{
     PortfolioSyncRequest, PortfolioSyncResponse, PORTFOLIO_SCHEMA_VERSION,
 };
-use crate::repositories::{IdempotencyRepository, PortfolioRepository};
+use crate::repositories::{IdempotencyRepository, PortfolioRepository, ACTION_PORTFOLIO_PUSH};
 use crate::state::AppState;
 use axum::{
     extract::{Extension, State},
@@ -90,5 +90,14 @@ async fn put_portfolio(
             )
             .await?;
     }
+    state
+        .audit()
+        .record_best_effort(
+            Some(auth.context.household_id),
+            Some(auth.context.user_id),
+            ACTION_PORTFOLIO_PUSH,
+            serde_json::json!({ "revision": response.revision }),
+        )
+        .await;
     Ok((StatusCode::OK, Json(response)))
 }

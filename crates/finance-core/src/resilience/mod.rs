@@ -105,7 +105,11 @@ mod tests {
         let plan = evaluate_resilience(&input);
         assert!(plan.risk.recommends_extended_reserve);
         assert!(plan.layers.extended_reserve.recommended > 0.0);
-        assert_eq!(plan.stress.len(), 5);
+        assert_eq!(plan.stress.len(), 6);
+        assert!(plan
+            .stress
+            .iter()
+            .any(|scenario| scenario.id == "family-care-shock"));
     }
 
     #[test]

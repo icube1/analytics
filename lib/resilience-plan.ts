@@ -391,6 +391,7 @@ function runStressScenarios(input: ResilienceInput): StressScenarioResult[] {
     incomeLoss(input, 6, "income-loss-6m", "Six-month income interruption"),
     unexpectedExpense(input),
     incomeLossWithDebt(input),
+    familyCareShock(input),
   ];
 }
 
@@ -453,6 +454,29 @@ function incomeLossWithDebt(input: ResilienceInput): StressScenarioResult {
   return {
     id: "income-loss-with-debt",
     label: "Income loss with ongoing debt payments",
+    monthsTested: months,
+    survivable,
+    shortfall,
+    remainingLiquid: Math.max(remaining, 0),
+    summary,
+  };
+}
+
+function familyCareShock(input: ResilienceInput): StressScenarioResult {
+  const dependents = Math.min(Math.max(input.household.dependentCount, 0), 4);
+  const mandatory = Math.max(input.mandatoryMonthlyExpenses, 0);
+  const months = 2;
+  const shock = mandatory * (0.5 + 0.35 * dependents);
+  const remaining = input.liquidAssets - shock;
+  const cushion = mandatory * 0.5;
+  const survivable = remaining >= cushion;
+  const shortfall = survivable ? 0 : Math.max(cushion - remaining, 0);
+  const summary = survivable
+    ? `A two-month family care shock of about ${shock.toFixed(0)} leaves a half-month operational cushion.`
+    : `A two-month family care shock of about ${shock.toFixed(0)} would erode the operational buffer below a half-month cushion.`;
+  return {
+    id: "family-care-shock",
+    label: "Family care or medical shock",
     monthsTested: months,
     survivable,
     shortfall,

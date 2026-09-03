@@ -1,7 +1,10 @@
 use crate::auth::{Authenticated, SESSION_COOKIE};
 use crate::config::Environment;
 use crate::error::{ApiError, ApiResult};
-use crate::repositories::{ClientKind, HouseholdRepository, MembershipRepository, UserRepository};
+use crate::repositories::{
+    hash_audit_identifier, ClientKind, HouseholdRepository, MembershipRepository, UserRepository,
+    ACTION_AUTH_LOGIN, ACTION_AUTH_LOGIN_FAILED, ACTION_AUTH_LOGOUT,
+};
 use crate::state::AppState;
 use axum::{
     extract::{Extension, State},
@@ -68,7 +71,7 @@ async fn login(
         .as_deref()
         .and_then(ClientKind::parse)
         .unwrap_or(ClientKind::Web);
-    let created = state
+    let created = match state
         .auth()
         .login(
             body.email.trim(),
@@ -77,7 +80,34 @@ async fn login(
             ck,
             body.rotate_session_id,
         )
-        .await?;
+        .await
+    {
+        Ok(created) => created,
+        Err(error) => {
+            state
+                .audit()
+                .record_best_effort(
+                    None,
+                    None,
+                    ACTION_AUTH_LOGIN_FAILED,
+                    serde_json::json!({
+                        "emailHash": hash_audit_identifier(body.email.trim()),
+                        "clientKind": ck.as_str(),
+                    }),
+                )
+                .await;
+            return Err(error);
+        }
+    };
+    state
+        .audit()
+        .record_best_effort(
+            Some(created.record.household_id),
+            Some(created.record.user_id),
+            ACTION_AUTH_LOGIN,
+            serde_json::json!({ "clientKind": ck.as_str() }),
+        )
+        .await;
     let mut resp = LoginResponse {
         user_id: created.record.user_id.to_string(),
         household_id: created.record.household_id.to_string(),
@@ -102,6 +132,15 @@ async fn logout(
     jar: CookieJar,
 ) -> ApiResult<(StatusCode, CookieJar, Json<serde_json::Value>)> {
     state.auth().logout(auth.session.id).await?;
+    state
+        .audit()
+        .record_best_effort(
+            Some(auth.context.household_id),
+            Some(auth.context.user_id),
+            ACTION_AUTH_LOGOUT,
+            serde_json::json!({ "sessionId": auth.session.id.to_string() }),
+        )
+        .await;
     Ok((
         StatusCode::OK,
         jar.remove(

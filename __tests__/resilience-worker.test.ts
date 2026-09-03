@@ -68,7 +68,7 @@ describe("resilience worker client", () => {
       preferWasm: false,
       checkParity: false,
     });
-    expect(result.plan.stress).toHaveLength(5);
+    expect(result.plan.stress).toHaveLength(6);
     expect(result.engine).toBe("typescript");
   });
 });

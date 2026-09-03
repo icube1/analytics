@@ -84,6 +84,70 @@ async fn tenant_isolation_rejects_cross_household_login() {
 }
 
 #[tokio::test]
+async fn audit_trail_records_login_and_stays_tenant_scoped() {
+    let harness = TestHarness::new().await;
+    let server = TestServer::new(harness.app()).unwrap();
+    let token_a = harness
+        .login_bearer(&harness.email_a, &harness.password_a)
+        .await;
+    server
+        .put("/api/v1/portfolio")
+        .add_header("Authorization", format!("Bearer {token_a}"))
+        .add_header("idempotency-key", "audit-sync")
+        .json(&json!({ "schemaVersion": 1, "baseRevision": 0, "document": { "version": 1 } }))
+        .await
+        .assert_status_ok();
+
+    let listed = server
+        .get("/api/v1/audit-events")
+        .add_header("Authorization", format!("Bearer {token_a}"))
+        .await;
+    listed.assert_status_ok();
+    let body = listed.json::<serde_json::Value>();
+    let actions: Vec<&str> = body["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|item| item["action"].as_str().unwrap())
+        .collect();
+    assert!(actions.contains(&"auth.login"));
+    assert!(actions.contains(&"portfolio.push"));
+    assert!(body["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|item| item.get("password").is_none() && item["metadata"].get("document").is_none()));
+
+    server
+        .post("/api/v1/auth/login")
+        .json(&json!({
+            "email": harness.email_a,
+            "password": "wrong-password",
+            "clientKind": "mobile"
+        }))
+        .await
+        .assert_status(StatusCode::UNAUTHORIZED);
+
+    let token_b = harness
+        .login_bearer(&harness.email_b, &harness.password_b)
+        .await;
+    let other = server
+        .get("/api/v1/audit-events")
+        .add_header("Authorization", format!("Bearer {token_b}"))
+        .await;
+    other.assert_status_ok();
+    let other_body = other.json::<serde_json::Value>();
+    let other_actions: Vec<&str> = other_body["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|item| item["action"].as_str().unwrap())
+        .collect();
+    assert!(other_actions.contains(&"auth.login"));
+    assert!(!other_actions.contains(&"portfolio.push"));
+}
+
+#[tokio::test]
 async fn missing_session_is_unauthorized() {
     let harness = TestHarness::new().await;
     let server = TestServer::new(harness.app()).unwrap();

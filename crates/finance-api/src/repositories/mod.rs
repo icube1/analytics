@@ -1,3 +1,4 @@
+mod audit;
 mod billing;
 mod broker_import;
 mod calculation;
@@ -13,6 +14,12 @@ mod portfolio;
 mod session;
 mod statement;
 mod user;
+pub use audit::{
+    hash_audit_identifier, AuditRecord, AuditRepository, ACTION_AUTH_LOGIN,
+    ACTION_AUTH_LOGIN_FAILED, ACTION_AUTH_LOGOUT, ACTION_BACKUP_EXPORT, ACTION_BILLING_WEBHOOK,
+    ACTION_BROKER_IMPORT_CREATE, ACTION_JOBS_ENQUEUE, ACTION_PORTFOLIO_PUSH,
+    ACTION_STATEMENTS_CREATE,
+};
 pub use billing::{BillingRepository, EntitlementRecord, SubscriptionRecord};
 pub use broker_import::{BrokerAccountRecord, BrokerImportRecord, BrokerImportRepository};
 pub use calculation::{payload_sha256, CalculationRepository};

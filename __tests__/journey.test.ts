@@ -57,7 +57,7 @@ describe("journey progress", () => {
     );
     expect(baseline?.status).not.toBe("locked");
     expect(cashFlow?.status).not.toBe("locked");
-    expect(snapshot.stressTotalCount).toBe(5);
+    expect(snapshot.stressTotalCount).toBe(6);
     expect(snapshot.monthsCovered).toBeGreaterThan(0);
   });
 

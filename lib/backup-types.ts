@@ -11,3 +11,14 @@ export interface AnalyticsBackup {
 }
 
 export const LAST_BACKUP_STORAGE_KEY = "analytics-last-backup-at";
+
+export function isAnalyticsBackup(value: unknown): value is AnalyticsBackup {
+  if (!value || typeof value !== "object") return false;
+  const backup = value as Partial<AnalyticsBackup>;
+  return (
+    backup.formatVersion === BACKUP_FORMAT_VERSION &&
+    typeof backup.exportedAt === "string" &&
+    backup.portfolio != null &&
+    Array.isArray(backup.statements)
+  );
+}

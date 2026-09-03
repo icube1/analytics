@@ -26,6 +26,22 @@ const HEAVY_KINDS: ComputeKind[] = ["monteCarlo"];
 const LONG_HORIZON_MONTHS = 240;
 const HEAVY_SIMULATIONS = 400;
 
+export function detectComputeEnvironment(): {
+  online: boolean;
+  batterySaver: boolean;
+} {
+  if (typeof navigator === "undefined") {
+    return { online: false, batterySaver: false };
+  }
+  const connection = (
+    navigator as Navigator & { connection?: { saveData?: boolean } }
+  ).connection;
+  return {
+    online: navigator.onLine !== false,
+    batterySaver: Boolean(connection?.saveData),
+  };
+}
+
 export function chooseComputePlacement(
   input: ComputePlacementInput,
 ): ComputePlacement {

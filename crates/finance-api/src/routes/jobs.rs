@@ -3,7 +3,7 @@ use crate::entitlements::{EntitlementService, FEATURE_HEAVY_COMPUTE, FEATURE_RES
 use crate::error::{ApiError, ApiResult};
 use crate::repositories::{
     is_supported_job_kind, payload_sha256, CalculationRepository, JobRecord, JobRepository,
-    JOB_KIND_FINANCE_EVALUATE, JOB_KIND_RESILIENCE,
+    ACTION_JOBS_ENQUEUE, JOB_KIND_FINANCE_EVALUATE, JOB_KIND_RESILIENCE,
 };
 use crate::state::AppState;
 use axum::{
@@ -106,6 +106,15 @@ async fn create_job(
             let job = jobs
                 .enqueue_completed(auth.scope(), &body.kind, &payload, &cached, key.as_deref())
                 .await?;
+            state
+                .audit()
+                .record_best_effort(
+                    Some(auth.context.household_id),
+                    Some(auth.context.user_id),
+                    ACTION_JOBS_ENQUEUE,
+                    serde_json::json!({ "kind": body.kind, "cacheHit": true }),
+                )
+                .await;
             return Ok((
                 StatusCode::ACCEPTED,
                 Json(to_resp(job, Some(true), Some(ENGINE_ID))?),
@@ -116,6 +125,15 @@ async fn create_job(
     let job = jobs
         .enqueue(auth.scope(), &body.kind, &payload, key.as_deref())
         .await?;
+    state
+        .audit()
+        .record_best_effort(
+            Some(auth.context.household_id),
+            Some(auth.context.user_id),
+            ACTION_JOBS_ENQUEUE,
+            serde_json::json!({ "kind": body.kind, "cacheHit": false }),
+        )
+        .await;
     let engine = (body.kind == JOB_KIND_FINANCE_EVALUATE).then_some(ENGINE_ID);
     Ok((
         StatusCode::ACCEPTED,

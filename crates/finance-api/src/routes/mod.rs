@@ -1,3 +1,4 @@
+mod audit;
 mod auth;
 mod billing;
 mod broker_imports;
@@ -19,6 +20,7 @@ pub fn router(state: &AppState) -> Router<AppState> {
     let auth_protected = auth::protected_router().layer(session_layer.clone());
     let protected = Router::new()
         .merge(portfolio::router())
+        .merge(audit::router())
         .merge(jobs::router())
         .merge(statements::router())
         .merge(broker_imports::router())
