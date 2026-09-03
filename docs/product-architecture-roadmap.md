@@ -763,7 +763,7 @@ Webhook:
 - server/client/product metrics;
 - bundle-size budgets;
 - Lighthouse и load scenarios;
-- убрать `linkedom` из browser graph (клиент: `DOMParser`; Node/Jest: `linkedom`; Vite/Next client alias на stub);
+- убрать `linkedom` из browser graph (клиент: `DOMParser`; Node: `linkedom` через server-only polyfill);
 - lazy-load вкладки и графики;
 - измерить TypeScript calculations в Worker.
 

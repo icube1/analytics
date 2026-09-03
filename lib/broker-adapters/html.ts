@@ -1,21 +1,22 @@
-import { parseHTML } from "linkedom";
-
 function hasDomParser(): boolean {
   return typeof globalThis.DOMParser === "function";
 }
 
-export function parseHtmlDocument(html: string): Document {
-  if (hasDomParser()) {
-    return new globalThis.DOMParser().parseFromString(html, "text/html");
+function requireDomParser(): typeof DOMParser {
+  if (!hasDomParser()) {
+    throw new Error(
+      "DOMParser is unavailable. Server/Node callers must load install-node-dom-parser first.",
+    );
   }
-  return parseHTML(html).document as unknown as Document;
+  return globalThis.DOMParser;
+}
+
+export function parseHtmlDocument(html: string): Document {
+  return new (requireDomParser())().parseFromString(html, "text/html");
 }
 
 export function parseXmlDocument(xml: string): Document {
-  if (hasDomParser()) {
-    return new globalThis.DOMParser().parseFromString(xml, "application/xml");
-  }
-  return parseHTML(xml).document as unknown as Document;
+  return new (requireDomParser())().parseFromString(xml, "application/xml");
 }
 
 export function cellText(row: Element, index: number): string {
