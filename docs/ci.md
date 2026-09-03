@@ -1,6 +1,9 @@
 # Monorepo CI
 
 See `scripts/ci-verify.sh` for the deterministic local entry point.
+Workflow YAML is parsed in that gate (`scripts/check-github-workflows.sh`).
+Do not use bash heredocs in `appleboy/ssh-action` scripts: `script_stop`
+injects shell between lines, and an unindented heredoc invalidates the workflow file.
 
 ## Workflows
 
