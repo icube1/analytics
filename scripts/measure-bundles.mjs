@@ -93,9 +93,43 @@ if (ciMode) {
     console.log(`  [${b.ok ? "OK" : "FAIL"}] ${b.name}: ${formatBytes(b.actual)} / ${formatBytes(b.limit)}`);
     if (!b.ok) failed = true;
   }
+  const linkedomHits = walkFiles(viteDist).filter((filePath) => {
+    if (!filePath.endsWith(".js")) return false;
+    const source = fs.readFileSync(filePath, "utf8");
+    return source.includes("linkedom");
+  });
+  if (linkedomHits.length > 0) {
+    console.log(`  [FAIL] viteLinkedomFree: ${linkedomHits.map((filePath) => path.relative(viteDist, filePath)).join(", ")}`);
+    failed = true;
+  } else {
+    console.log("  [OK] viteLinkedomFree: no linkedom string in Vite JS");
+  }
+  const wasmSource = path.join(root, "public/wasm/finance-wasm/finance_wasm_bg.wasm");
+  const wasmDist = path.join(viteDist, "wasm/finance-wasm/finance_wasm_bg.wasm");
+  const wasmSourceBytes = fs.existsSync(wasmSource) ? fs.statSync(wasmSource).size : 0;
+  const wasmDistBytes = fs.existsSync(wasmDist) ? fs.statSync(wasmDist).size : 0;
+  const wasmMax = Number(process.env.BUDGET_FINANCE_WASM_BYTES ?? 600 * 1024);
+  const wasmOk =
+    wasmSourceBytes > 100_000 &&
+    wasmDistBytes > 100_000 &&
+    wasmSourceBytes <= wasmMax;
+  console.log(
+    `  [${wasmOk ? "OK" : "FAIL"}] financeWasmShipped: source ${formatBytes(wasmSourceBytes)}, vite ${formatBytes(wasmDistBytes)} / max ${formatBytes(wasmMax)}`,
+  );
+  if (!wasmOk) failed = true;
   if (failed) process.exit(1);
 }
 
-const report = { generatedAt: new Date().toISOString(), nextStandaloneBytes, viteDistBytes, viteJsGzipTotal: viteJsGzip, viteAssets, budgets: BUDGETS, budgetResults, forbiddenStandalone };
+const report = {
+  generatedAt: new Date().toISOString(),
+  nextStandaloneBytes,
+  viteDistBytes,
+  viteJsGzipTotal: viteJsGzip,
+  viteAssets,
+  budgets: BUDGETS,
+  budgetResults,
+  forbiddenStandalone,
+  viteLinkedomFree: true,
+};
 fs.mkdirSync(reportDir, { recursive: true });
 fs.writeFileSync(path.join(reportDir, "bundle-report.json"), `${JSON.stringify(report, null, 2)}\n`);

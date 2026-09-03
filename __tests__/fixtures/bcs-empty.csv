@@ -1,0 +1,13 @@
+# analytics-bcs-v1
+# BCS / sanitized empty new account fixture
+
+[meta]
+period_start,period_end,created_at,investor,contract
+01.02.2026,28.02.2026,01.03.2026,Тестовый Инвестор,SANITIZED-CONTRACT
+
+[securities]
+name,isin,currency,quantity_end,price_end,value_end,площадка
+
+[cash]
+platform,currency,end
+BCS RUB,RUB,0

@@ -186,10 +186,25 @@ crates/
 Язык и математическую модель нельзя менять одновременно.
 
 Первый Rust-порт повторяет текущую семантику на `f64` и проверяется
-дифференциальными тестами TypeScript ↔ Rust. После достижения совместимости:
+дифференциальными тестами TypeScript ↔ Rust. После достижения совместимости
+добавлен модуль точных остатков (`lib/money.ts` / `finance_core::money`):
 
 - точные денежные остатки хранятся в минимальных единицах валюты;
-- долги, комиссии и налоги получают явно описанные правила округления;
+- долги, комиссии и налоги получают явно описанные правила округления
+  (`halfAwayFromZero`, `halfEven`, `towardZero`) через DTO `moneyRound` /
+  `moneyAdd` / `moneyInterest` / `moneyAmortize`;
+- текущая разбивка платежа в UI идёт через целочисленные minor units, а
+  compound / Monte Carlo остаются на `f64` до отдельной проверки паритета;
+- калькулятор считает прогноз, Monte Carlo и поиск безопасного вывода в
+  finance Worker; живой прогноз трекинга и сохранение сценария тоже идут
+  через compound Worker; календарный маппинг live forecast — DTO
+  `liveTrackingForecast` и Worker `live-tracking.run`, с дифференциальными
+  тестами TS/Rust;
+  WASM включается только флагом `NEXT_PUBLIC_RUST_COMPOUND_PARITY`,
+  даты в WASM приводятся к `YYYY-MM-DD`;
+- размещение расчёта выбирает `chooseComputePlacement`: по умолчанию
+  local Worker; Axum `finance.evaluate` только для тяжёлого Monte Carlo
+  при явном флаге, online и entitlement `finance.heavy`;
 - вероятностные прогнозы, IRR и волатильность остаются на `f64`;
 - даты передаются как явные civil dates без скрытого `new Date()`;
 - seed Monte Carlo является частью входного контракта.
@@ -546,7 +561,7 @@ PDF используется только при отсутствии струк
 - ограничение глубины XML;
 - игнорирование macros, formulas и external links в spreadsheets;
 - запрет прямого отображения импортированного HTML;
-- parsing в Worker или изолированном server job;
+- parsing в Worker (клиентский broker Worker) или изолированном server job;
 - явное подтверждение неполного импорта;
 - хранение source provenance для каждой операции.
 
@@ -618,7 +633,7 @@ timestamps. Уникальные индексы также включают tena
 Redis, Kafka и Temporal не добавляются до появления требований, которые SQLite
 или PostgreSQL job table не покрывает.
 
-Решение local/server принимается по policy:
+Решение local/server принимается по policy (`lib/compute-placement.ts`):
 
 - размер задачи;
 - характеристики устройства;
@@ -626,6 +641,9 @@ Redis, Kafka и Temporal не добавляются до появления т�
 - battery-saving preference;
 - тариф;
 - наличие результата в кэше.
+
+Клиент по умолчанию остаётся на local Worker. Server-job включается только
+явным флагом после того, как Axum станет публичным.
 
 ---
 
@@ -759,8 +777,9 @@ Webhook:
 
 - server/client/product metrics;
 - bundle-size budgets;
-- Lighthouse и load scenarios;
-- убрать `linkedom` из browser graph;
+- Lighthouse и load scenarios (`scripts/measure-load-scenarios.sh`,
+  loopback TTFB/index budgets; Lighthouse — если бинарь установлен);
+- убрать `linkedom` из browser graph (клиент: `DOMParser`; Node: `linkedom` через server-only polyfill);
 - lazy-load вкладки и графики;
 - измерить TypeScript calculations в Worker.
 
@@ -788,17 +807,23 @@ Webhook:
 - SQLite WAL migrations;
 - users, sessions, tenants и households;
 - revision-based sync;
-- bounded jobs;
-- encrypted backup and restore drills;
-- audit trail.
+- bounded jobs (`resilience.evaluate` и `finance.evaluate` с кэшем
+  `calculation_results` по `ENGINE_ID` + hash; Monte Carlo на сервере
+  требует entitlement `finance.heavy`);
+- encrypted backup and restore drills (`analytics.backup.encrypted.v1`,
+  client-side PBKDF2 + AES-GCM; passphrase never stored on the server);
+- audit trail (`GET /api/v1/audit-events`, household-scoped, no amounts);
+- usage metering (`usage_events`, `GET /api/v1/usage-summary`, plan/features on `/auth/me`).
 
 ### Phase 5. Resilience journey
 
-- быстрый zero-capital onboarding;
+- быстрый zero-capital onboarding (`/journey` без выдуманных 300k
+  резервов; форма дохода/расходов/ликвидности до карты устойчивости);
 - персонализированная система резервов;
 - debt/reserve trade-off;
 - family stress scenarios;
-- sinking funds и фонд впечатлений;
+- sinking funds и фонд впечатлений (редактор на `/journey` и `/resilience`;
+  распределение профицита — `proposeSurplusAllocation`, без единого совета);
 - milestones и immediate feedback;
 - ethical retention loops.
 
@@ -806,11 +831,24 @@ Webhook:
 
 - строгий Sber adapter;
 - общий tabular/XML layer;
-- T‑Bank и ВТБ;
-- Альфа и Финам;
-- БКС и остальные по спросу;
-- reconciliation dashboard;
-- fixture contribution и sanitization pipeline.
+- T‑Bank и ВТБ (CSV/text export, sanitized fixtures: buy, empty account,
+  year-boundary);
+- Альфа и Финам (XML fixtures; Альфа — empty + year-boundary);
+- БКС tabular (empty + year-boundary);
+- Газпромбанк и Открытие (CSV/text export, sanitized fixtures: buy, empty,
+  year-boundary);
+- reconciliation dashboard (coverage, reported vs computed, warnings;
+  incomplete imports require an explicit confirm before persist);
+- T‑Bank Invest API connector (`tbank-invest-api-v1`) has an experimental
+  `/investments` panel gated by `NEXT_PUBLIC_BROKER_CONNECTOR_TBANK` /
+  `VITE_BROKER_CONNECTOR_TBANK` / `BROKER_CONNECTOR_TBANK_ENABLED`; the token
+  is never persisted;
+- fixture contribution и sanitization pipeline;
+- UI загрузки принимает HTML/CSV/TSV/XML и показывает сверку импорта;
+- разбор HTML/CSV/XML идёт в broker Worker, с синхронным fallback.
+
+Двоичный Excel `.xlsx`/`.xls` по-прежнему требует живой образец: текущие
+адаптеры принимают текстовый CSV/TSV/XML с теми же идентификаторами.
 
 ### Phase 7. Mobile
 

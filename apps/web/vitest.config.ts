@@ -10,6 +10,10 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": rootDir,
+      linkedom: path.resolve(
+        path.dirname(fileURLToPath(import.meta.url)),
+        "src/shims/linkedom.ts",
+      ),
     },
   },
   test: {

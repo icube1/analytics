@@ -107,17 +107,16 @@ impl TestHarness {
             .await
             .unwrap();
 
-        BillingRepository::new(state.pool().clone())
-            .upsert_entitlement(
-                finance_api::auth::TenantScope {
-                    household_id: household_a,
-                },
-                "resilience.compute",
-                None,
-                None,
-            )
-            .await
-            .unwrap();
+        let billing = BillingRepository::new(state.pool().clone());
+        let scope_a = finance_api::auth::TenantScope {
+            household_id: household_a,
+        };
+        for feature in ["resilience.compute", "finance.heavy"] {
+            billing
+                .upsert_entitlement(scope_a, feature, None, None)
+                .await
+                .unwrap();
+        }
 
         Self {
             state,

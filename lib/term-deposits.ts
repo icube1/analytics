@@ -2,6 +2,16 @@ import type { CustomAssetItem, DepositInterestMode } from "./portfolio-types";
 
 const MS_PER_DAY = 86_400_000;
 
+/** Accepts persisted snake_case and finance-core camelCase aliases. */
+export function normalizeDepositInterestMode(
+  mode: string | null | undefined,
+): DepositInterestMode {
+  if (mode === "monthly_capitalized" || mode === "monthlyCapitalized") {
+    return "monthly_capitalized";
+  }
+  return "at_maturity";
+}
+
 export function isDepositItem(item: CustomAssetItem): boolean {
   return item.assetKind === "deposit";
 }
@@ -84,13 +94,14 @@ export function estimateDepositMaturityValue(
   principal: number,
   annualRatePercent: number,
   termMonths: number,
-  mode: DepositInterestMode = "at_maturity",
+  mode: string = "at_maturity",
   rateMethod: "effective" | "simple" = "simple",
 ): number {
   if (principal <= 0 || termMonths <= 0) return principal;
   const annualRate = annualRatePercent / 100;
+  const interestMode = normalizeDepositInterestMode(mode);
 
-  if (mode === "monthly_capitalized") {
+  if (interestMode === "monthly_capitalized") {
     const monthlyRate =
       rateMethod === "simple"
         ? annualRate / 12
@@ -109,7 +120,7 @@ export function getDepositDisplayValue(
   if (item.value <= 0) return 0;
 
   if (isDepositActive(item, asOf)) {
-    if (item.depositInterestMode === "monthly_capitalized") {
+    if (normalizeDepositInterestMode(item.depositInterestMode) === "monthly_capitalized") {
       const opened = item.depositOpenedAt
         ? parseLocalDate(item.depositOpenedAt)
         : asOf;
@@ -145,7 +156,7 @@ export function getDepositDisplayValue(
     item.value,
     item.annualReturnPercent,
     termMonths,
-    item.depositInterestMode ?? "at_maturity",
+    normalizeDepositInterestMode(item.depositInterestMode),
     "simple",
   );
 }

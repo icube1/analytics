@@ -1,4 +1,4 @@
-import { amortizeDebtMonth, estimateCurrentDebtPaymentBreakdown } from "@/lib/debt-amortization";
+import { amortizeDebtMonth, amortizeDebtMonthExact, estimateCurrentDebtPaymentBreakdown } from "@/lib/debt-amortization";
 import {
   currentPaymentPeriodDays,
   interestForPeriod,
@@ -65,7 +65,16 @@ describe("Alfa Bank day-count amortization", () => {
 
     const breakdown = estimateCurrentDebtPaymentBreakdown(assets, asOf);
     expect(breakdown.totalPayment).toBe(55_200);
-    expect(breakdown.totalInterest).toBeCloseTo(17_145.75, 1);
-    expect(breakdown.totalPrincipal).toBeCloseTo(38_054.25, 1);
+    expect(breakdown.totalInterest).toBe(17_145.74);
+    expect(breakdown.totalPrincipal).toBe(38_054.26);
+  });
+
+  it("amortizeDebtMonthExact rounds accrued interest to kopecks", () => {
+    const step = amortizeDebtMonthExact(1_922_641.02, 55_200, 10.5, { periodDays: 31 });
+    expect(step.interest).toBe(17_145.74);
+    expect(step.principal).toBe(38_054.26);
+    expect(step.balance).toBe(1_884_586.76);
+    // Bank print is 17 145,75 / 38 054,25 — one kopeck away after half-away rounding.
+    expect(step.interest + step.principal).toBe(55_200);
   });
 });

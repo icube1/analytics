@@ -1,0 +1,207 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "operation": "safeWithdrawal",
+      "id": "no-withdrawal-phase",
+      "params": {
+        "initialCapital": 1000000,
+        "monthlyContribution": 50000,
+        "annualReturnPercent": 12,
+        "inflationPercent": 6,
+        "years": 30,
+        "taxOnProfitPercent": 0,
+        "contributionGrowthPercent": 0,
+        "compoundFrequency": "monthly",
+        "monthlyRateMethod": "effective",
+        "adjustContributionsForInflation": false,
+        "reinvestReturns": true,
+        "withdrawAfterYears": null,
+        "withdrawalMode": "fixed",
+        "monthlyWithdrawal": 20000,
+        "annualWithdrawalPercent": 0,
+        "taxDividends": false,
+        "taxableAssetShare": 0.5,
+        "dividendYieldPercent": 9.5,
+        "reinvestFreedDebtPayments": false,
+        "debtPaymentsSeparateFromContribution": false
+      },
+      "options": {
+        "asOf": "2026-01-15"
+      }
+    },
+    {
+      "operation": "safeWithdrawal",
+      "id": "percent-8-below-return",
+      "params": {
+        "initialCapital": 1000000,
+        "monthlyContribution": 50000,
+        "annualReturnPercent": 12,
+        "inflationPercent": 6,
+        "years": 30,
+        "taxOnProfitPercent": 0,
+        "contributionGrowthPercent": 0,
+        "compoundFrequency": "monthly",
+        "monthlyRateMethod": "effective",
+        "adjustContributionsForInflation": false,
+        "reinvestReturns": true,
+        "withdrawAfterYears": 10,
+        "withdrawalMode": "percent",
+        "monthlyWithdrawal": 0,
+        "annualWithdrawalPercent": 8,
+        "taxDividends": false,
+        "taxableAssetShare": 0.5,
+        "dividendYieldPercent": 9.5,
+        "reinvestFreedDebtPayments": false,
+        "debtPaymentsSeparateFromContribution": false
+      },
+      "options": {
+        "asOf": "2026-01-15"
+      }
+    },
+    {
+      "operation": "safeWithdrawal",
+      "id": "percent-20-unsafe",
+      "params": {
+        "initialCapital": 1000000,
+        "monthlyContribution": 50000,
+        "annualReturnPercent": 12,
+        "inflationPercent": 6,
+        "years": 30,
+        "taxOnProfitPercent": 0,
+        "contributionGrowthPercent": 0,
+        "compoundFrequency": "monthly",
+        "monthlyRateMethod": "effective",
+        "adjustContributionsForInflation": false,
+        "reinvestReturns": true,
+        "withdrawAfterYears": 10,
+        "withdrawalMode": "percent",
+        "monthlyWithdrawal": 0,
+        "annualWithdrawalPercent": 20,
+        "taxDividends": false,
+        "taxableAssetShare": 0.5,
+        "dividendYieldPercent": 9.5,
+        "reinvestFreedDebtPayments": false,
+        "debtPaymentsSeparateFromContribution": false
+      },
+      "options": {
+        "asOf": "2026-01-15"
+      }
+    },
+    {
+      "operation": "safeWithdrawal",
+      "id": "fixed-150k-unsafe",
+      "params": {
+        "initialCapital": 1000000,
+        "monthlyContribution": 50000,
+        "annualReturnPercent": 12,
+        "inflationPercent": 6,
+        "years": 30,
+        "taxOnProfitPercent": 0,
+        "contributionGrowthPercent": 0,
+        "compoundFrequency": "monthly",
+        "monthlyRateMethod": "effective",
+        "adjustContributionsForInflation": false,
+        "reinvestReturns": true,
+        "withdrawAfterYears": 10,
+        "withdrawalMode": "fixed",
+        "monthlyWithdrawal": 150000,
+        "annualWithdrawalPercent": 0,
+        "taxDividends": false,
+        "taxableAssetShare": 0.5,
+        "dividendYieldPercent": 9.5,
+        "reinvestFreedDebtPayments": false,
+        "debtPaymentsSeparateFromContribution": false
+      },
+      "options": {
+        "asOf": "2026-01-15"
+      }
+    },
+    {
+      "operation": "safeWithdrawal",
+      "id": "fixed-20k-safe",
+      "params": {
+        "initialCapital": 1000000,
+        "monthlyContribution": 50000,
+        "annualReturnPercent": 12,
+        "inflationPercent": 6,
+        "years": 30,
+        "taxOnProfitPercent": 0,
+        "contributionGrowthPercent": 0,
+        "compoundFrequency": "monthly",
+        "monthlyRateMethod": "effective",
+        "adjustContributionsForInflation": false,
+        "reinvestReturns": true,
+        "withdrawAfterYears": 10,
+        "withdrawalMode": "fixed",
+        "monthlyWithdrawal": 20000,
+        "annualWithdrawalPercent": 0,
+        "taxDividends": false,
+        "taxableAssetShare": 0.5,
+        "dividendYieldPercent": 9.5,
+        "reinvestFreedDebtPayments": false,
+        "debtPaymentsSeparateFromContribution": false
+      },
+      "options": {
+        "asOf": "2026-01-15"
+      }
+    },
+    {
+      "operation": "safeWithdrawal",
+      "id": "percent-taxed-with-custom-assets",
+      "params": {
+        "initialCapital": 800000,
+        "monthlyContribution": 40000,
+        "annualReturnPercent": 10,
+        "inflationPercent": 5,
+        "years": 20,
+        "taxOnProfitPercent": 13,
+        "contributionGrowthPercent": 0,
+        "compoundFrequency": "monthly",
+        "monthlyRateMethod": "effective",
+        "adjustContributionsForInflation": false,
+        "reinvestReturns": true,
+        "withdrawAfterYears": 8,
+        "withdrawalMode": "percent",
+        "monthlyWithdrawal": 0,
+        "annualWithdrawalPercent": 4,
+        "taxDividends": true,
+        "taxableAssetShare": 0.7,
+        "dividendYieldPercent": 8,
+        "reinvestFreedDebtPayments": true,
+        "debtPaymentsSeparateFromContribution": false
+      },
+      "context": {
+        "brokerTotal": 800000,
+        "customAssets": {
+          "items": [
+            {
+              "id": "deposit-1",
+              "enabled": true,
+              "label": "Вклад",
+              "assetKind": "deposit",
+              "value": 300000,
+              "debt": 0,
+              "monthlyDebtPayment": 0,
+              "debtAnnualRate": 0,
+              "growsWithInflation": false,
+              "returnMode": "percent",
+              "annualReturnPercent": 16,
+              "incomeAmount": 0,
+              "incomePeriod": "monthly",
+              "generatesDividendTax": false,
+              "depositTermMonths": 12,
+              "depositOpenedAt": "2026-01-15",
+              "depositInterestMode": "monthlyCapitalized",
+              "notes": ""
+            }
+          ],
+          "otherDebts": []
+        }
+      },
+      "options": {
+        "asOf": "2026-01-15"
+      }
+    }
+  ]
+}

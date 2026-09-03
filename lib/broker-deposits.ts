@@ -66,6 +66,42 @@ export function calendarMonthFromPlanMonth(
   return formatCalendarMonth(new Date(year, month, 1));
 }
 
+/** Shift a `YYYY-MM` civil month without going through `Date` / time zones. */
+export function shiftCalendarMonth(
+  calendarMonth: string,
+  months: number,
+): string {
+  const [year, month] = calendarMonth.split("-").map(Number);
+  if (!Number.isFinite(year) || !Number.isFinite(month)) return calendarMonth;
+  const total = year * 12 + (month - 1) + months;
+  const nextYear = Math.floor(total / 12);
+  const nextMonth = ((total % 12) + 12) % 12;
+  return `${nextYear}-${String(nextMonth + 1).padStart(2, "0")}`;
+}
+
+/** Deterministic ru-RU short month labels used by tracking and finance-core. */
+const RU_MONTH_SHORT = [
+  "янв.",
+  "февр.",
+  "март",
+  "апр.",
+  "май",
+  "июнь",
+  "июль",
+  "авг.",
+  "сент.",
+  "окт.",
+  "нояб.",
+  "дек.",
+] as const;
+
+export function formatCivilMonthLabel(calendarMonth: string): string {
+  const [year, month] = calendarMonth.split("-").map(Number);
+  const name = RU_MONTH_SHORT[(month ?? 1) - 1] ?? calendarMonth;
+  const yy = String(year ?? 0).slice(-2);
+  return `${name} ${yy} г.`;
+}
+
 export function formatCalendarMonthLabel(calendarMonth: string): string {
   const [year, month] = calendarMonth.split("-").map(Number);
   const date = new Date(year, month - 1, 1);

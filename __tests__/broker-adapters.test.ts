@@ -2,8 +2,12 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   buildManualCsvTemplate,
+  describeBrokerUploadError,
   detectBrokerAdapters,
   importBrokerReport,
+  handleBrokerWorkerRequest,
+  importUploadedBrokerFile,
+  isBrokerWorkerRequest,
   parseBrokerNumber,
   parseSberPortfolioHtml,
 } from "@/lib/broker-adapters";
@@ -98,5 +102,123 @@ describe("broker adapter platform", () => {
     expect(result.ok).toBe(false);
     expect(result.errors[0]?.code).toBe("NO_ADAPTER_MATCH");
     expect(result.report).toBeNull();
+  });
+
+  it.each([
+    ["tbank-xlsx", "tbank-report.csv", "tbank.csv"],
+    ["vtb-xls", "vtb-report.csv", "vtb.csv"],
+    ["bcs-xls", "bcs-report.csv", "bcs.csv"],
+    ["gazprombank-csv", "gazprombank-report.csv", "gpb.csv"],
+    ["otkritie-csv", "otkritie-report.csv", "otkritie.csv"],
+    ["alfa-xml", "alfa-report.xml", "alfa.xml"],
+    ["finam-xml", "finam-report.xml", "finam.xml"],
+  ] as const)("imports sanitized %s fixture", (adapterId, fileName, uploadName) => {
+    const content = fs.readFileSync(
+      path.join(process.cwd(), "__tests__", "fixtures", fileName),
+      "utf8",
+    );
+    const result = importBrokerReport({ content, fileName: uploadName });
+
+    expect(result.ok).toBe(true);
+    expect(result.provenance.adapterId).toBe(adapterId);
+    expect(result.report?.investor).toBe(SANITIZED_INVESTOR);
+    expect(result.report?.contract).toBe(SANITIZED_CONTRACT);
+    expect(result.coverage?.securities).toBe(true);
+    expect(result.reconciliation?.withinTolerance).toBe(true);
+  });
+
+  it.each([
+    ["tbank-xlsx", "tbank-empty.csv", "tbank-empty.csv", false],
+    ["vtb-xls", "vtb-empty.csv", "vtb-empty.csv", false],
+    ["bcs-xls", "bcs-empty.csv", "bcs-empty.csv", false],
+    ["gazprombank-csv", "gazprombank-empty.csv", "gpb-empty.csv", false],
+    ["otkritie-csv", "otkritie-empty.csv", "otkritie-empty.csv", false],
+    ["alfa-xml", "alfa-empty.xml", "alfa-empty.xml", false],
+  ] as const)(
+    "imports sanitized empty %s account",
+    (adapterId, fileName, uploadName, hasSecurities) => {
+      const content = fs.readFileSync(
+        path.join(process.cwd(), "__tests__", "fixtures", fileName),
+        "utf8",
+      );
+      const result = importBrokerReport({ content, fileName: uploadName });
+
+      expect(result.ok).toBe(true);
+      expect(result.provenance.adapterId).toBe(adapterId);
+      expect(result.report?.investor).toBe(SANITIZED_INVESTOR);
+      expect(result.coverage?.securities).toBe(hasSecurities);
+      expect(result.coverage?.cash).toBe(true);
+      expect(result.reconciliation?.withinTolerance).toBe(true);
+    },
+  );
+
+  it.each([
+    ["tbank-xlsx", "tbank-year-boundary.csv", "tbank-year.csv"],
+    ["vtb-xls", "vtb-year-boundary.csv", "vtb-year.csv"],
+    ["bcs-xls", "bcs-year-boundary.csv", "bcs-year.csv"],
+    ["gazprombank-csv", "gazprombank-year-boundary.csv", "gpb-year.csv"],
+    ["otkritie-csv", "otkritie-year-boundary.csv", "otkritie-year.csv"],
+    ["alfa-xml", "alfa-year-boundary.xml", "alfa-year.xml"],
+  ] as const)(
+    "imports sanitized year-boundary %s fixture",
+    (adapterId, fileName, uploadName) => {
+      const content = fs.readFileSync(
+        path.join(process.cwd(), "__tests__", "fixtures", fileName),
+        "utf8",
+      );
+      const result = importBrokerReport({ content, fileName: uploadName });
+
+      expect(result.ok).toBe(true);
+      expect(result.provenance.adapterId).toBe(adapterId);
+      expect(result.report?.investor).toBe(SANITIZED_INVESTOR);
+      expect(result.report?.contract).toBe(SANITIZED_CONTRACT);
+      expect(result.coverage?.securities).toBe(true);
+      expect(result.reconciliation?.withinTolerance).toBe(true);
+      expect(result.ledger?.periodStart).toMatch(/15\.12\.2025/);
+      expect(result.ledger?.periodEnd).toMatch(/15\.01\.2026/);
+    },
+  );
+
+  it("uses the uploaded file name to choose a tabular adapter", () => {
+    const content = fs.readFileSync(
+      path.join(process.cwd(), "__tests__", "fixtures", "tbank-report.csv"),
+      "utf8",
+    );
+    const result = importUploadedBrokerFile(content, "tbank-export.csv");
+    expect(result.ok).toBe(true);
+    expect(result.provenance.adapterId).toBe("tbank-xlsx");
+    expect(result.provenance.fileName).toBe("tbank-export.csv");
+  });
+
+  it("parses a tabular report through the broker worker protocol", () => {
+    const content = fs.readFileSync(
+      path.join(process.cwd(), "__tests__", "fixtures", "tbank-report.csv"),
+      "utf8",
+    );
+    const request = {
+      version: 1 as const,
+      requestId: "broker-test",
+      type: "broker-import.run" as const,
+      payload: {
+        content,
+        fileName: "tbank-export.csv",
+      },
+    };
+
+    expect(isBrokerWorkerRequest(request)).toBe(true);
+    const response = handleBrokerWorkerRequest(request);
+    expect(response.type).toBe("broker-import.result");
+    if (response.type === "broker-import.result") {
+      expect(response.payload.ok).toBe(true);
+      expect(response.payload.provenance.adapterId).toBe("tbank-xlsx");
+    }
+  });
+
+  it("explains that binary Excel still needs a CSV export", () => {
+    const result = importBrokerReport({
+      content: "not a workbook",
+      fileName: "report.xlsx",
+    });
+    expect(describeBrokerUploadError(result, "report.xlsx")).toMatch(/CSV/);
   });
 });

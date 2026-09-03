@@ -3,7 +3,14 @@
 `crates/finance-core` is the first platform-neutral finance slice. It is a
 workspace library with both `rlib` and `cdylib` outputs so a native backend can
 link it now and a later `wasm-bindgen` adapter can wrap the same public API.
-No UI code calls Rust yet.
+
+The calculator finance Worker evaluates compound, Monte Carlo, safe-withdrawal,
+and live tracking in TypeScript off the main thread. When
+`NEXT_PUBLIC_RUST_COMPOUND_PARITY=1`, the same worker may call
+`evaluate_finance_core` WASM (civil `YYYY-MM-DD` dates) and fall back to
+TypeScript on mismatch.
+Production stays on TypeScript until that flag is enabled after CI parity stays
+green.
 
 ## Scope
 
@@ -11,15 +18,19 @@ No UI code calls Rust yet.
   leap/month handling without host time-zone behavior.
 - `debt`: payment-period boundaries, actual/365 interest, monthly
   amortization, and payoff estimation.
+- `money`: integer minor-unit amounts, ISO currency exponents, and explicit
+  rounding (`halfAwayFromZero`, `halfEven`, `towardZero`) for balances, fees,
+  and tax line items. `moneyAmortize` rounds actual/365 interest to minor units
+  before splitting a payment. Compound / Monte Carlo remain on `f64`.
 - `resilience`: layered operational buffer, starter emergency fund, core and
   extended reserves, sinking funds, experiences fund, household/debt risk
   scoring, stress scenarios, and descriptive (non-advisory) notes.
 - `dto::v1`: serde request/response boundary with an explicit
-  `schemaVersion: 1`. New transports should depend on this boundary rather
-  than exposing Rust internals.
+  `schemaVersion: 1`, including `liveTrackingForecast` calendar mapping.
+  New transports should depend on this boundary rather than exposing Rust
+  internals. Server jobs cache results as `finance-core/<version>/dto-1`.
 
-Monte Carlo, portfolio state mutation, asset growth, deposits, and UI wiring
-remain in TypeScript.
+Portfolio state mutation and UI wiring remain in TypeScript.
 
 ## Compound module
 
@@ -30,16 +41,23 @@ withdrawals/taxes/IRR, portfolio/debt context, and seeded Monte Carlo from
 - `compound::simulate` — monthly projection with accrual periods and snapshots.
 - `compound::wealth` — debt stepping, custom asset growth, deposits, income.
 - `compound::monte_carlo` — mulberry32-seeded paths with percentile bands.
-- `dto::v1` operations: `compoundProjection`, `monteCarlo`.
+- `compound::safe_withdrawal` — binary-search safe percent and fixed monthly limits.
+- `compound::tracking` — live forecast calendar points from a projection.
+- `dto::v1` operations: `compoundProjection`, `monteCarlo`, `safeWithdrawal`,
+  `liveTrackingForecast`.
 
 Unsupported document fields (not read by Rust): `brokerReport`, `forecastPlans`,
 `brokerSnapshots`, `debtBalanceHistory`. See `UNSUPPORTED_COMPOUND_FIELDS`.
 
 `fixtures/finance-core/compound-v1.json` drives differential tests via
-`npm run compare:finance-core:compound`. Parity tolerance: `1e-10` relative for
-finite `f64` values (same as debt slice). Experimental UI integration is gated by
-`NEXT_PUBLIC_RUST_COMPOUND_PARITY=1`; production keeps TypeScript unless parity
-passes (`lib/compound-wasm.ts`).
+`npm run compare:finance-core:compound`. Safe-withdrawal search uses
+`fixtures/finance-core/safe-withdrawal-v1.json` and
+`npm run compare:finance-core:safe-withdrawal`. Live tracking uses
+`fixtures/finance-core/live-tracking-v1.json` and
+`npm run compare:finance-core:live-tracking`. Parity tolerance: `1e-10`
+relative for compound/`f64` values; safe-withdrawal compare uses `1e-8`.
+Experimental UI integration is gated by `NEXT_PUBLIC_RUST_COMPOUND_PARITY=1`;
+production keeps TypeScript unless parity passes (`lib/compound-wasm.ts`).
 
 Release benchmarks: `npm run benchmark:finance:rust` (TS vs Rust `compound` bench).
 
@@ -58,7 +76,8 @@ architecture roadmap:
 `dto::v1` exposes a `resiliencePlan` operation. Inputs include mandatory
 expenses, liquid assets, household risk factors, debt burden, sinking-fund
 goals, and experiences targets. Outputs include layer ranges, coverage
-percentages, a risk score, five deterministic stress scenarios, factor
+percentages, a risk score, six deterministic stress scenarios plus an
+optional partner-income-loss case when a second household income exists, factor
 explanations, and descriptive debt-tradeoff notes. Nothing in this module
 constitutes personalized securities or credit advice.
 
@@ -74,12 +93,18 @@ hosts:
 - `evaluate_finance_core(request_json) -> response_json`
 - `finance_core_schema_version() -> u16`
 
-This adapter does not replace production TypeScript calculations yet. Build for
-the `wasm32-unknown-unknown` target when the toolchain is available:
+This adapter does not replace production TypeScript calculations yet. The
+committed `public/wasm/finance-wasm` package is what Vite copies into
+`apps/web/dist/wasm/`. Rebuild after DTO changes (`safeWithdrawal`, compound,
+money) so the gated Worker path can evaluate the current schema:
 
 ```bash
 npm run build:wasm
 ```
+
+CI bundle budgets fail if that `.wasm` is missing from the source tree or the
+Vite dist. Production UI still uses TypeScript unless
+`NEXT_PUBLIC_RUST_COMPOUND_PARITY=1`.
 
 The resilience UI (`/resilience`) lazy-loads this package from a dedicated Web
 Worker with TypeScript fallback and non-production parity checks. See
@@ -113,12 +138,19 @@ functions in `lib/debt-amortization.ts`. Rust intentionally preserves:
 - a payment on the as-of date beginning the next payment period;
 - actual/365 simple interest and the `365 / 12` default period;
 - principal capped by both payment after interest and remaining balance;
+- when accrued interest exceeds the payment, principal is 0 and unpaid interest
+  is not capitalized;
 - the existing 600-payment payoff cap behavior.
 
 `fixtures/finance-core/v1.json` covers bank-schedule examples and edge cases.
 The differential command evaluates every fixture through both implementations
 and compares integer/string/null values exactly and finite floating-point
 values with a `1e-10` relative tolerance.
+
+Money rounding and `moneyAmortize` use `fixtures/finance-core/money-v1.json`
+and `npm run compare:finance-core:money`. Current payment splits in the UI go
+through integer minor units (`amortizeDebtMonthExact`); compound / Monte Carlo
+simulations stay on the `f64` `amortizeDebtMonth` path.
 
 ## Commands
 
@@ -131,6 +163,8 @@ cargo test -p finance-core -p finance-wasm -p finance-ffi --all-features
 cargo run --release -p finance-core --bench resilience
 npm run compare:finance-core
 npm run compare:finance-core:resilience
+npm run compare:finance-core:compound
+npm run compare:finance-core:money
 npm test -- --runTestsByPath __tests__/debt-daycount.test.ts __tests__/upcoming-events.test.ts __tests__/resilience-plan.test.ts
 npx tsc --noEmit
 ```

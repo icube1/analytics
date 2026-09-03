@@ -1,5 +1,6 @@
 import type { ResilienceInput, SinkingFundGoal } from "./resilience-plan";
 
+/** Full-map demo defaults. Journey onboarding starts from zero capital instead. */
 export const DEFAULT_RESILIENCE_INPUT: ResilienceInput = {
   mandatoryMonthlyExpenses: 80_000,
   discretionaryMonthlyExpenses: 20_000,
@@ -24,6 +25,35 @@ export const DEFAULT_RESILIENCE_INPUT: ResilienceInput = {
   sinkingFunds: [],
   experiences: {
     annualTarget: 60_000,
+    currentAmount: 0,
+  },
+};
+
+/** Honest empty baseline: no invented income, reserves, or surplus. */
+export const ZERO_CAPITAL_RESILIENCE_INPUT: ResilienceInput = {
+  mandatoryMonthlyExpenses: 0,
+  discretionaryMonthlyExpenses: 0,
+  liquidAssets: 0,
+  monthlySurplus: 0,
+  payCycleDays: 30,
+  household: {
+    incomeStability: "stable",
+    incomeSourceCount: 1,
+    hasSecondaryHouseholdIncome: false,
+    dependentCount: 0,
+    jobSearchMonths: 3,
+    insuranceCoverage: "medium",
+    riskTolerance: "moderate",
+  },
+  debt: {
+    totalBalance: 0,
+    monthlyPayments: 0,
+    weightedAnnualRate: 0,
+    highInterestBalance: 0,
+  },
+  sinkingFunds: [],
+  experiences: {
+    annualTarget: 0,
     currentAmount: 0,
   },
 };

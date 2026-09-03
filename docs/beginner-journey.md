@@ -14,8 +14,10 @@ engine.
 - **Household variants** — copy and auto-detection adapt to solo, couple, and
   dependent profiles from resilience household inputs.
 - **Forgiving continuity** — rolling weekly engagement counts, not daily streaks.
-- **Immediate quantified feedback** — progress and stress coverage are derived
-  from `evaluateResiliencePlan` / resilience storage inputs.
+- **Immediate quantified feedback** — progress, stress coverage, and surplus
+  allocation (`lib/journey/surplus-allocation.ts`) are derived from
+  `evaluateResiliencePlan` / resilience storage inputs. Sinking funds and the
+  experiences fund can be edited on `/journey` without leaving the path.
 - **User control** — reorder milestones, opt out of optional steps, reset,
   export/import JSON, full local delete.
 - **No gamification harms** — no leaderboards, trade incentives, shame framing,
@@ -29,6 +31,7 @@ engine.
 | --- | --- |
 | Milestone catalog | `lib/journey/milestones.ts` |
 | Progress engine | `lib/journey/progress.ts` |
+| Surplus allocation | `lib/journey/surplus-allocation.ts` |
 | Continuity | `lib/journey/continuity.ts` |
 | Local persistence | `lib/journey-storage.ts` |
 | Product events | `lib/product-events/schema.ts`, `telemetry.ts` |
@@ -47,7 +50,7 @@ Journey state is stored in `analytics.beginner-journey.v1`.
 ## Commands
 
 ```bash
-npm test -- --runTestsByPath __tests__/journey.test.ts __tests__/product-events.test.ts
+npm test -- --runTestsByPath __tests__/journey.test.ts __tests__/journey-review.test.ts __tests__/journey-surplus-allocation.test.ts __tests__/product-events.test.ts
 npm run build
 npm run build:web
 npm run test:web

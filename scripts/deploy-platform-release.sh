@@ -87,6 +87,20 @@ if [[ $LOCAL_MODE -eq 0 ]]; then
     systemctl enable "$SERVICE_NAME" >/dev/null 2>&1 || true
     systemctl restart "$SERVICE_NAME"
   fi
+
+  loopback_src="$TARGET/nginx/nginx-loopback-staging.conf"
+  if [[ -f "$loopback_src" && -d /etc/nginx/sites-available ]] && command -v nginx >/dev/null; then
+    install -m 644 "$loopback_src" /etc/nginx/sites-available/analytics-platform-loopback
+    ln -sf /etc/nginx/sites-available/analytics-platform-loopback \
+      /etc/nginx/sites-enabled/analytics-platform-loopback
+    if nginx -t >/dev/null 2>&1; then
+      systemctl reload nginx
+      echo "Loopback platform preview enabled on 127.0.0.1:9080-9083"
+    else
+      rm -f /etc/nginx/sites-enabled/analytics-platform-loopback
+      echo "Loopback nginx config failed validation; public vhost unchanged" >&2
+    fi
+  fi
 fi
 
 if [[ $SKIP_SMOKE -eq 0 ]]; then

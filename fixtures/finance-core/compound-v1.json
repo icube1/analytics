@@ -350,6 +350,64 @@
       }
     },
     {
+      "operation": "compoundProjection",
+      "id": "term-deposit-monthly-capitalized",
+      "params": {
+        "initialCapital": 1100000,
+        "monthlyContribution": 0,
+        "annualReturnPercent": 0,
+        "inflationPercent": 5,
+        "years": 1,
+        "taxOnProfitPercent": 0,
+        "contributionGrowthPercent": 0,
+        "compoundFrequency": "monthly",
+        "monthlyRateMethod": "effective",
+        "adjustContributionsForInflation": false,
+        "reinvestReturns": true,
+        "withdrawAfterYears": null,
+        "withdrawalMode": "fixed",
+        "monthlyWithdrawal": 0,
+        "annualWithdrawalPercent": 0,
+        "taxDividends": false,
+        "taxableAssetShare": 0.5,
+        "dividendYieldPercent": 0,
+        "reinvestFreedDebtPayments": false,
+        "debtPaymentsSeparateFromContribution": false
+      },
+      "context": {
+        "brokerTotal": 100000,
+        "customAssets": {
+          "items": [
+            {
+              "id": "dep-cap",
+              "enabled": true,
+              "label": "Вклад 25% капитализация",
+              "assetKind": "deposit",
+              "value": 1000000,
+              "debt": 0,
+              "monthlyDebtPayment": 0,
+              "debtAnnualRate": 0,
+              "growsWithInflation": false,
+              "returnMode": "percent",
+              "annualReturnPercent": 25,
+              "incomeAmount": 0,
+              "incomePeriod": "monthly",
+              "generatesDividendTax": false,
+              "depositTermMonths": 12,
+              "depositOpenedAt": "2026-01-15",
+              "depositInterestMode": "monthlyCapitalized",
+              "notes": ""
+            }
+          ],
+          "otherDebts": []
+        }
+      },
+      "options": {
+        "asOf": "2026-01-15",
+        "allMonths": true
+      }
+    },
+    {
       "operation": "monteCarlo",
       "id": "seeded-baseline",
       "params": {

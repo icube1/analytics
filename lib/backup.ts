@@ -8,10 +8,24 @@ import {
 import {
   BACKUP_FORMAT_VERSION,
   LAST_BACKUP_STORAGE_KEY,
+  isAnalyticsBackup,
   type AnalyticsBackup,
 } from "./backup-types";
+import {
+  decryptAnalyticsBackup,
+  isEncryptedAnalyticsBackup,
+  type EncryptedAnalyticsBackup,
+} from "./backup-crypto";
 import { normalizeCustomAssets } from "./custom-assets";
+import {
+  readJourneyDocument,
+  writeJourneyDocument,
+} from "./journey-storage";
 import { normalizeCompoundParams } from "./normalize-compound-params";
+import {
+  readResilienceDocument,
+  writeResilienceDocument,
+} from "./resilience-storage";
 import {
   DEFAULT_DOCUMENT,
   type PortfolioDocument,
@@ -49,26 +63,29 @@ export async function exportAnalyticsBackup(): Promise<AnalyticsBackup> {
     exportedAt: new Date().toISOString(),
     portfolio,
     statements,
+    journey: readJourneyDocument() ?? undefined,
+    resilience: readResilienceDocument() ?? undefined,
   };
 }
 
-export function isAnalyticsBackup(value: unknown): value is AnalyticsBackup {
-  if (!value || typeof value !== "object") return false;
-  const backup = value as Partial<AnalyticsBackup>;
-  return (
-    backup.formatVersion === BACKUP_FORMAT_VERSION &&
-    typeof backup.exportedAt === "string" &&
-    backup.portfolio != null &&
-    Array.isArray(backup.statements)
-  );
-}
+export { isAnalyticsBackup };
 
-export async function parseBackupFile(file: File): Promise<AnalyticsBackup> {
+export async function parseBackupFile(
+  file: File,
+  passphrase?: string,
+): Promise<AnalyticsBackup> {
   let parsed: unknown;
   try {
     parsed = JSON.parse(await file.text());
   } catch {
     throw new Error("Файл не является корректным JSON");
+  }
+
+  if (isEncryptedAnalyticsBackup(parsed)) {
+    if (!passphrase) {
+      throw new Error("Для зашифрованного бэкапа нужен пароль");
+    }
+    return decryptAnalyticsBackup(parsed, passphrase);
   }
 
   if (!isAnalyticsBackup(parsed)) {
@@ -91,6 +108,12 @@ export async function importAnalyticsBackup(
 
   await writePortfolioToDb(portfolio);
   await saveAllStatementsToDb(statements);
+  if (backup.journey) {
+    writeJourneyDocument(backup.journey);
+  }
+  if (backup.resilience) {
+    writeResilienceDocument(backup.resilience);
+  }
   clearLegacyPortfolioStorage();
 }
 
@@ -99,15 +122,20 @@ function clearLegacyPortfolioStorage(): void {
   localStorage.removeItem("analytics-portfolio-v1");
 }
 
-export function downloadAnalyticsBackup(backup: AnalyticsBackup): void {
+export function downloadAnalyticsBackup(
+  backup: AnalyticsBackup | EncryptedAnalyticsBackup,
+): void {
   const blob = new Blob([JSON.stringify(backup, null, 2)], {
     type: "application/json;charset=utf-8",
   });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   const date = backup.exportedAt.slice(0, 10);
+  const encrypted = isEncryptedAnalyticsBackup(backup);
   anchor.href = url;
-  anchor.download = `analytics-backup-${date}.json`;
+  anchor.download = encrypted
+    ? `analytics-backup-${date}.enc.json`
+    : `analytics-backup-${date}.json`;
   anchor.click();
   URL.revokeObjectURL(url);
 }

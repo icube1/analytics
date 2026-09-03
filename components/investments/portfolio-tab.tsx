@@ -1,25 +1,38 @@
 "use client";
 
-import {
-  Cell,
-  Legend,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-} from "recharts";
-import { ChartMoneyTooltip } from "@/components/chart-money-tooltip";
+import { Suspense, lazy, type ReactNode } from "react";
+import { BrokerImportSummary } from "@/components/investments/broker-import-summary";
 import { BrokerReportDiffPanel } from "@/components/investments/broker-report-diff-panel";
+import { BROKER_TEXT_UPLOAD_ACCEPT } from "@/lib/broker-adapters";
 import { getEffectivePortfolioTotals, resolveCashPosition, resolveSecurityPosition } from "@/lib/broker-positions";
-import { CHART_COLORS } from "@/lib/stats";
 import { formatMoney } from "@/lib/portfolio-wealth";
 import type { BrokerBalanceSnapshot, BrokerReport } from "@/lib/portfolio-types";
+import type { BrokerUploadResult } from "@/lib/portfolio-storage";
+
+const PortfolioAllocationChart = lazy(() =>
+  import("./portfolio-allocation-chart").then((module) => ({
+    default: module.PortfolioAllocationChart,
+  })),
+);
+
+function ChartLoadingFallback() {
+  return (
+    <div className="flex min-h-[17.5rem] items-center justify-center rounded-2xl border border-zinc-200 bg-white text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+      Загрузка графика...
+    </div>
+  );
+}
 
 interface PortfolioTabProps {
   report: BrokerReport | null;
   onUpload: (file: File) => void;
   fileName: string;
   brokerSnapshots: BrokerBalanceSnapshot[];
+  lastImport?: BrokerUploadResult | null;
+  pendingConfirmation?: boolean;
+  onConfirmIncomplete?: () => void;
+  onDiscardIncomplete?: () => void;
+  connectorPanel?: ReactNode;
 }
 
 export function PortfolioTab({
@@ -27,20 +40,27 @@ export function PortfolioTab({
   onUpload,
   fileName,
   brokerSnapshots,
+  lastImport,
+  pendingConfirmation = false,
+  onConfirmIncomplete,
+  onDiscardIncomplete,
+  connectorPanel,
 }: PortfolioTabProps) {
   if (!report) {
     return (
-      <div className="rounded-2xl border border-dashed border-zinc-300 p-8 text-center dark:border-zinc-700">
+      <div className="flex flex-col gap-4">
+        <div className="rounded-2xl border border-dashed border-zinc-300 p-8 text-center dark:border-zinc-700">
         <p className="text-zinc-500 dark:text-zinc-400">
-          Загрузите отчёт брокера СберИнвестиций (HTML)
+          Загрузите отчёт брокера: HTML Сбера, CSV/TSV или XML
         </p>
         <p className="mt-2 text-xs text-zinc-400 dark:text-zinc-500">
-          Кнопка ниже или перетащите файл в окно браузера
+          Т‑Банк, ВТБ, БКС, Газпромбанк, Открытие — текстовый CSV; Альфа и Финам — XML. Двоичный Excel пока
+          не читается.
         </p>
         <label className="mt-4 inline-flex cursor-pointer rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white">
           <input
             type="file"
-            accept=".html,.htm"
+            accept={BROKER_TEXT_UPLOAD_ACCEPT}
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0];
@@ -50,6 +70,8 @@ export function PortfolioTab({
           />
           Выбрать файл
         </label>
+        </div>
+        {connectorPanel}
       </div>
     );
   }
@@ -82,7 +104,7 @@ export function PortfolioTab({
         <label className="inline-flex cursor-pointer rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-medium dark:border-zinc-700 dark:bg-zinc-900">
           <input
             type="file"
-            accept=".html,.htm"
+            accept={BROKER_TEXT_UPLOAD_ACCEPT}
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0];
@@ -120,37 +142,9 @@ export function PortfolioTab({
       </section>
 
       <div className="grid gap-4 xl:grid-cols-2">
-        <div className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
-          <h3 className="mb-4 font-semibold text-zinc-900 dark:text-zinc-100">
-            Доли в портфеле
-          </h3>
-          <ResponsiveContainer width="100%" height={280}>
-            <PieChart>
-              <Pie
-                data={allocation}
-                dataKey="value"
-                nameKey="name"
-                cx="50%"
-                cy="50%"
-                outerRadius={95}
-                innerRadius={45}
-                stroke="none"
-                paddingAngle={1}
-                activeShape={false}
-              >
-                {allocation.map((item, index) => (
-                  <Cell
-                    key={item.id}
-                    fill={CHART_COLORS[index % CHART_COLORS.length]}
-                    stroke="none"
-                  />
-                ))}
-              </Pie>
-              <Tooltip cursor={false} content={<ChartMoneyTooltip />} />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
+        <Suspense fallback={<ChartLoadingFallback />}>
+          <PortfolioAllocationChart allocation={allocation} />
+        </Suspense>
 
         <div className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
           <h3 className="mb-4 font-semibold text-zinc-900 dark:text-zinc-100">
@@ -183,6 +177,18 @@ export function PortfolioTab({
         </div>
       </div>
 
+      {lastImport && (
+        <BrokerImportSummary
+          provenance={lastImport.provenance}
+          warnings={lastImport.warnings}
+          reconciliation={lastImport.reconciliation}
+          coverage={lastImport.coverage}
+          pendingConfirmation={pendingConfirmation}
+          onConfirmIncomplete={onConfirmIncomplete}
+          onDiscardIncomplete={onDiscardIncomplete}
+        />
+      )}
+      {connectorPanel}
       <BrokerReportDiffPanel snapshots={brokerSnapshots} />
 
       <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">

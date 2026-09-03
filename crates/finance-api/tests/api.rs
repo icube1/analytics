@@ -84,6 +84,92 @@ async fn tenant_isolation_rejects_cross_household_login() {
 }
 
 #[tokio::test]
+async fn audit_trail_records_login_and_stays_tenant_scoped() {
+    let harness = TestHarness::new().await;
+    let server = TestServer::new(harness.app()).unwrap();
+    let token_a = harness
+        .login_bearer(&harness.email_a, &harness.password_a)
+        .await;
+    server
+        .put("/api/v1/portfolio")
+        .add_header("Authorization", format!("Bearer {token_a}"))
+        .add_header("idempotency-key", "audit-sync")
+        .json(&json!({ "schemaVersion": 1, "baseRevision": 0, "document": { "version": 1 } }))
+        .await
+        .assert_status_ok();
+
+    let listed = server
+        .get("/api/v1/audit-events")
+        .add_header("Authorization", format!("Bearer {token_a}"))
+        .await;
+    listed.assert_status_ok();
+    let body = listed.json::<serde_json::Value>();
+    let actions: Vec<&str> = body["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|item| item["action"].as_str().unwrap())
+        .collect();
+    assert!(actions.contains(&"auth.login"));
+    assert!(actions.contains(&"portfolio.push"));
+    let filtered = server
+        .get("/api/v1/audit-events?action=portfolio.push&limit=1")
+        .add_header("Authorization", format!("Bearer {token_a}"))
+        .await;
+    filtered.assert_status_ok();
+    let filtered_body = filtered.json::<serde_json::Value>();
+    assert_eq!(filtered_body["items"].as_array().unwrap().len(), 1);
+    assert_eq!(filtered_body["items"][0]["action"], "portfolio.push");
+    if let Some(cursor) = filtered_body["nextCursor"].as_str() {
+        let page = server
+            .get(&format!(
+                "/api/v1/audit-events?action=portfolio.push&limit=1&before={cursor}"
+            ))
+            .add_header("Authorization", format!("Bearer {token_a}"))
+            .await;
+        page.assert_status_ok();
+        assert!(page.json::<serde_json::Value>()["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|item| item["id"] != cursor));
+    }
+    assert!(body["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|item| item.get("password").is_none() && item["metadata"].get("document").is_none()));
+
+    server
+        .post("/api/v1/auth/login")
+        .json(&json!({
+            "email": harness.email_a,
+            "password": "wrong-password",
+            "clientKind": "mobile"
+        }))
+        .await
+        .assert_status(StatusCode::UNAUTHORIZED);
+
+    let token_b = harness
+        .login_bearer(&harness.email_b, &harness.password_b)
+        .await;
+    let other = server
+        .get("/api/v1/audit-events")
+        .add_header("Authorization", format!("Bearer {token_b}"))
+        .await;
+    other.assert_status_ok();
+    let other_body = other.json::<serde_json::Value>();
+    let other_actions: Vec<&str> = other_body["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|item| item["action"].as_str().unwrap())
+        .collect();
+    assert!(other_actions.contains(&"auth.login"));
+    assert!(!other_actions.contains(&"portfolio.push"));
+}
+
+#[tokio::test]
 async fn missing_session_is_unauthorized() {
     let harness = TestHarness::new().await;
     let server = TestServer::new(harness.app()).unwrap();
@@ -102,6 +188,68 @@ async fn invalid_password_is_unauthorized() {
         .json(&json!({ "email": harness.email_a, "password": "wrong" }))
         .await
         .assert_status(StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn me_and_usage_are_tenant_scoped_without_payloads() {
+    let harness = TestHarness::new().await;
+    let server = TestServer::new(harness.app()).unwrap();
+    let token_a = harness
+        .login_bearer(&harness.email_a, &harness.password_a)
+        .await;
+    let me_a = server
+        .get("/api/v1/auth/me")
+        .add_header("Authorization", format!("Bearer {token_a}"))
+        .await;
+    me_a.assert_status_ok();
+    let me_body = me_a.json::<serde_json::Value>();
+    assert_eq!(me_body["plan"], "pro");
+    assert!(me_body["features"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|feature| feature == "finance.heavy"));
+
+    server
+        .post("/api/v1/jobs")
+        .add_header("Authorization", format!("Bearer {token_a}"))
+        .json(&sample_resilience_payload())
+        .await
+        .assert_status(StatusCode::ACCEPTED);
+
+    let usage_a = server
+        .get("/api/v1/usage-summary")
+        .add_header("Authorization", format!("Bearer {token_a}"))
+        .await;
+    usage_a.assert_status_ok();
+    let usage_body = usage_a.json::<serde_json::Value>();
+    assert!(usage_body["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|item| item["kind"] == "resilience.evaluate" && item["count"] == 1));
+    assert!(serde_json::to_string(&usage_body)
+        .unwrap()
+        .contains("resilience.evaluate"));
+    assert!(!serde_json::to_string(&usage_body)
+        .unwrap()
+        .contains("liquidAssets"));
+
+    let token_b = harness
+        .login_bearer(&harness.email_b, &harness.password_b)
+        .await;
+    let me_b = server
+        .get("/api/v1/auth/me")
+        .add_header("Authorization", format!("Bearer {token_b}"))
+        .await
+        .json::<serde_json::Value>();
+    assert_eq!(me_b["plan"], "free");
+    let usage_b = server
+        .get("/api/v1/usage-summary")
+        .add_header("Authorization", format!("Bearer {token_b}"))
+        .await
+        .json::<serde_json::Value>();
+    assert!(usage_b["items"].as_array().unwrap().is_empty());
 }
 
 #[tokio::test]
@@ -180,6 +328,142 @@ async fn billing_webhook_grants_entitlement() {
         .json(&sample_resilience_payload())
         .await
         .assert_status(StatusCode::ACCEPTED);
+}
+
+#[tokio::test]
+async fn finance_evaluate_compound_does_not_need_heavy_entitlement() {
+    let harness = TestHarness::new().await;
+    let server = TestServer::new(harness.app()).unwrap();
+    let token = harness
+        .login_bearer(&harness.email_b, &harness.password_b)
+        .await;
+    let create = server
+        .post("/api/v1/jobs")
+        .add_header("Authorization", format!("Bearer {token}"))
+        .json(&sample_finance_compound_payload())
+        .await;
+    create.assert_status(StatusCode::ACCEPTED);
+    assert_eq!(create.json::<serde_json::Value>()["cacheHit"], false);
+    let job_id = create.json::<serde_json::Value>()["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    wait_for_job(&server, &token, &job_id).await;
+
+    let cached = server
+        .post("/api/v1/jobs")
+        .add_header("Authorization", format!("Bearer {token}"))
+        .json(&sample_finance_compound_payload())
+        .await;
+    cached.assert_status(StatusCode::ACCEPTED);
+    assert_eq!(cached.json::<serde_json::Value>()["cacheHit"], true);
+    assert_eq!(cached.json::<serde_json::Value>()["status"], "completed");
+}
+
+#[tokio::test]
+async fn finance_evaluate_monte_carlo_requires_heavy_entitlement() {
+    let harness = TestHarness::new().await;
+    let server = TestServer::new(harness.app()).unwrap();
+    let token_b = harness
+        .login_bearer(&harness.email_b, &harness.password_b)
+        .await;
+    server
+        .post("/api/v1/jobs")
+        .add_header("Authorization", format!("Bearer {token_b}"))
+        .json(&sample_finance_monte_carlo_payload())
+        .await
+        .assert_status(StatusCode::FORBIDDEN);
+
+    let token_a = harness
+        .login_bearer(&harness.email_a, &harness.password_a)
+        .await;
+    let create = server
+        .post("/api/v1/jobs")
+        .add_header("Authorization", format!("Bearer {token_a}"))
+        .json(&sample_finance_monte_carlo_payload())
+        .await;
+    create.assert_status(StatusCode::ACCEPTED);
+    let job_id = create.json::<serde_json::Value>()["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    wait_for_job(&server, &token_a, &job_id).await;
+}
+
+async fn wait_for_job(server: &TestServer, token: &str, job_id: &str) {
+    for _ in 0..40 {
+        let path = format!("/api/v1/jobs/{job_id}");
+        let status = server
+            .get(&path)
+            .add_header("Authorization", format!("Bearer {token}"))
+            .await;
+        status.assert_status_ok();
+        if status.json::<serde_json::Value>()["status"] == "completed" {
+            return;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+    panic!("job {job_id} did not complete in time");
+}
+
+fn sample_finance_compound_payload() -> serde_json::Value {
+    json!({
+        "kind": "finance.evaluate",
+        "payload": {
+            "schemaVersion": 1,
+            "cases": [{
+                "operation": "compoundProjection",
+                "id": "job-compound",
+                "params": sample_compound_params(),
+                "options": { "asOf": "2026-01-15", "allMonths": false }
+            }]
+        }
+    })
+}
+
+fn sample_finance_monte_carlo_payload() -> serde_json::Value {
+    json!({
+        "kind": "finance.evaluate",
+        "payload": {
+            "schemaVersion": 1,
+            "cases": [{
+                "operation": "monteCarlo",
+                "id": "job-mc",
+                "params": sample_compound_params(),
+                "options": {
+                    "simulations": 8,
+                    "volatilityPercent": 10,
+                    "seed": 3,
+                    "asOf": "2026-01-15"
+                }
+            }]
+        }
+    })
+}
+
+fn sample_compound_params() -> serde_json::Value {
+    json!({
+        "initialCapital": 100_000,
+        "monthlyContribution": 10_000,
+        "annualReturnPercent": 8,
+        "inflationPercent": 4,
+        "years": 1,
+        "taxOnProfitPercent": 0,
+        "contributionGrowthPercent": 0,
+        "compoundFrequency": "monthly",
+        "monthlyRateMethod": "effective",
+        "adjustContributionsForInflation": false,
+        "reinvestReturns": true,
+        "withdrawAfterYears": null,
+        "withdrawalMode": "fixed",
+        "monthlyWithdrawal": 0,
+        "annualWithdrawalPercent": 0,
+        "taxDividends": false,
+        "taxableAssetShare": 0.5,
+        "dividendYieldPercent": 9.5,
+        "reinvestFreedDebtPayments": false,
+        "debtPaymentsSeparateFromContribution": false
+    })
 }
 
 fn sample_resilience_payload() -> serde_json::Value {

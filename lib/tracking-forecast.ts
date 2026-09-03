@@ -1,5 +1,11 @@
-import { calendarMonthFromPlanMonth, formatCalendarMonth } from "./broker-deposits";
+import {
+  calendarMonthFromPlanMonth,
+  formatCalendarMonth,
+  formatCivilMonthLabel,
+  shiftCalendarMonth,
+} from "./broker-deposits";
 import { calculateCompoundInterest } from "./compound-interest";
+import type { CompoundResult } from "./compound-interest/types";
 import {
   resolvePlanParams,
   resolvePlanPointCalendarMonth,
@@ -82,11 +88,7 @@ export interface LiveForecastResult {
 }
 
 function formatMonthLabel(calendarMonth: string): string {
-  const [year, month] = calendarMonth.split("-").map(Number);
-  return new Date(year, month - 1, 1).toLocaleDateString("ru-RU", {
-    month: "short",
-    year: "2-digit",
-  });
+  return formatCivilMonthLabel(calendarMonth);
 }
 
 /**
@@ -98,14 +100,10 @@ export function averageRecentBrokerDeposits(
   asOf: Date = new Date(),
   window = 3,
 ): { average: number; monthsUsed: number } | null {
-  const months: string[] = [];
-  for (let i = 0; i < 12; i++) {
-    const d = new Date(asOf.getFullYear(), asOf.getMonth() - i, 1);
-    months.push(formatCalendarMonth(d));
-  }
-
+  const startMonth = formatCalendarMonth(asOf);
   const samples: number[] = [];
-  for (const month of months) {
+  for (let i = 0; i < 12; i++) {
+    const month = shiftCalendarMonth(startMonth, -i);
     const amount = depositsByMonth.get(month) ?? 0;
     if (amount > 0) {
       samples.push(amount);
@@ -192,9 +190,6 @@ export function buildLiveTrackingForecast(input: {
   asOf?: Date;
 }): LiveForecastResult {
   const asOf = input.asOf ?? new Date();
-  const startMonth = formatCalendarMonth(asOf);
-
-  const factAvg = averageRecentBrokerDeposits(input.depositsByMonth, asOf, 3);
   const suggestedFromScenario = resolvePlanParams(input.basePlan).monthlyContribution;
   const monthlyContribution =
     input.monthlyContribution != null && Number.isFinite(input.monthlyContribution)
@@ -215,13 +210,39 @@ export function buildLiveTrackingForecast(input: {
       customAssets: input.currentCustomAssets,
       brokerTotal: input.currentBrokerTotal,
     },
-    { allMonths: true },
+    { allMonths: true, asOf },
   );
 
-  const startIso = asOf.toISOString();
+  return liveForecastFromProjection({
+    result,
+    basePlan: input.basePlan,
+    currentGrandTotal: input.currentGrandTotal,
+    horizonMonths: input.horizonMonths,
+    monthlyContribution,
+    depositsByMonth: input.depositsByMonth,
+    asOf,
+    params,
+  });
+}
+
+export function mapLiveForecastFromProjection(input: {
+  result: CompoundResult;
+  asOf: Date;
+  horizonMonths: number;
+  currentGrandTotal: number;
+  monthlyContribution: number;
+  suggestedFromScenario: number;
+  depositsByMonth: Map<string, number>;
+  withdrawAfterYears: number | null;
+  withdrawCalendarMonth: string | null;
+  basePlanId: string;
+  basePlanName: string;
+}): LiveForecastResult {
+  const startMonth = formatCalendarMonth(input.asOf);
+  const factAvg = averageRecentBrokerDeposits(input.depositsByMonth, input.asOf, 3);
   const points: LiveForecastPoint[] = [];
 
-  const startPoint = result.points.find((point) => point.month === 0);
+  const startPoint = input.result.points.find((point) => point.month === 0);
   points.push({
     calendarMonth: startMonth,
     label: formatMonthLabel(startMonth),
@@ -237,9 +258,9 @@ export function buildLiveTrackingForecast(input: {
     isStart: true,
   });
 
-  for (const point of result.points) {
+  for (const point of input.result.points) {
     if (point.month <= 0 || point.month > input.horizonMonths) continue;
-    const calendarMonth = calendarMonthFromPlanMonth(startIso, point.month);
+    const calendarMonth = shiftCalendarMonth(startMonth, point.month);
     points.push({
       calendarMonth,
       label: formatMonthLabel(calendarMonth),
@@ -258,14 +279,39 @@ export function buildLiveTrackingForecast(input: {
 
   return {
     points,
-    monthlyContribution,
+    monthlyContribution: input.monthlyContribution,
     suggestedFromFact: factAvg?.average ?? null,
     factMonthsUsed: factAvg?.monthsUsed ?? 0,
-    suggestedFromScenario,
+    suggestedFromScenario: input.suggestedFromScenario,
+    basePlanId: input.basePlanId,
+    basePlanName: input.basePlanName,
+    horizonMonths: input.horizonMonths,
+    withdrawAfterYears: input.withdrawAfterYears,
+    withdrawCalendarMonth: input.withdrawCalendarMonth,
+  };
+}
+
+export function liveForecastFromProjection(input: {
+  result: CompoundResult;
+  basePlan: SavedForecastPlan;
+  currentGrandTotal: number;
+  horizonMonths: number;
+  monthlyContribution: number;
+  depositsByMonth: Map<string, number>;
+  asOf: Date;
+  params: CompoundParams;
+}): LiveForecastResult {
+  return mapLiveForecastFromProjection({
+    result: input.result,
+    asOf: input.asOf,
+    horizonMonths: input.horizonMonths,
+    currentGrandTotal: input.currentGrandTotal,
+    monthlyContribution: input.monthlyContribution,
+    suggestedFromScenario: resolvePlanParams(input.basePlan).monthlyContribution,
+    depositsByMonth: input.depositsByMonth,
+    withdrawAfterYears: input.params.withdrawAfterYears,
+    withdrawCalendarMonth: scenarioWithdrawCalendarMonth(input.basePlan),
     basePlanId: input.basePlan.id,
     basePlanName: input.basePlan.name,
-    horizonMonths: input.horizonMonths,
-    withdrawAfterYears: params.withdrawAfterYears,
-    withdrawCalendarMonth: scenarioWithdrawCalendarMonth(input.basePlan),
-  };
+  });
 }

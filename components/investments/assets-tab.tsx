@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { createCustomAsset, createTermDeposit, getAssetNetValue } from "@/lib/custom-assets";
 import { randomId } from "@/lib/random-id";
-import { amortizeDebtMonth, estimatePayoffMonths, getMonthlyDebtService } from "@/lib/debt-amortization";
+import { amortizeDebtMonthExact, estimatePayoffMonths, getMonthlyDebtService } from "@/lib/debt-amortization";
 import { currentPaymentPeriodDays } from "@/lib/debt-daycount";
 import { formatMoney, getTotalWealth } from "@/lib/portfolio-wealth";
 import {
@@ -273,7 +273,7 @@ function AssetCard({
       : null;
   const debtPaymentSplit =
     item.debt > 0 && item.monthlyDebtPayment > 0
-      ? amortizeDebtMonth(item.debt, item.monthlyDebtPayment, item.debtAnnualRate, {
+      ? amortizeDebtMonthExact(item.debt, item.monthlyDebtPayment, item.debtAnnualRate, {
           periodDays,
         })
       : null;
@@ -530,7 +530,7 @@ function DebtCard({
   );
   const paymentSplit =
     debt.balance > 0 && debt.monthlyPayment > 0
-      ? amortizeDebtMonth(debt.balance, debt.monthlyPayment, debt.annualInterestRate, {
+      ? amortizeDebtMonthExact(debt.balance, debt.monthlyPayment, debt.annualInterestRate, {
           periodDays,
         })
       : null;

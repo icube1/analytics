@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<alfa_broker_report version="1" broker="alfa-invest">
+  <meta periodStart="01.01.2025" periodEnd="31.01.2025" createdAt="01.02.2025" investor="Тестовый Инвестор" contract="SANITIZED-CONTRACT"/>
+  <security>
+    <name>Example Corp</name>
+    <isin>RU000A0JX0J2</isin>
+    <currency>RUB</currency>
+    <quantityEnd>4</quantityEnd>
+    <priceEnd>250</priceEnd>
+    <valueEnd>1000</valueEnd>
+  </security>
+  <cash>
+    <platform>Alfa RUB</platform>
+    <currency>RUB</currency>
+    <end>80</end>
+  </cash>
+  <trade>
+    <date>10.01.2025</date>
+    <settlementDate>12.01.2025</settlementDate>
+    <ticker>EXMP</ticker>
+    <side>Покупка</side>
+    <quantity>4</quantity>
+    <price>250</price>
+    <amount>1000</amount>
+    <brokerFee>2</brokerFee>
+  </trade>
+</alfa_broker_report>

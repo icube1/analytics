@@ -11,7 +11,7 @@ use crate::models::import::{
     statement_metadata, CreateStatementRequest, StatementContentResponse, StatementListResponse,
     StatementMetadataResponse,
 };
-use crate::repositories::StatementRepository;
+use crate::repositories::{StatementRepository, ACTION_STATEMENTS_CREATE};
 use crate::state::AppState;
 
 pub fn router() -> Router<AppState> {
@@ -70,6 +70,18 @@ async fn create_statement(
             &metadata_json,
         )
         .await?;
+    state
+        .audit()
+        .record_best_effort(
+            Some(auth.context.household_id),
+            Some(auth.context.user_id),
+            ACTION_STATEMENTS_CREATE,
+            serde_json::json!({
+                "sourceType": "csv",
+                "byteSize": record.byte_size,
+            }),
+        )
+        .await;
     Ok((StatusCode::CREATED, Json(statement_metadata(&record))))
 }
 

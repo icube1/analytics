@@ -1,17 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Brush,
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-import { ChartMoneyTooltip } from "@/components/chart-money-tooltip";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatMoney } from "@/lib/portfolio-wealth";
 import type {
   BrokerBalanceSnapshot,
@@ -19,6 +8,7 @@ import type {
   DebtBalanceEntry,
   SavedForecastPlan,
 } from "@/lib/portfolio-types";
+import { DEFAULT_COMPOUND_PARAMS } from "@/lib/portfolio-types";
 import { CHART_COLORS } from "@/lib/stats";
 import {
   aggregateBrokerDepositsByMonth,
@@ -29,13 +19,30 @@ import {
 } from "@/lib/tracking";
 import { resolvePlanParams } from "@/lib/forecast-plans";
 import { getMonthlyDebtService } from "@/lib/debt-amortization";
+import { useLiveTrackingWorker } from "@/lib/finance-worker/use-live-tracking-worker";
 import {
   FORECAST_HORIZONS,
   averageRecentBrokerDeposits,
+  buildHybridForecastParams,
   buildLiveTrackingForecast,
   resolveForecastHorizonMonths,
+  scenarioWithdrawCalendarMonth,
   type ForecastHorizonId,
 } from "@/lib/tracking-forecast";
+
+const TrackingForecastCharts = lazy(() =>
+  import("./tracking-forecast-charts").then((module) => ({
+    default: module.TrackingForecastCharts,
+  })),
+);
+
+function ChartLoadingFallback() {
+  return (
+    <div className="flex min-h-[20rem] items-center justify-center text-sm text-zinc-500 dark:text-zinc-400">
+      Загрузка графика...
+    </div>
+  );
+}
 
 interface TrackingTabProps {
   forecastPlans: SavedForecastPlan[];
@@ -127,6 +134,14 @@ export function TrackingTab({
   const [forecastContribution, setForecastContribution] = useState<number | null>(
     null,
   );
+  const [forecastAsOf] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  });
+  const forecastAsOfDate = useMemo(() => {
+    const [year, month, day] = forecastAsOf.split("-").map(Number);
+    return new Date(year, month - 1, day);
+  }, [forecastAsOf]);
   const [brushRange, setBrushRange] = useState<{
     startIndex: number;
     endIndex: number;
@@ -183,13 +198,14 @@ export function TrackingTab({
   const forecastHorizonMonths = resolveForecastHorizonMonths(
     forecastHorizonId,
     basePlan,
+    forecastAsOfDate,
   );
 
   const currentGrandTotal = currentBrokerTotal + currentCustomAssetsTotal;
 
   const factAverage = useMemo(
-    () => averageRecentBrokerDeposits(depositsByMonth, new Date(), 3),
-    [depositsByMonth],
+    () => averageRecentBrokerDeposits(depositsByMonth, forecastAsOfDate, 3),
+    [depositsByMonth, forecastAsOfDate],
   );
 
   const monthlyDebtService = useMemo(
@@ -211,7 +227,65 @@ export function TrackingTab({
   const effectiveContribution =
     forecastContribution != null ? forecastContribution : scenarioContribution;
 
-  const liveForecast = useMemo(() => {
+  const liveForecastEnabled = Boolean(basePlan && currentGrandTotal > 0);
+  const hybridParams = useMemo(() => {
+    if (!basePlan) return DEFAULT_COMPOUND_PARAMS;
+    return buildHybridForecastParams(
+      basePlan,
+      effectiveContribution,
+      forecastHorizonMonths,
+      currentGrandTotal,
+      forecastAsOfDate,
+    );
+  }, [
+    basePlan,
+    effectiveContribution,
+    forecastHorizonMonths,
+    currentGrandTotal,
+    forecastAsOfDate,
+  ]);
+  const forecastContext = useMemo(
+    () => ({
+      customAssets: currentCustomAssets,
+      brokerTotal: currentBrokerTotal,
+    }),
+    [currentCustomAssets, currentBrokerTotal],
+  );
+  const liveTrackingInput = useMemo(
+    () => ({
+      horizonMonths: forecastHorizonMonths,
+      currentGrandTotal,
+      monthlyContribution: effectiveContribution,
+      suggestedFromScenario: scenarioContribution,
+      depositsByMonth: Object.fromEntries(depositsByMonth),
+      withdrawCalendarMonth: basePlan
+        ? scenarioWithdrawCalendarMonth(basePlan)
+        : null,
+      withdrawAfterYears: hybridParams.withdrawAfterYears,
+      basePlanId: basePlan?.id ?? "",
+      basePlanName: basePlan?.name ?? "",
+    }),
+    [
+      forecastHorizonMonths,
+      currentGrandTotal,
+      effectiveContribution,
+      scenarioContribution,
+      depositsByMonth,
+      basePlan,
+      hybridParams.withdrawAfterYears,
+    ],
+  );
+  const {
+    result: workerForecast,
+    error: liveForecastError,
+  } = useLiveTrackingWorker({
+    enabled: liveForecastEnabled,
+    params: hybridParams,
+    context: forecastContext,
+    asOf: forecastAsOf,
+    tracking: liveTrackingInput,
+  });
+  const [seedForecast] = useState(() => {
     if (!basePlan || currentGrandTotal <= 0) return null;
     return buildLiveTrackingForecast({
       basePlan,
@@ -221,16 +295,12 @@ export function TrackingTab({
       depositsByMonth,
       horizonMonths: forecastHorizonMonths,
       monthlyContribution: effectiveContribution,
+      asOf: forecastAsOfDate,
     });
-  }, [
-    basePlan,
-    currentBrokerTotal,
-    currentCustomAssets,
-    currentGrandTotal,
-    depositsByMonth,
-    forecastHorizonMonths,
-    effectiveContribution,
-  ]);
+  });
+  const lastForecastRef = useRef(seedForecast);
+  if (workerForecast) lastForecastRef.current = workerForecast;
+  const liveForecast = workerForecast ?? lastForecastRef.current;
 
   const rows = useMemo(
     () =>
@@ -360,7 +430,7 @@ export function TrackingTab({
         </div>
       ) : (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
-          Загрузите отчёт Сбера на вкладке «Портфель Сбера» — баланс и
+          Загрузите отчёт брокера на вкладке «Портфель» — баланс и
           пополнения подтянутся автоматически.
         </div>
       )}
@@ -491,6 +561,14 @@ export function TrackingTab({
           })}
         </div>
 
+        {liveForecastError && (
+          <p
+            className="mb-3 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200"
+            role="alert"
+          >
+            Живой прогноз временно недоступен: {liveForecastError}
+          </p>
+        )}
         {liveForecast && (
           <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-amber-200 bg-amber-50/60 px-3 py-2 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
             <label className="flex items-center gap-1.5">
@@ -622,114 +700,23 @@ export function TrackingTab({
           </div>
         )}
 
-        <div className="h-80 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart
-              data={visibleChartData}
-              margin={{ top: 8, right: 12, left: 4, bottom: 4 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" className="stroke-zinc-200 dark:stroke-zinc-700" />
-              <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-              <YAxis
-                domain={yDomain}
-                allowDataOverflow
-                tick={{ fontSize: 11 }}
-                tickFormatter={(v) =>
-                  v >= 1_000_000
-                    ? `${(v / 1_000_000).toFixed(1)}M`
-                    : v >= 1000
-                      ? `${Math.round(v / 1000)}k`
-                      : String(v)
-                }
-              />
-              <Tooltip content={<ChartMoneyTooltip />} />
-              <Line
-                type="monotone"
-                dataKey="fact"
-                name="Факт"
-                stroke="#10b981"
-                strokeWidth={2.5}
-                dot={{ fill: "#10b981", r: 3, strokeWidth: 0 }}
-                activeDot={{ r: 5 }}
-                connectNulls={false}
-                isAnimationActive={false}
-              />
-              {showLiveForecast && liveForecast && (
-                <Line
-                  type="monotone"
-                  dataKey="liveForecast"
-                  name="Прогноз"
-                  stroke="#f59e0b"
-                  strokeWidth={2.5}
-                  dot={false}
-                  connectNulls
-                  strokeDasharray="4 3"
-                  isAnimationActive={false}
-                />
-              )}
-              {activePlanIds.map((planId) => {
-                const plan = forecastPlans.find((p) => p.id === planId);
-                if (!plan) return null;
-                return (
-                  <Line
-                    key={planId}
-                    type="monotone"
-                    dataKey={`plan_${planId}`}
-                    name={plan.name}
-                    stroke={planColors.get(planId)}
-                    strokeWidth={2}
-                    dot={false}
-                    connectNulls
-                    strokeDasharray="6 4"
-                    isAnimationActive={false}
-                  />
-                );
-              })}
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-
-        {chartData.length > 1 && (
-          <div className="mt-2 h-14 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart
-                data={chartData}
-                margin={{ top: 0, right: 12, left: 4, bottom: 0 }}
-              >
-                <XAxis dataKey="label" hide />
-                <YAxis hide domain={["dataMin", "dataMax"]} />
-                <Line
-                  type="monotone"
-                  dataKey="fact"
-                  stroke="#10b981"
-                  strokeWidth={1}
-                  dot={false}
-                  connectNulls={false}
-                  isAnimationActive={false}
-                />
-                <Brush
-                  dataKey="label"
-                  height={24}
-                  stroke="#6366f1"
-                  fill="rgba(99, 102, 241, 0.08)"
-                  travellerWidth={10}
-                  startIndex={activeBrushRange.startIndex}
-                  endIndex={activeBrushRange.endIndex}
-                  onChange={(range) => {
-                    if (range.startIndex == null || range.endIndex == null) {
-                      return;
-                    }
-                    setBrushRange({
-                      startIndex: range.startIndex,
-                      endIndex: range.endIndex,
-                    });
-                    setActivePreset("custom");
-                  }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        )}
+        <Suspense fallback={<ChartLoadingFallback />}>
+          <TrackingForecastCharts
+            chartData={chartData}
+            visibleChartData={visibleChartData}
+            yDomain={yDomain}
+            showLiveForecast={showLiveForecast}
+            liveForecast={liveForecast}
+            activePlanIds={activePlanIds}
+            forecastPlans={forecastPlans}
+            planColors={planColors}
+            brushRange={activeBrushRange}
+            onBrushChange={(range) => {
+              setBrushRange(range);
+              setActivePreset("custom");
+            }}
+          />
+        </Suspense>
         <p className="mt-1 text-[11px] text-zinc-400">
           Кнопки — быстрый период · ползунки внизу — произвольный диапазон
         </p>

@@ -17,7 +17,7 @@ pub struct StressScenarioResult {
 
 #[must_use]
 pub fn run_stress_scenarios(input: &ResilienceInput) -> Vec<StressScenarioResult> {
-    vec![
+    let mut scenarios = vec![
         income_loss(input, 1, "income-loss-1m", "One-month income interruption"),
         income_loss(
             input,
@@ -28,7 +28,12 @@ pub fn run_stress_scenarios(input: &ResilienceInput) -> Vec<StressScenarioResult
         income_loss(input, 6, "income-loss-6m", "Six-month income interruption"),
         unexpected_expense(input),
         income_loss_with_debt(input),
-    ]
+        family_care_shock(input),
+    ];
+    if input.household.has_secondary_household_income {
+        scenarios.push(partner_income_loss(input));
+    }
+    scenarios
 }
 
 fn income_loss(input: &ResilienceInput, months: u8, id: &str, label: &str) -> StressScenarioResult {
@@ -105,6 +110,67 @@ fn income_loss_with_debt(input: &ResilienceInput) -> StressScenarioResult {
     StressScenarioResult {
         id: "income-loss-with-debt".to_owned(),
         label: "Income loss with ongoing debt payments".to_owned(),
+        months_tested: months,
+        survivable,
+        shortfall,
+        remaining_liquid: remaining.max(0.0),
+        summary,
+    }
+}
+
+fn family_care_shock(input: &ResilienceInput) -> StressScenarioResult {
+    let dependents = input.household.dependent_count.min(4);
+    let mandatory = input.mandatory_monthly_expenses.max(0.0);
+    let months: u8 = 2;
+    let shock = mandatory * (0.5 + 0.35 * f64::from(dependents));
+    let remaining = input.liquid_assets - shock;
+    let cushion = mandatory * 0.5;
+    let survivable = remaining >= cushion;
+    let shortfall = if survivable {
+        0.0
+    } else {
+        (cushion - remaining).max(0.0)
+    };
+    let summary = if survivable {
+        format!(
+            "A two-month family care shock of about {shock:.0} leaves a half-month operational cushion."
+        )
+    } else {
+        format!(
+            "A two-month family care shock of about {shock:.0} would erode the operational buffer below a half-month cushion."
+        )
+    };
+    StressScenarioResult {
+        id: "family-care-shock".to_owned(),
+        label: "Family care or medical shock".to_owned(),
+        months_tested: months,
+        survivable,
+        shortfall,
+        remaining_liquid: remaining.max(0.0),
+        summary,
+    }
+}
+
+fn partner_income_loss(input: &ResilienceInput) -> StressScenarioResult {
+    let months: u8 = 3;
+    let mandatory = input.mandatory_monthly_expenses.max(0.0);
+    let uncovered = mandatory * 0.5;
+    let burn = uncovered * f64::from(months);
+    let remaining = input.liquid_assets - burn;
+    let survivable = remaining >= 0.0;
+    let shortfall = (-remaining).max(0.0);
+    let summary = if survivable {
+        format!(
+            "If one household income stops, liquid assets cover {months} months of the uncovered half of mandatory expenses."
+        )
+    } else {
+        format!(
+            "Losing one of two household incomes for {months} months would require about {shortfall:.0} more liquidity."
+        )
+    };
+    StressScenarioResult {
+        id: "partner-income-loss".to_owned(),
+        label: "Partner or second income interruption".to_owned(),
         months_tested: months,
         survivable,
         shortfall,

@@ -26,6 +26,7 @@ const nextConfig: NextConfig = {
   outputFileTracingExcludes: {
     "*": STANDALONE_TRACE_EXCLUDES,
   },
+  serverExternalPackages: ["linkedom"],
 };
 
 export default nextConfig;

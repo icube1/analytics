@@ -12,8 +12,15 @@ import {
   savePortfolioDocument,
   addForecastPlan,
   removeForecastPlan,
-  uploadBrokerReport,
+  parseBrokerReportFile,
+  commitBrokerUploadResult,
+  brokerUploadResultFromConnector,
+  type BrokerUploadResult,
 } from "@/lib/portfolio-storage";
+import { assessBrokerImportCompleteness } from "@/lib/broker-adapters";
+import { TbankConnectorPanel } from "@/components/investments/tbank-connector-panel";
+import type { BrokerConnectorSyncResult } from "@/lib/broker-connectors";
+import { BROKER_TEXT_UPLOAD_EXTENSIONS } from "@/lib/broker-adapters";
 import { FileDropOverlay } from "@/components/file-drop-overlay";
 import { usePageFileDrop } from "@/lib/use-page-file-drop";
 import { getTotalWealth } from "@/lib/portfolio-wealth";
@@ -57,13 +64,13 @@ function TabLoadingFallback() {
 
 const tabs: { id: TabId; label: string }[] = [
   { id: "summary", label: "Сводка" },
-  { id: "portfolio", label: "Портфель Сбера" },
+  { id: "portfolio", label: "Портфель" },
   { id: "assets", label: "Другие активы" },
   { id: "calculator", label: "Сложный процент" },
   { id: "tracking", label: "Трекинг" },
 ];
 
-const BROKER_HTML_ACCEPT = [".html", ".htm"];
+const BROKER_UPLOAD_ACCEPT = [...BROKER_TEXT_UPLOAD_EXTENSIONS];
 
 export function InvestmentsDashboard() {
   const [activeTab, setActiveTab] = useState<TabId>("summary");
@@ -84,6 +91,10 @@ export function InvestmentsDashboard() {
   const [debtBalanceHistory, setDebtBalanceHistory] = useState<
     DebtBalanceEntry[]
   >([]);
+  const [lastImport, setLastImport] = useState<BrokerUploadResult | null>(null);
+  const [pendingImport, setPendingImport] = useState<BrokerUploadResult | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>("idle");
@@ -192,25 +203,98 @@ export function InvestmentsDashboard() {
     [persist],
   );
 
-  const handleUpload = useCallback(async (file: File) => {
+  const applyCommittedImport = useCallback(async (data: BrokerUploadResult) => {
+    setReport(data.report);
+    setFileName(data.fileName);
+    setLastImport(data);
+    setPendingImport(null);
+    const doc = await fetchPortfolioDocument();
+    setBrokerSnapshots(doc.brokerSnapshots);
+    setDebtBalanceHistory(doc.debtBalanceHistory ?? []);
+    setLastSavedAt(doc.updatedAt);
+    setSaveState("saved");
+    setError(null);
+  }, []);
+
+  const handleUpload = useCallback(
+    async (file: File) => {
+      setSaveState("saving");
+      try {
+        const parsed = await parseBrokerReportFile(file);
+        setLastImport(parsed);
+        const completeness = assessBrokerImportCompleteness(parsed);
+        if (completeness.complete) {
+          const data = await commitBrokerUploadResult(parsed);
+          await applyCommittedImport(data);
+          return;
+        }
+        setPendingImport(parsed);
+        setReport(parsed.report);
+        setFileName(parsed.fileName);
+        setSaveState("idle");
+        setError(null);
+      } catch (err) {
+        setSaveState("error");
+        setError(
+          err instanceof Error ? err.message : "Не удалось сохранить отчёт",
+        );
+      }
+    },
+    [applyCommittedImport],
+  );
+
+  const handleConfirmIncompleteImport = useCallback(async () => {
+    if (!pendingImport) return;
     setSaveState("saving");
     try {
-      const data = await uploadBrokerReport(file);
-      setReport(data.report);
-      setFileName(data.fileName);
-      const doc = await fetchPortfolioDocument();
-      setBrokerSnapshots(doc.brokerSnapshots);
-      setDebtBalanceHistory(doc.debtBalanceHistory ?? []);
-      setLastSavedAt(doc.updatedAt);
-      setSaveState("saved");
-      setError(null);
+      const data = await commitBrokerUploadResult(pendingImport);
+      await applyCommittedImport(data);
     } catch (err) {
       setSaveState("error");
       setError(
         err instanceof Error ? err.message : "Не удалось сохранить отчёт",
       );
     }
+  }, [pendingImport, applyCommittedImport]);
+
+  const handleDiscardIncompleteImport = useCallback(async () => {
+    setPendingImport(null);
+    setLastImport(null);
+    const doc = await fetchPortfolioDocument();
+    setReport(doc.brokerReport);
+    setFileName(doc.lastBrokerFileName);
+    setBrokerSnapshots(doc.brokerSnapshots);
+    setSaveState("idle");
+    setError(null);
   }, []);
+
+  const handleConnectorSync = useCallback(
+    async (result: BrokerConnectorSyncResult) => {
+      setSaveState("saving");
+      try {
+        const parsed = brokerUploadResultFromConnector(result);
+        setLastImport(parsed);
+        const completeness = assessBrokerImportCompleteness(parsed);
+        if (!completeness.complete) {
+          setPendingImport(parsed);
+          setReport(parsed.report);
+          setFileName(parsed.fileName);
+          setSaveState("idle");
+          setError(null);
+          return;
+        }
+        const data = await commitBrokerUploadResult(parsed);
+        await applyCommittedImport(data);
+      } catch (err) {
+        setSaveState("error");
+        setError(
+          err instanceof Error ? err.message : "Не удалось сохранить снимок Т‑Банка",
+        );
+        throw err;
+      }
+    },
+    [applyCommittedImport],
+  );
 
   const handleSavePlan = useCallback(async (plan: SavedForecastPlan) => {
     setSaveState("saving");
@@ -278,7 +362,7 @@ export function InvestmentsDashboard() {
 
   const { isDragging: isBrokerDragging } = usePageFileDrop({
     enabled: !loading && saveState !== "saving",
-    accept: BROKER_HTML_ACCEPT,
+    accept: BROKER_UPLOAD_ACCEPT,
     onDrop: handleBrokerDrop,
     onReject: (reason) => setError(reason),
   });
@@ -337,7 +421,7 @@ export function InvestmentsDashboard() {
       <FileDropOverlay
         visible={isBrokerDragging}
         title="Импорт отчёта брокера"
-        acceptLabel="HTML-файл СберИнвестиций"
+        acceptLabel="HTML, CSV/TSV или XML отчёт брокера"
         hint="Сохранится в браузере (IndexedDB)"
       />
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-8 sm:px-6">
@@ -357,7 +441,7 @@ export function InvestmentsDashboard() {
                 · отчёт: <span className="font-mono">{fileName}</span>
               </>
             ) : (
-              <> · отчёт брокера не загружен · перетащите HTML в окно</>
+              <> · отчёт брокера не загружен · перетащите HTML, CSV или XML</>
             )}
           </p>
         </div>
@@ -414,6 +498,13 @@ export function InvestmentsDashboard() {
             fileName={fileName}
             onUpload={handleUpload}
             brokerSnapshots={brokerSnapshots}
+            lastImport={lastImport}
+            pendingConfirmation={pendingImport != null}
+            onConfirmIncomplete={handleConfirmIncompleteImport}
+            onDiscardIncomplete={handleDiscardIncompleteImport}
+            connectorPanel={
+              <TbankConnectorPanel onSynced={handleConnectorSync} />
+            }
           />
         </Suspense>
       )}

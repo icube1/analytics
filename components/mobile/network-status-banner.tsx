@@ -6,6 +6,10 @@ import {
   type NetworkStatusSnapshot,
 } from "@/lib/mobile/native-bridge";
 import { isCapacitorNative } from "@/lib/mobile/runtime";
+import {
+  replayPendingOfflineSync,
+  scheduleCloudPortfolioSync,
+} from "@/lib/session-sync/sync-orchestrator";
 
 function readNavigatorStatus(): NetworkStatusSnapshot {
   if (typeof navigator === "undefined") {
@@ -24,7 +28,13 @@ export function NetworkStatusBanner() {
     let disposeNative: (() => void) | undefined;
 
     const apply = (next: NetworkStatusSnapshot) => {
-      setStatus(next);
+      setStatus((previous) => {
+        if (!previous.connected && next.connected) {
+          void replayPendingOfflineSync();
+          scheduleCloudPortfolioSync();
+        }
+        return next;
+      });
     };
 
     const onBrowserStatus = () => {

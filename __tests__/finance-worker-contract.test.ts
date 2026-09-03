@@ -33,12 +33,12 @@ function request(
 }
 
 describe("finance worker protocol v1", () => {
-  it("runs a deterministic request with explicit seed and asOf", () => {
+  it("runs a deterministic request with explicit seed and asOf", async () => {
     const input = request();
 
     expect(isFinanceWorkerRequest(input)).toBe(true);
-    const first = handleFinanceWorkerRequest(input);
-    const repeated = handleFinanceWorkerRequest(input);
+    const first = await handleFinanceWorkerRequest(input);
+    const repeated = await handleFinanceWorkerRequest(input);
 
     expect(first).toEqual(repeated);
     expect(first.version).toBe(1);
@@ -50,22 +50,122 @@ describe("finance worker protocol v1", () => {
     }
   });
 
-  it("rejects unsupported versions and invalid dates", () => {
+  it("rejects unsupported versions and invalid dates", async () => {
     const unsupported = {
       ...request(),
       version: 2,
     };
     const invalidDate = request({ asOf: "not-a-date" });
 
-    expect(handleFinanceWorkerRequest(unsupported)).toMatchObject({
+    expect(await handleFinanceWorkerRequest(unsupported)).toMatchObject({
       requestId: "test-request",
       type: "finance.error",
       error: { code: "INVALID_REQUEST" },
     });
-    expect(handleFinanceWorkerRequest(invalidDate)).toMatchObject({
+    expect(await handleFinanceWorkerRequest(invalidDate)).toMatchObject({
       requestId: "test-request",
       type: "finance.error",
       error: { code: "INVALID_REQUEST" },
     });
+  });
+
+  it("projects compound interest with an explicit asOf", async () => {
+    const input = {
+      version: FINANCE_WORKER_PROTOCOL_VERSION,
+      requestId: "compound-test",
+      type: "compound-projection.run" as const,
+      payload: {
+        params: {
+          ...DEFAULT_COMPOUND_PARAMS,
+          initialCapital: 100_000,
+          monthlyContribution: 10_000,
+          years: 1,
+        },
+        options: {
+          asOf: "2026-01-15T00:00:00.000Z",
+        },
+      },
+    };
+
+    expect(isFinanceWorkerRequest(input)).toBe(true);
+    const response = await handleFinanceWorkerRequest(input);
+    expect(response.type).toBe("compound-projection.result");
+    if (response.type === "compound-projection.result") {
+      expect(response.payload.points.length).toBeGreaterThan(0);
+      expect(response.engine).toBe("typescript");
+    }
+  });
+
+  it("computes safe withdrawal with an explicit asOf", async () => {
+    const input = {
+      version: FINANCE_WORKER_PROTOCOL_VERSION,
+      requestId: "safe-withdrawal-test",
+      type: "safe-withdrawal.run" as const,
+      payload: {
+        params: {
+          ...DEFAULT_COMPOUND_PARAMS,
+          initialCapital: 1_000_000,
+          monthlyContribution: 50_000,
+          years: 12,
+          withdrawAfterYears: 4,
+          withdrawalMode: "percent" as const,
+          annualWithdrawalPercent: 4,
+          monthlyWithdrawal: 0,
+          taxOnProfitPercent: 0,
+        },
+        options: {
+          asOf: "2026-01-15T00:00:00.000Z",
+        },
+      },
+    };
+
+    expect(isFinanceWorkerRequest(input)).toBe(true);
+    const response = await handleFinanceWorkerRequest(input);
+    expect(response.type).toBe("safe-withdrawal.result");
+    if (response.type === "safe-withdrawal.result") {
+      expect(response.payload).not.toBeNull();
+      expect(response.payload!.maxAnnualPercent).toBeGreaterThan(0);
+      expect(response.engine).toBe("typescript");
+    }
+  });
+
+  it("maps a live tracking forecast with an explicit asOf", async () => {
+    const input = {
+      version: FINANCE_WORKER_PROTOCOL_VERSION,
+      requestId: "live-tracking-test",
+      type: "live-tracking.run" as const,
+      payload: {
+        params: {
+          ...DEFAULT_COMPOUND_PARAMS,
+          initialCapital: 100_000,
+          monthlyContribution: 10_000,
+          years: 1,
+        },
+        options: {
+          asOf: "2026-07-19",
+        },
+        tracking: {
+          horizonMonths: 3,
+          currentGrandTotal: 100_000,
+          monthlyContribution: 10_000,
+          suggestedFromScenario: 10_000,
+          depositsByMonth: { "2026-07": 10_000 },
+          withdrawCalendarMonth: null,
+          withdrawAfterYears: null,
+          basePlanId: "plan-1",
+          basePlanName: "Базовый",
+        },
+      },
+    };
+
+    expect(isFinanceWorkerRequest(input)).toBe(true);
+    const response = await handleFinanceWorkerRequest(input);
+    expect(response.type).toBe("live-tracking.result");
+    if (response.type === "live-tracking.result") {
+      expect(response.payload.points[0]?.isStart).toBe(true);
+      expect(response.payload.points[0]?.calendarMonth).toBe("2026-07");
+      expect(response.payload.suggestedFromFact).toBe(10_000);
+      expect(response.engine).toBe("typescript");
+    }
   });
 });

@@ -105,7 +105,24 @@ mod tests {
         let plan = evaluate_resilience(&input);
         assert!(plan.risk.recommends_extended_reserve);
         assert!(plan.layers.extended_reserve.recommended > 0.0);
-        assert_eq!(plan.stress.len(), 5);
+        assert_eq!(plan.stress.len(), 6);
+        assert!(plan
+            .stress
+            .iter()
+            .any(|scenario| scenario.id == "family-care-shock"));
+    }
+
+    #[test]
+    fn partner_income_loss_appears_for_dual_income() {
+        let mut input = sample_input();
+        input.household.has_secondary_household_income = true;
+        input.household.income_source_count = 2;
+        let plan = evaluate_resilience(&input);
+        assert_eq!(plan.stress.len(), 7);
+        assert!(plan
+            .stress
+            .iter()
+            .any(|scenario| scenario.id == "partner-income-loss"));
     }
 
     #[test]

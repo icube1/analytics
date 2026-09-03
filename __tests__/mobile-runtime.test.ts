@@ -3,6 +3,7 @@ import {
   mapDeepLinkToAppPath,
   parseAuthCallbackPayload,
 } from "@/lib/mobile/auth-callback";
+import { resetTokenStorageForTests } from "@/lib/session-sync/token-storage";
 import {
   registerNativeBridge,
   shouldOpenExternally,
@@ -69,6 +70,7 @@ describe("mobile auth callback", () => {
   });
 
   it("stores token and redirects to state path", () => {
+    resetTokenStorageForTests();
     const session = new Map<string, string>();
     const storage = {
       getItem: (key: string) => session.get(key) ?? null,
@@ -94,6 +96,7 @@ describe("mobile auth callback", () => {
     });
     expect(target).toBe("/investments");
     expect(session.get("analytics.auth.callback-token.v1")).toBe("jwt");
+    expect(session.get("analytics.session.bearer.v1")).toBe("jwt");
   });
 
   it("maps deep links to in-app routes", () => {

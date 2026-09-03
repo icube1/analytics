@@ -4,6 +4,16 @@ import { useEffect, useState } from "react";
 import type { MonteCarloResult } from "../compound-interest/monte-carlo";
 import type { CompoundContext } from "../compound-interest/types";
 import type { CompoundParams } from "../portfolio-types";
+import { detectComputeEnvironment } from "../compute-placement";
+import {
+  isRustCompoundParityEnabled,
+  shouldCheckCompoundParity,
+} from "../compound-feature-flags";
+import {
+  resolveMonteCarloPlacement,
+  runServerMonteCarlo,
+  shouldFallbackToLocalWorker,
+} from "../finance-jobs/client";
 import { createFinanceWorker } from "./browser-worker";
 import {
   createMonteCarloWorkerRequest,
@@ -50,37 +60,14 @@ export function useMonteCarloWorker({
     }
 
     let active = true;
-    let worker;
-    try {
-      worker = createFinanceWorker();
-    } catch (error) {
-      queueMicrotask(() => {
-        if (!active) return;
-        setState({
-          result: null,
-          isLoading: false,
-          error:
-            error instanceof Error
-              ? error.message
-              : "Web Worker is unavailable in this browser",
-        });
-      });
-      return () => {
-        active = false;
-      };
-    }
-
-    const request = createMonteCarloWorkerRequest({
-      params,
-      context,
-      options: {
-        simulations,
-        volatilityPercent,
-        seed,
-        asOf,
-      },
+    let cancelWorker: (() => void) | undefined;
+    const env = detectComputeEnvironment();
+    const placement = resolveMonteCarloPlacement({
+      simulations,
+      years: params.years,
+      online: env.online,
+      batterySaver: env.batterySaver,
     });
-    const job = startMonteCarloWorkerJob(worker, request);
 
     queueMicrotask(() => {
       if (!active) return;
@@ -91,11 +78,71 @@ export function useMonteCarloWorker({
       }));
     });
 
-    void job.promise.then(
-      (result) => {
+    void (async () => {
+      if (placement === "server-job") {
+        try {
+          const result = await runServerMonteCarlo({
+            params,
+            context,
+            simulations,
+            volatilityPercent,
+            seed,
+            asOf,
+          });
+          if (active) setState({ result, isLoading: false, error: null });
+          return;
+        } catch (error) {
+          if (!shouldFallbackToLocalWorker(error)) {
+            if (active) {
+              setState({
+                result: null,
+                isLoading: false,
+                error:
+                  error instanceof Error
+                    ? error.message
+                    : "Server Monte Carlo is not entitled",
+              });
+            }
+            return;
+          }
+        }
+      }
+
+      let worker;
+      try {
+        worker = createFinanceWorker();
+      } catch (error) {
+        if (!active) return;
+        setState({
+          result: null,
+          isLoading: false,
+          error:
+            error instanceof Error
+              ? error.message
+              : "Web Worker is unavailable in this browser",
+        });
+        return;
+      }
+
+      const request = createMonteCarloWorkerRequest({
+        params,
+        context,
+        options: {
+          simulations,
+          volatilityPercent,
+          seed,
+          asOf,
+          preferWasm: isRustCompoundParityEnabled(),
+          checkParity: shouldCheckCompoundParity(),
+        },
+      });
+      const job = startMonteCarloWorkerJob(worker, request);
+      cancelWorker = () => job.cancel();
+
+      try {
+        const result = await job.promise;
         if (active) setState({ result, isLoading: false, error: null });
-      },
-      (error: unknown) => {
+      } catch (error: unknown) {
         if (!active || error instanceof FinanceWorkerCancelledError) return;
         setState({
           result: null,
@@ -105,12 +152,12 @@ export function useMonteCarloWorker({
               ? error.message
               : "Monte Carlo calculation failed",
         });
-      },
-    );
+      }
+    })();
 
     return () => {
       active = false;
-      job.cancel();
+      cancelWorker?.();
     };
   }, [
     enabled,

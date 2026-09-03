@@ -57,12 +57,17 @@ if [[ $SKIP_INSTALL -eq 0 ]]; then
   step "npm ci" npm ci
 fi
 
+step "github workflow yaml" bash scripts/check-github-workflows.sh
 step "rustc version" rustc --version
 step "cargo fmt --check" cargo fmt --all -- --check
 step "cargo clippy" cargo clippy --workspace --all-targets -- -D warnings
 step "cargo test" cargo test --workspace
 step "finance-core differential" npm run compare:finance-core
 step "finance-core resilience differential" npm run compare:finance-core:resilience
+step "finance-core money differential" npm run compare:finance-core:money
+step "finance-core compound differential" npm run compare:finance-core:compound
+step "finance-core safe-withdrawal differential" npm run compare:finance-core:safe-withdrawal
+step "finance-core live-tracking differential" npm run compare:finance-core:live-tracking
 step "jest" npm test
 step "root typecheck" npx tsc --noEmit
 step "broker fixture privacy (sanitizer --check)" npm run sanitize:broker-fixtures -- --check
@@ -77,6 +82,7 @@ step "astro accessibility checks" npm run test:site:a11y
 step "next build" npm run build
 step "prepare standalone" bash scripts/prepare-standalone.sh
 step "bundle budgets" node scripts/measure-bundles.mjs --skip-build --ci
+step "load scenarios" bash scripts/measure-load-scenarios.sh --ci --skip-build
 step "observability tests" npm test -- __tests__/observability-node.test.ts __tests__/observability-collector.test.ts __tests__/observability-schema.test.ts --runInBand --forceExit
 step "metrics dashboard typecheck" npm run typecheck:metrics
 step "metrics dashboard tests" npm run test:metrics

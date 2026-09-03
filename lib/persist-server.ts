@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import "./broker-adapters/install-node-dom-parser";
 import { backfillDebtHistoryFromSnapshots } from "./debt-history";
 import { enrichBrokerReport } from "./broker-positions";
 import { mergePortfolioStorage } from "./merge-portfolio-storage";
@@ -35,7 +36,7 @@ export function readPortfolioDocument(): PortfolioDocument {
     const brokerSnapshots = parsed.brokerSnapshots ?? [];
     const html = readBrokerHtml();
     const brokerReport = html
-      ? parsePortfolioHtml(html)
+      ? parsePortfolioHtml(html, parsed.lastBrokerFileName)
       : enrichBrokerReport(parsed.brokerReport ?? null);
     return {
       ...merged,

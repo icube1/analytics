@@ -1,7 +1,11 @@
 use crate::auth::{Authenticated, SESSION_COOKIE};
 use crate::config::Environment;
+use crate::entitlements::{infer_plan, EntitlementService};
 use crate::error::{ApiError, ApiResult};
-use crate::repositories::{ClientKind, HouseholdRepository, MembershipRepository, UserRepository};
+use crate::repositories::{
+    hash_audit_identifier, ClientKind, HouseholdRepository, MembershipRepository, UserRepository,
+    ACTION_AUTH_LOGIN, ACTION_AUTH_LOGIN_FAILED, ACTION_AUTH_LOGOUT,
+};
 use crate::state::AppState;
 use axum::{
     extract::{Extension, State},
@@ -52,6 +56,8 @@ struct MeResponse {
     role: String,
     session_id: String,
     expires_at: String,
+    plan: String,
+    features: Vec<String>,
 }
 
 async fn login(
@@ -68,7 +74,7 @@ async fn login(
         .as_deref()
         .and_then(ClientKind::parse)
         .unwrap_or(ClientKind::Web);
-    let created = state
+    let created = match state
         .auth()
         .login(
             body.email.trim(),
@@ -77,7 +83,34 @@ async fn login(
             ck,
             body.rotate_session_id,
         )
-        .await?;
+        .await
+    {
+        Ok(created) => created,
+        Err(error) => {
+            state
+                .audit()
+                .record_best_effort(
+                    None,
+                    None,
+                    ACTION_AUTH_LOGIN_FAILED,
+                    serde_json::json!({
+                        "emailHash": hash_audit_identifier(body.email.trim()),
+                        "clientKind": ck.as_str(),
+                    }),
+                )
+                .await;
+            return Err(error);
+        }
+    };
+    state
+        .audit()
+        .record_best_effort(
+            Some(created.record.household_id),
+            Some(created.record.user_id),
+            ACTION_AUTH_LOGIN,
+            serde_json::json!({ "clientKind": ck.as_str() }),
+        )
+        .await;
     let mut resp = LoginResponse {
         user_id: created.record.user_id.to_string(),
         household_id: created.record.household_id.to_string(),
@@ -102,6 +135,15 @@ async fn logout(
     jar: CookieJar,
 ) -> ApiResult<(StatusCode, CookieJar, Json<serde_json::Value>)> {
     state.auth().logout(auth.session.id).await?;
+    state
+        .audit()
+        .record_best_effort(
+            Some(auth.context.household_id),
+            Some(auth.context.user_id),
+            ACTION_AUTH_LOGOUT,
+            serde_json::json!({ "sessionId": auth.session.id.to_string() }),
+        )
+        .await;
     Ok((
         StatusCode::OK,
         jar.remove(
@@ -128,6 +170,9 @@ async fn me(
     let m = MembershipRepository::new(state.pool().clone())
         .get_member(auth.scope(), auth.context.user_id)
         .await?;
+    let features = EntitlementService::new(state.billing_repo())
+        .list_active_features(auth.scope())
+        .await?;
     Ok(Json(MeResponse {
         user_id: user.id.to_string(),
         email: user.email,
@@ -137,6 +182,8 @@ async fn me(
         role: m.role.as_str().to_owned(),
         session_id: auth.session.id.to_string(),
         expires_at: auth.session.expires_at.to_rfc3339(),
+        plan: infer_plan(None, &features).to_owned(),
+        features,
     }))
 }
 fn session_cookie(

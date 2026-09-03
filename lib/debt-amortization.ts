@@ -8,12 +8,14 @@ import {
   estimateDepositMaturityValue,
   isDepositActive,
   isDepositItem,
+  normalizeDepositInterestMode,
 } from "./term-deposits";
 import {
   currentPaymentPeriodDays,
   interestForPeriod,
   simulationPaymentPeriodDays,
 } from "./debt-daycount";
+import { amortizeMoney, moneyFromMajor } from "./money";
 import type { CustomAssetItem, CustomAssets, DebtObligation } from "./portfolio-types";
 
 export interface DebtMonthResult {
@@ -44,6 +46,10 @@ export interface AmortizeDebtOptions {
   periodDays?: number;
 }
 
+export interface ExactAmortizeDebtOptions extends AmortizeDebtOptions {
+  currency?: string;
+}
+
 const DEFAULT_PERIOD_DAYS = 365 / 12;
 
 export function amortizeDebtMonth(
@@ -64,6 +70,33 @@ export function amortizeDebtMonth(
     balance: Math.max(0, balance - principal),
     interest,
     principal,
+  };
+}
+
+/** Current-period display split in integer minor units. Simulations stay on `amortizeDebtMonth`. */
+export function amortizeDebtMonthExact(
+  balance: number,
+  payment: number,
+  annualInterestRate: number,
+  options?: ExactAmortizeDebtOptions,
+): { balance: number; interest: number; principal: number } {
+  if (balance <= 0 || payment <= 0) {
+    return { balance: Math.max(0, balance), interest: 0, principal: 0 };
+  }
+
+  const currency = options?.currency ?? "RUB";
+  const periodDays = Math.max(1, Math.round(options?.periodDays ?? DEFAULT_PERIOD_DAYS));
+  const step = amortizeMoney({
+    balanceMinor: moneyFromMajor(balance, currency).minor,
+    paymentMinor: moneyFromMajor(payment, currency).minor,
+    annualRatePercent: annualInterestRate,
+    periodDays,
+    currency,
+  });
+  return {
+    balance: step.balanceMajor,
+    interest: step.interestMajor,
+    principal: step.principalMajor,
   };
 }
 
@@ -193,12 +226,44 @@ export function estimateCurrentDebtPaymentBreakdown(
   assets: CustomAssets,
   asOf: Date = new Date(),
 ): Pick<DebtMonthResult, "totalPayment" | "totalPrincipal" | "totalInterest"> {
-  const state = initWealthSimulationState(assets, 0);
-  const result = stepDebtsMonth(assets, state, { asOf });
+  let totalPayment = 0;
+  let totalPrincipal = 0;
+  let totalInterest = 0;
+
+  for (const item of getAssetDebtItems(assets)) {
+    if (item.debt <= 0 || item.monthlyDebtPayment <= 0) continue;
+    const paymentDay = resolvePaymentDay(item.debtPaymentDay);
+    const periodDays = currentPaymentPeriodDays(paymentDay, asOf);
+    const step = amortizeDebtMonthExact(
+      item.debt,
+      item.monthlyDebtPayment,
+      item.debtAnnualRate,
+      { periodDays },
+    );
+    totalPayment += item.monthlyDebtPayment;
+    totalPrincipal += step.principal;
+    totalInterest += step.interest;
+  }
+
+  for (const debt of getEnabledDebts(assets)) {
+    if (debt.balance <= 0 || debt.monthlyPayment <= 0) continue;
+    const paymentDay = resolvePaymentDay(debt.paymentDay);
+    const periodDays = currentPaymentPeriodDays(paymentDay, asOf);
+    const step = amortizeDebtMonthExact(
+      debt.balance,
+      debt.monthlyPayment,
+      debt.annualInterestRate,
+      { periodDays },
+    );
+    totalPayment += debt.monthlyPayment;
+    totalPrincipal += step.principal;
+    totalInterest += step.interest;
+  }
+
   return {
-    totalPayment: result.totalPayment,
-    totalPrincipal: result.totalPrincipal,
-    totalInterest: result.totalInterest,
+    totalPayment,
+    totalPrincipal,
+    totalInterest,
   };
 }
 
@@ -314,7 +379,7 @@ export function growCustomAssets(
       ) {
         const principal = sim.depositPrincipal ?? sim.grossValue;
         const termMonths = item.depositTermMonths ?? 0;
-        const mode = item.depositInterestMode ?? "at_maturity";
+        const mode = normalizeDepositInterestMode(item.depositInterestMode);
         const payout = estimateDepositMaturityValue(
           principal,
           item.annualReturnPercent,

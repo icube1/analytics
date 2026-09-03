@@ -9,6 +9,7 @@ import {
   readLastBackupAt,
   markBackupCompleted,
 } from "@/lib/backup";
+import { encryptAnalyticsBackup } from "@/lib/backup-crypto";
 import { syncBackupToServer } from "@/lib/backup-sync";
 
 type BackupStatus = "idle" | "working" | "success" | "error";
@@ -18,6 +19,7 @@ export function DataBackupMenu() {
   const [status, setStatus] = useState<BackupStatus>("idle");
   const [message, setMessage] = useState<string | null>(null);
   const [lastBackupAt, setLastBackupAt] = useState<string | null>(null);
+  const [passphrase, setPassphrase] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -43,19 +45,26 @@ export function DataBackupMenu() {
     setMessage(null);
     try {
       const backup = await exportAnalyticsBackup();
-      downloadAnalyticsBackup(backup);
+      const payload = passphrase
+        ? await encryptAnalyticsBackup(backup, passphrase)
+        : backup;
+      downloadAnalyticsBackup(payload);
       markBackupCompleted(backup.exportedAt);
       setLastBackupAt(backup.exportedAt);
       void syncBackupToServer();
       setStatus("success");
-      setMessage("Файл бэкапа скачан");
+      setMessage(
+        passphrase
+          ? "Зашифрованный бэкап скачан. Пароль не хранится на сервере."
+          : "Файл бэкапа скачан",
+      );
     } catch (error) {
       setStatus("error");
       setMessage(
         error instanceof Error ? error.message : "Не удалось создать бэкап",
       );
     }
-  }, []);
+  }, [passphrase]);
 
   const handleImport = useCallback(async (file: File) => {
     const confirmed = window.confirm(
@@ -66,7 +75,7 @@ export function DataBackupMenu() {
     setStatus("working");
     setMessage(null);
     try {
-      const backup = await parseBackupFile(file);
+      const backup = await parseBackupFile(file, passphrase || undefined);
       await importAnalyticsBackup(backup);
       markBackupCompleted(backup.exportedAt);
       await syncBackupToServer();
@@ -77,7 +86,7 @@ export function DataBackupMenu() {
         error instanceof Error ? error.message : "Не удалось восстановить бэкап",
       );
     }
-  }, []);
+  }, [passphrase]);
 
   const lastBackupLabel = lastBackupAt
     ? new Date(lastBackupAt).toLocaleString("ru-RU")
@@ -99,14 +108,27 @@ export function DataBackupMenu() {
             Резервная копия
           </p>
           <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-            Сохраняет инвестиции, сценарии, трекинг и выписки в один JSON-файл.
-            При локальном запуске копия также пишется в{" "}
+            Сохраняет инвестиции, сценарии, трекинг, выписки, путь и карту
+            устойчивости в один JSON-файл.
+            Пароль (необязательно) шифрует файл на устройстве через AES-GCM.
+            При локальном запуске незашифрованная копия также пишется в{" "}
             <span className="font-mono">data/backups/</span>.
           </p>
 
           <p className="mt-3 text-[11px] text-zinc-400">
             Последний бэкап: {lastBackupLabel}
           </p>
+
+          <label className="mt-3 flex flex-col gap-1 text-xs text-zinc-600 dark:text-zinc-300">
+            Пароль шифрования (необязательно)
+            <input
+              type="password"
+              autoComplete="new-password"
+              value={passphrase}
+              onChange={(event) => setPassphrase(event.target.value)}
+              className="rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+            />
+          </label>
 
           <div className="mt-4 flex flex-col gap-2">
             <button
@@ -128,7 +150,7 @@ export function DataBackupMenu() {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".json,application/json"
+              accept=".json,.enc.json,application/json"
               className="hidden"
               onChange={(event) => {
                 const file = event.target.files?.[0];

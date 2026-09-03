@@ -1,3 +1,4 @@
+import { getTokenStorage } from "../session-sync/token-storage";
 import {
   parseDeepLinkPath,
   readMobileRuntimeConfig,
@@ -25,6 +26,7 @@ export function parseAuthCallbackPayload(
 }
 
 export function storeAuthCallbackToken(token: string): void {
+  getTokenStorage("mobile").setBearerToken(token);
   if (typeof window === "undefined" || typeof sessionStorage === "undefined") {
     return;
   }
@@ -39,6 +41,7 @@ export function readStoredAuthCallbackToken(): string | null {
 }
 
 export function clearStoredAuthCallbackToken(): void {
+  getTokenStorage("mobile").setBearerToken(null);
   if (typeof window === "undefined" || typeof sessionStorage === "undefined") {
     return;
   }

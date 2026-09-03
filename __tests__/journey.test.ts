@@ -1,4 +1,8 @@
-import { DEFAULT_RESILIENCE_INPUT } from "@/lib/resilience-defaults";
+import {
+  DEFAULT_RESILIENCE_INPUT,
+  ZERO_CAPITAL_RESILIENCE_INPUT,
+  createSinkingFundGoal,
+} from "@/lib/resilience-defaults";
 import { evaluateResiliencePlan } from "@/lib/resilience-plan";
 import {
   computeContinuity,
@@ -54,7 +58,7 @@ describe("journey progress", () => {
     );
     expect(baseline?.status).not.toBe("locked");
     expect(cashFlow?.status).not.toBe("locked");
-    expect(snapshot.stressTotalCount).toBe(5);
+    expect(snapshot.stressTotalCount).toBe(6);
     expect(snapshot.monthsCovered).toBeGreaterThan(0);
   });
 
@@ -80,6 +84,75 @@ describe("journey progress", () => {
       (m) => m.id === "extended-emergency-fund",
     );
     expect(extended?.status).toBe("skipped");
+  });
+
+  it("starts the zero-capital path without invented reserves", () => {
+    const plan = evaluateResiliencePlan(ZERO_CAPITAL_RESILIENCE_INPUT);
+    const snapshot = computeJourneyProgress(
+      ZERO_CAPITAL_RESILIENCE_INPUT,
+      plan,
+      {
+        milestoneOrder: defaultMilestoneOrder(),
+        optedOutMilestones: [],
+        completedBabySteps: {},
+        acknowledgedMilestones: [],
+      },
+    );
+    expect(ZERO_CAPITAL_RESILIENCE_INPUT.liquidAssets).toBe(0);
+    expect(ZERO_CAPITAL_RESILIENCE_INPUT.monthlySurplus).toBe(0);
+    expect(snapshot.monthsCovered).toBe(0);
+    expect(
+      snapshot.milestones.find((m) => m.id === "baseline-data-quality")?.status,
+    ).not.toBe("locked");
+  });
+
+  it("unlocks sinking-funds after a goal is added", () => {
+    const withoutFunds = computeJourneyProgress(
+      DEFAULT_RESILIENCE_INPUT,
+      evaluateResiliencePlan(DEFAULT_RESILIENCE_INPUT),
+      {
+        milestoneOrder: defaultMilestoneOrder(),
+        optedOutMilestones: [],
+        completedBabySteps: {},
+        acknowledgedMilestones: [],
+      },
+    );
+    expect(
+      withoutFunds.milestones.find((m) => m.id === "sinking-funds")?.status,
+    ).toBe("skipped");
+
+    const input = {
+      ...DEFAULT_RESILIENCE_INPUT,
+      sinkingFunds: [
+        createSinkingFundGoal({
+          id: "repair",
+          label: "Ремонт",
+          targetAmount: 60_000,
+          currentAmount: 15_000,
+          monthsUntilDue: 6,
+        }),
+      ],
+    };
+    const snapshot = computeJourneyProgress(
+      input,
+      evaluateResiliencePlan(input),
+      {
+        milestoneOrder: defaultMilestoneOrder(),
+        optedOutMilestones: [],
+        completedBabySteps: {},
+        acknowledgedMilestones: [],
+      },
+    );
+    const sinking = snapshot.milestones.find((m) => m.id === "sinking-funds");
+    expect(sinking?.status).not.toBe("skipped");
+    expect(sinking?.babySteps.find((step) => step.id === "define-goals")?.completed).toBe(
+      true,
+    );
+    expect(
+      snapshot.milestones.find((m) => m.id === "experiences-fund")?.babySteps.find(
+        (step) => step.id === "annual-target",
+      )?.completed,
+    ).toBe(true);
   });
 });
 

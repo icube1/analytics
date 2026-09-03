@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<alfa_broker_report version="1" broker="alfa-invest">
+  <meta periodStart="15.12.2025" periodEnd="15.01.2026" createdAt="16.01.2026" investor="Тестовый Инвестор" contract="SANITIZED-CONTRACT"/>
+  <security>
+    <name>Closed Corp</name>
+    <isin>RU000A0JX0J3</isin>
+    <currency>RUB</currency>
+    <quantityEnd>0</quantityEnd>
+    <priceEnd>100</priceEnd>
+    <valueEnd>0</valueEnd>
+  </security>
+  <security>
+    <name>Example Corp</name>
+    <isin>RU000A0JX0J2</isin>
+    <currency>RUB</currency>
+    <quantityEnd>4</quantityEnd>
+    <priceEnd>250</priceEnd>
+    <valueEnd>1000</valueEnd>
+  </security>
+  <cash>
+    <platform>Alfa RUB</platform>
+    <currency>RUB</currency>
+    <end>80</end>
+  </cash>
+  <trade>
+    <date>10.01.2026</date>
+    <settlementDate>13.01.2026</settlementDate>
+    <ticker>EXMP</ticker>
+    <side>Покупка</side>
+    <quantity>4</quantity>
+    <price>250</price>
+    <amount>1000</amount>
+    <brokerFee>2</brokerFee>
+  </trade>
+</alfa_broker_report>

@@ -1,7 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChartsSection } from "@/components/charts-section";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
 import { FiltersPanel } from "@/components/filters-panel";
 import { SummaryStatsCards } from "@/components/summary-stats";
 import { TransactionsTable } from "@/components/transactions-table";
@@ -28,6 +27,12 @@ import {
   computeTopMerchants,
 } from "@/lib/stats";
 import { EMPTY_FILTERS, type Filters, type Transaction } from "@/lib/types";
+
+const ChartsSection = lazy(() =>
+  import("@/components/charts-section").then((module) => ({
+    default: module.ChartsSection,
+  })),
+);
 
 interface LoadMeta {
   files: string[];
@@ -328,11 +333,19 @@ export function Dashboard() {
 
           <SummaryStatsCards stats={stats} />
 
-          <ChartsSection
-            categories={categories}
-            dailyFlow={dailyFlow}
-            merchants={merchants}
-          />
+          <Suspense
+            fallback={
+              <div className="flex min-h-[18rem] items-center justify-center rounded-2xl border border-zinc-200 bg-white text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+                Загрузка графика...
+              </div>
+            }
+          >
+            <ChartsSection
+              categories={categories}
+              dailyFlow={dailyFlow}
+              merchants={merchants}
+            />
+          </Suspense>
 
           <TransactionsTable
             transactions={filtered}

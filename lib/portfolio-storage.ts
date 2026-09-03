@@ -9,7 +9,16 @@ import { getTotalDebtBalance } from "./debt-amortization";
 import { mergePortfolioStorage, isEmptyDocument } from "./merge-portfolio-storage";
 import { enrichBrokerReport } from "./broker-positions";
 import { normalizeCompoundParams } from "./normalize-compound-params";
-import { parsePortfolioHtml } from "./parse-portfolio-html";
+import {
+  describeBrokerUploadError,
+  importUploadedBrokerFile,
+  type BrokerImportCoverage,
+  type BrokerImportProvenance,
+  type BrokerImportReconciliation,
+  type BrokerImportResult,
+  type BrokerImportWarning,
+} from "./broker-adapters";
+import type { BrokerConnectorSyncResult } from "./broker-connectors";
 import { apiFetch } from "./api-base";
 import { readPortfolioFromDb, writePortfolioToDb } from "./browser-idb";
 import { schedulePortfolioPersistence } from "./session-sync/backup-adapter";
@@ -169,21 +178,51 @@ export async function removeForecastPlan(
   });
 }
 
-export async function uploadBrokerReport(
-  file: File,
-): Promise<{ report: PortfolioDocument["brokerReport"]; fileName: string }> {
-  const html = await file.text();
-  const report = parsePortfolioHtml(html);
+export interface BrokerUploadResult {
+  report: PortfolioDocument["brokerReport"];
+  fileName: string;
+  provenance: BrokerImportProvenance;
+  warnings: BrokerImportWarning[];
+  reconciliation: BrokerImportReconciliation | null;
+  coverage: BrokerImportCoverage | null;
+}
 
-  if (report.securities.length === 0 && report.assetsEnd === 0) {
-    throw new Error("Не удалось распознать данные в отчёте");
+export async function parseBrokerReportFile(
+  file: File,
+): Promise<BrokerUploadResult> {
+  const content = await file.text();
+  const fileName = file.name || "broker-report.html";
+  const imported = await importBrokerFileOffMainThread(
+    content,
+    fileName,
+    file.type || undefined,
+  );
+
+  if (!imported.ok || !imported.report) {
+    throw new Error(describeBrokerUploadError(imported, fileName));
   }
 
-  const fileName = file.name || "broker-report.html";
+  return {
+    report: imported.report,
+    fileName,
+    provenance: imported.provenance,
+    warnings: imported.warnings,
+    reconciliation: imported.reconciliation,
+    coverage: imported.coverage,
+  };
+}
+
+export async function commitBrokerUploadResult(
+  parsed: BrokerUploadResult,
+): Promise<BrokerUploadResult> {
+  if (!parsed.report) {
+    throw new Error("Broker import has no report to save");
+  }
+
   const current = await fetchPortfolioDocument();
   const snapshot = createBrokerSnapshot(
-    report,
-    fileName,
+    parsed.report,
+    parsed.fileName,
     current.customAssets,
   );
   const debtBalanceHistory = appendDebtBalanceIfChanged(
@@ -193,13 +232,73 @@ export async function uploadBrokerReport(
   );
 
   await savePortfolioDocument({
-    lastBrokerFileName: fileName,
-    brokerReport: report,
+    lastBrokerFileName: parsed.fileName,
+    brokerReport: parsed.report,
     brokerSnapshots: [...current.brokerSnapshots, snapshot],
     debtBalanceHistory,
   });
 
-  return { report, fileName };
+  return parsed;
+}
+
+export async function uploadBrokerReport(
+  file: File,
+): Promise<BrokerUploadResult> {
+  const parsed = await parseBrokerReportFile(file);
+  return commitBrokerUploadResult(parsed);
+}
+
+export function brokerUploadResultFromConnector(
+  result: BrokerConnectorSyncResult,
+): BrokerUploadResult {
+  if (!result.ok || !result.report) {
+    const detail = result.errors[0]?.message ?? "Broker connector sync failed";
+    throw new Error(detail);
+  }
+
+  const fileName = `tbank-invest-api:${result.provenance.accountId ?? "account"}`;
+  return {
+    report: result.report,
+    fileName,
+    provenance: {
+      adapterId: "tbank-xlsx",
+      adapterVersion: result.provenance.connectorVersion,
+      adapterLabel: result.provenance.connectorLabel,
+      fileName,
+      mimeType: "application/json",
+      contentBytes: 0,
+      sanitized: true,
+      detectedAt: result.provenance.syncedAt,
+    },
+    warnings: result.warnings,
+    reconciliation: result.reconciliation,
+    coverage: result.coverage,
+  };
+}
+
+export async function applyBrokerConnectorReport(
+  result: BrokerConnectorSyncResult,
+): Promise<BrokerUploadResult> {
+  return commitBrokerUploadResult(brokerUploadResultFromConnector(result));
+}
+
+async function importBrokerFileOffMainThread(
+  content: string,
+  fileName: string,
+  mimeType?: string,
+): Promise<BrokerImportResult> {
+  if (typeof Worker === "undefined") {
+    return importUploadedBrokerFile(content, fileName, mimeType);
+  }
+
+  try {
+    const { importBrokerReportInWorker } = await import(
+      "./broker-adapters/worker-client"
+    );
+    return await importBrokerReportInWorker({ content, fileName, mimeType });
+  } catch {
+    return importUploadedBrokerFile(content, fileName, mimeType);
+  }
 }
 
 export function readLegacyLocalStorage(): Partial<PortfolioDocument> | null {

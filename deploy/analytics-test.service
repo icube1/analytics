@@ -7,7 +7,7 @@ Type=simple
 User=analytics
 Group=analytics
 WorkingDirectory=/opt/analytics-test
-EnvironmentFile=/etc/analytics-auth.env
+EnvironmentFile=-/etc/analytics-auth.env
 EnvironmentFile=-/etc/analytics-test.env
 Environment=NODE_ENV=production
 Environment=PORT=3001

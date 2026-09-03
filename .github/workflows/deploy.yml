@@ -33,6 +33,7 @@ jobs:
           path: |
             deploy.tar.gz
             deploy/analytics.service
+            deploy/apply-production-release.sh
             deploy/nginx-analytics.conf
           retention-days: 7
 
@@ -66,6 +67,7 @@ jobs:
             ci-reports/platform-release.json
             ci-reports/platform-smoke.json
             deploy/blue-green/
+            deploy/stage-platform-release.sh
             scripts/deploy-platform-release.sh
             scripts/smoke-platform-release.sh
             scripts/rollback-platform-release.sh
@@ -84,7 +86,11 @@ jobs:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          source: deploy.tar.gz,deploy/analytics.service,deploy/nginx-analytics.conf
+          source: >-
+            deploy.tar.gz,
+            deploy/analytics.service,
+            deploy/apply-production-release.sh,
+            deploy/nginx-analytics.conf
           target: /tmp/analytics-deploy
       - uses: appleboy/ssh-action@v1.2.0
         with:
@@ -93,90 +99,8 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script_stop: true
           script: |
-            set -euo pipefail
-            APP_DIR=/opt/analytics
-            RELEASE_DIR=/tmp/analytics-deploy
-            if ! command -v node >/dev/null; then
-              curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-              apt-get install -y nodejs
-            fi
-            if ! command -v nginx >/dev/null; then
-              DEBIAN_FRONTEND=noninteractive apt-get install -y nginx
-            fi
-            if ! id analytics >/dev/null 2>&1; then
-              useradd --system --home-dir "$APP_DIR" --shell /usr/sbin/nologin analytics
-            fi
-            AUTH_ENV=/etc/analytics-auth.env
-            umask 077
-            if [ ! -s "$AUTH_ENV" ]; then
-              ANALYTICS_AUTH_USER=owner
-              ANALYTICS_AUTH_PASSWORD="$(openssl rand -base64 24 | tr -d '\n')"
-              printf 'ANALYTICS_AUTH_USER=%s\nANALYTICS_AUTH_PASSWORD=%s\n' \
-                "$ANALYTICS_AUTH_USER" "$ANALYTICS_AUTH_PASSWORD" > "$AUTH_ENV"
-            fi
-            if ! grep -q '^ANALYTICS_SESSION_SECRET=' "$AUTH_ENV"; then
-              printf 'ANALYTICS_SESSION_SECRET=%s\n' "$(openssl rand -hex 32)" >> "$AUTH_ENV"
-            fi
-            if ! grep -q '^ANALYTICS_AUTH_DISPLAY_NAME=' "$AUTH_ENV"; then
-              printf 'ANALYTICS_AUTH_DISPLAY_NAME=%s\n' 'Администратор' >> "$AUTH_ENV"
-            fi
-            if ! grep -q '^ANALYTICS_ADMIN_LOGIN=' "$AUTH_ENV"; then
-              printf 'ANALYTICS_ADMIN_LOGIN=admin\n' >> "$AUTH_ENV"
-            fi
-            chmod 600 "$AUTH_ENV"
-            if [ -f /etc/nginx/.htpasswd-analytics ]; then
-              chown root:www-data /etc/nginx/.htpasswd-analytics || true
-              chmod 640 /etc/nginx/.htpasswd-analytics
-            fi
-            . "$AUTH_ENV"
-            API_ENV=/etc/analytics-finance-api.env
-            if [ ! -s "$API_ENV" ]; then
-              {
-                printf '%s\n' "FINANCE_API_BOOTSTRAP_EMAIL=admin@gala-soft.ru"
-                printf '%s\n' "FINANCE_API_BOOTSTRAP_PASSWORD=$ANALYTICS_AUTH_PASSWORD"
-                printf '%s\n' "FINANCE_API_BOOTSTRAP_DISPLAY_NAME=Администратор"
-                printf '%s\n' "FINANCE_API_BOOTSTRAP_HOUSEHOLD_NAME=Household"
-              } > "$API_ENV"
-              chmod 600 "$API_ENV"
-            fi
-            install -d -o analytics -g analytics -m 700 \
-              "$APP_DIR/data" "$APP_DIR/data/backups" "$APP_DIR/statements"
-            tar -xzf "$RELEASE_DIR/deploy.tar.gz" -C "$APP_DIR"
-            chown -R analytics:analytics "$APP_DIR"
-            install -m 644 "$RELEASE_DIR/deploy/analytics.service" /etc/systemd/system/analytics.service
-            systemctl daemon-reload
-            systemctl enable analytics
-            systemctl restart analytics
-            install -m 644 "$RELEASE_DIR/deploy/nginx-analytics.conf" /etc/nginx/sites-available/analytics
-            ln -sf /etc/nginx/sites-available/analytics /etc/nginx/sites-enabled/analytics
-            rm -f /etc/nginx/sites-enabled/default
-            nginx -t
-            systemctl enable nginx
-            systemctl reload nginx
-            sleep 2
-            if ! curl -fsS -o /dev/null http://127.0.0.1:3000/login; then
-              journalctl -u analytics -n 80 --no-pager || true
-              exit 1
-            fi
-            COOKIE_JAR="$(mktemp)"
-            LOGIN_JSON="$(
-              ANALYTICS_ADMIN_LOGIN="${ANALYTICS_ADMIN_LOGIN:-admin}" \
-              ANALYTICS_AUTH_PASSWORD="$ANALYTICS_AUTH_PASSWORD" \
-              python3 -c 'import json,os; print(json.dumps({"login": os.environ.get("ANALYTICS_ADMIN_LOGIN") or "admin", "password": os.environ["ANALYTICS_AUTH_PASSWORD"]}))'
-            )"
-            if ! curl -fsS -c "$COOKIE_JAR" -H 'Content-Type: application/json' \
-              -d "$LOGIN_JSON" http://127.0.0.1:3000/api/auth/login >/dev/null; then
-              rm -f "$COOKIE_JAR"
-              journalctl -u analytics -n 80 --no-pager || true
-              exit 1
-            fi
-            if ! curl -fsS -b "$COOKIE_JAR" -o /dev/null http://127.0.0.1:3000/; then
-              rm -f "$COOKIE_JAR"
-              journalctl -u analytics -n 80 --no-pager || true
-              exit 1
-            fi
-            rm -f "$COOKIE_JAR"
-            echo "Deploy OK"
+            chmod +x /tmp/analytics-deploy/deploy/apply-production-release.sh
+            bash /tmp/analytics-deploy/deploy/apply-production-release.sh
 
   platform-stage:
     runs-on: ubuntu-latest
@@ -194,6 +118,7 @@ jobs:
           source: >-
             platform-release.tar.gz,
             deploy/blue-green/finance-api.service,
+            deploy/stage-platform-release.sh,
             scripts/deploy-platform-release.sh,
             scripts/smoke-platform-release.sh
           target: /tmp/analytics-platform-deploy
@@ -204,15 +129,5 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script_stop: true
           script: |
-            set -euo pipefail
-            if [[ "${PLATFORM_CUTOVER:-0}" == "1" ]]; then
-              echo "Refusing automated stage when PLATFORM_CUTOVER=1" >&2
-              exit 1
-            fi
-            DEPLOY_ROOT=/tmp/analytics-platform-deploy
-            TARBALL="$DEPLOY_ROOT/platform-release.tar.gz"
-            install -d /opt/analytics-platform
-            chmod +x "$DEPLOY_ROOT/scripts/"*.sh
-            PLATFORM_APP_ROOT=/opt/analytics-platform \
-              bash "$DEPLOY_ROOT/scripts/deploy-platform-release.sh" "$TARBALL"
-            echo "Platform staged (Next public vhost unchanged)"
+            chmod +x /tmp/analytics-platform-deploy/deploy/stage-platform-release.sh
+            bash /tmp/analytics-platform-deploy/deploy/stage-platform-release.sh

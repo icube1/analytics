@@ -5,6 +5,7 @@ const config = {
   roots: ["<rootDir>"],
   testMatch: ["**/__tests__/**/*.test.ts"],
   testTimeout: 30_000,
+  setupFiles: ["<rootDir>/lib/broker-adapters/install-node-dom-parser.ts"],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/$1",
   },

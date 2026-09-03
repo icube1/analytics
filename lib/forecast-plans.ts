@@ -1,6 +1,7 @@
 import { calendarMonthFromPlanMonth } from "./broker-deposits";
 import { randomId } from "./random-id";
 import { calculateCompoundInterest } from "./compound-interest";
+import type { CompoundResult } from "./compound-interest/types";
 import type {
   CompoundParams,
   CustomAssets,
@@ -30,19 +31,14 @@ export function getPlanCalculatorSnapshot(
   };
 }
 
-export function buildForecastPlan(
+export function forecastPlanFromProjection(
   name: string,
   params: CompoundParams,
   customAssets: CustomAssets,
   brokerTotal: number,
+  result: CompoundResult,
   savedAt: string = new Date().toISOString(),
 ): SavedForecastPlan {
-  const result = calculateCompoundInterest(
-    params,
-    { customAssets, brokerTotal },
-    { allMonths: true },
-  );
-
   const points: ForecastPlanPoint[] = result.points
     .filter((point) => point.month > 0)
     .map((point) => ({
@@ -77,6 +73,28 @@ export function buildForecastPlan(
       finalTotalDebt: result.finalTotalDebt,
     },
   };
+}
+
+export function buildForecastPlan(
+  name: string,
+  params: CompoundParams,
+  customAssets: CustomAssets,
+  brokerTotal: number,
+  savedAt: string = new Date().toISOString(),
+): SavedForecastPlan {
+  const result = calculateCompoundInterest(
+    params,
+    { customAssets, brokerTotal },
+    { allMonths: true },
+  );
+  return forecastPlanFromProjection(
+    name,
+    params,
+    customAssets,
+    brokerTotal,
+    result,
+    savedAt,
+  );
 }
 
 export function resolvePlanPointCalendarMonth(

@@ -5,6 +5,11 @@ import {
 } from "./compound-interest";
 import type { CompoundParams } from "./portfolio-types";
 
+export interface SafeWithdrawalOptions {
+  /** Explicit civil date; dates are never inferred inside the engine. */
+  asOf?: Date;
+}
+
 export interface SafeWithdrawalAdvice {
   /** Макс. % / год от номинальной ликвидности */
   maxAnnualPercent: number;
@@ -103,6 +108,7 @@ export function isWithdrawalSustainable(
 function getBaselineAtWithdrawalStart(
   params: CompoundParams,
   context?: CompoundContext,
+  options?: SafeWithdrawalOptions,
 ): CompoundResult {
   return calculateCompoundInterest(
     {
@@ -112,20 +118,23 @@ function getBaselineAtWithdrawalStart(
       monthlyWithdrawal: 0,
     },
     context,
+    options,
   );
 }
 
 function getLiquidityAtWithdrawalStart(
   params: CompoundParams,
   context?: CompoundContext,
+  options?: SafeWithdrawalOptions,
 ): number {
-  return getBaselineAtWithdrawalStart(params, context).withdrawalStartLiquidity ?? 0;
+  return getBaselineAtWithdrawalStart(params, context, options).withdrawalStartLiquidity ?? 0;
 }
 
 function simulatePercent(
   params: CompoundParams,
   annualPercent: number,
   context?: CompoundContext,
+  options?: SafeWithdrawalOptions,
 ): CompoundResult {
   return calculateCompoundInterest(
     {
@@ -135,6 +144,7 @@ function simulatePercent(
       monthlyWithdrawal: 0,
     },
     context,
+    options,
   );
 }
 
@@ -142,6 +152,7 @@ function simulateFixed(
   params: CompoundParams,
   monthlyReal: number,
   context?: CompoundContext,
+  options?: SafeWithdrawalOptions,
 ): CompoundResult {
   return calculateCompoundInterest(
     {
@@ -151,19 +162,21 @@ function simulateFixed(
       annualWithdrawalPercent: 0,
     },
     context,
+    options,
   );
 }
 
 function findMaxAnnualPercent(
   params: CompoundParams,
   context?: CompoundContext,
+  options?: SafeWithdrawalOptions,
 ): number {
   let lo = 0;
   let hi = Math.max(params.annualReturnPercent, 1);
 
   while (
     hi < 100 &&
-    isWithdrawalSustainable(simulatePercent(params, hi, context), params)
+    isWithdrawalSustainable(simulatePercent(params, hi, context, options), params)
   ) {
     lo = hi;
     hi = Math.min(100, hi * 2);
@@ -171,7 +184,7 @@ function findMaxAnnualPercent(
 
   for (let i = 0; i < 40; i++) {
     const mid = (lo + hi) / 2;
-    if (isWithdrawalSustainable(simulatePercent(params, mid, context), params)) {
+    if (isWithdrawalSustainable(simulatePercent(params, mid, context, options), params)) {
       lo = mid;
     } else {
       hi = mid;
@@ -186,9 +199,10 @@ function findMaxMonthlyReal(
   params: CompoundParams,
   context?: CompoundContext,
   liquidityAtStart?: number,
+  options?: SafeWithdrawalOptions,
 ): number {
   const liquidity =
-    liquidityAtStart ?? getLiquidityAtWithdrawalStart(params, context);
+    liquidityAtStart ?? getLiquidityAtWithdrawalStart(params, context, options);
   const yieldBased =
     (liquidity * (params.annualReturnPercent / 100)) / 12;
   let lo = 0;
@@ -196,7 +210,7 @@ function findMaxMonthlyReal(
 
   while (
     hi < 50_000_000 &&
-    isWithdrawalSustainable(simulateFixed(params, hi, context), params)
+    isWithdrawalSustainable(simulateFixed(params, hi, context, options), params)
   ) {
     lo = hi;
     hi *= 2;
@@ -204,7 +218,7 @@ function findMaxMonthlyReal(
 
   for (let i = 0; i < 40; i++) {
     const mid = (lo + hi) / 2;
-    if (isWithdrawalSustainable(simulateFixed(params, mid, context), params)) {
+    if (isWithdrawalSustainable(simulateFixed(params, mid, context, options), params)) {
       lo = mid;
     } else {
       hi = mid;
@@ -220,6 +234,7 @@ function currentScenarioIsSafe(
   context: CompoundContext | undefined,
   maxAnnualPercent: number,
   maxMonthlyReal: number,
+  options?: SafeWithdrawalOptions,
 ): boolean {
   const mode = params.withdrawalMode ?? "fixed";
   if (mode === "percent") {
@@ -228,7 +243,7 @@ function currentScenarioIsSafe(
     return (
       pct <= maxAnnualPercent + 0.01 &&
       isWithdrawalSustainable(
-        simulatePercent(params, pct, context),
+        simulatePercent(params, pct, context, options),
         params,
       )
     );
@@ -238,13 +253,14 @@ function currentScenarioIsSafe(
   if (monthly <= 0) return true;
   return (
     monthly <= maxMonthlyReal + 1 &&
-    isWithdrawalSustainable(simulateFixed(params, monthly, context), params)
+    isWithdrawalSustainable(simulateFixed(params, monthly, context, options), params)
   );
 }
 
 export function computeSafeWithdrawalAdvice(
   params: CompoundParams,
   context?: CompoundContext,
+  options?: SafeWithdrawalOptions,
 ): SafeWithdrawalAdvice | null {
   if (params.withdrawAfterYears == null || params.withdrawAfterYears <= 0) {
     return null;
@@ -254,14 +270,16 @@ export function computeSafeWithdrawalAdvice(
   const liquidityAtWithdrawalStart = getLiquidityAtWithdrawalStart(
     params,
     context,
+    options,
   );
   const liquidityAtWithdrawalStartReal =
     liquidityAtWithdrawalStart / inflationAtStart;
-  const maxAnnualPercent = findMaxAnnualPercent(params, context);
+  const maxAnnualPercent = findMaxAnnualPercent(params, context, options);
   const maxMonthlyReal = findMaxMonthlyReal(
     params,
     context,
     liquidityAtWithdrawalStart,
+    options,
   );
 
   const maxMonthlyAsNominalPercent = fixedRealToNominalPercent(
@@ -269,15 +287,15 @@ export function computeSafeWithdrawalAdvice(
     liquidityAtWithdrawalStart,
     params,
   );
-  const maxPercentSim = simulatePercent(params, maxAnnualPercent, context);
+  const maxPercentSim = simulatePercent(params, maxAnnualPercent, context, options);
   const maxPercentAsMonthlyReal = maxPercentSim.withdrawalStartPayoutReal;
   const maxPercentAsMonthlyRealEnd = maxPercentSim.withdrawalPayoutReal;
 
   const mode = params.withdrawalMode ?? "fixed";
   const currentSim =
     mode === "percent"
-      ? simulatePercent(params, params.annualWithdrawalPercent ?? 0, context)
-      : simulateFixed(params, params.monthlyWithdrawal ?? 0, context);
+      ? simulatePercent(params, params.annualWithdrawalPercent ?? 0, context, options)
+      : simulateFixed(params, params.monthlyWithdrawal ?? 0, context, options);
 
   const currentStartPayoutReal = currentSim.withdrawalStartPayoutReal;
   const currentFixedAsNominalPercent =
@@ -301,6 +319,7 @@ export function computeSafeWithdrawalAdvice(
       context,
       maxAnnualPercent,
       maxMonthlyReal,
+      options,
     ),
     maxMonthlyAsNominalPercent: Math.round(maxMonthlyAsNominalPercent * 100) / 100,
     maxPercentAsMonthlyReal,

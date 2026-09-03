@@ -6,18 +6,32 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     compound::{
-        calculate_compound_interest, run_monte_carlo_simulation, CompoundContext, CompoundError,
-        CompoundOptions, CompoundParams, CompoundResult, MonteCarloOptions, MonteCarloResult,
+        build_live_tracking_forecast, calculate_compound_interest, compute_safe_withdrawal_advice,
+        run_monte_carlo_simulation, CompoundContext, CompoundError, CompoundOptions,
+        CompoundParams, CompoundResult, LiveForecastResult, LiveTrackingInput, MonteCarloOptions,
+        MonteCarloResult, SafeWithdrawalAdvice,
     },
     date::CivilDate,
     debt::{
         amortize_debt_month, current_payment_period_days, estimate_payoff_months,
         simulation_payment_period_days, surrounding_payment_dates,
     },
+    money::{
+        add_money, amortize_money, interest_money, money_from_major, money_major, RoundingMode,
+    },
     resilience::{evaluate_resilience, ResilienceInput, ResiliencePlan},
 };
 
 pub const SCHEMA_VERSION: u16 = 1;
+
+impl RequestBatch {
+    #[must_use]
+    pub fn contains_monte_carlo(&self) -> bool {
+        self.cases
+            .iter()
+            .any(|case| matches!(case, FinanceRequest::MonteCarlo { .. }))
+    }
+}
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -74,6 +88,69 @@ pub enum FinanceRequest {
         #[serde(default)]
         options: MonteCarloOptions,
     },
+    #[serde(rename_all = "camelCase")]
+    SafeWithdrawal {
+        id: String,
+        params: CompoundParams,
+        #[serde(default)]
+        context: Option<CompoundContext>,
+        #[serde(default)]
+        options: CompoundOptions,
+    },
+    #[serde(rename_all = "camelCase")]
+    LiveTrackingForecast {
+        id: String,
+        params: CompoundParams,
+        #[serde(default)]
+        context: Option<CompoundContext>,
+        #[serde(default)]
+        options: CompoundOptions,
+        tracking: LiveTrackingInput,
+    },
+    #[serde(rename_all = "camelCase")]
+    MoneyRound {
+        id: String,
+        major: f64,
+        currency: String,
+        #[serde(default)]
+        mode: RoundingMode,
+    },
+    #[serde(rename_all = "camelCase")]
+    MoneyAdd {
+        id: String,
+        left_minor: i64,
+        right_minor: i64,
+        currency: String,
+    },
+    #[serde(rename_all = "camelCase")]
+    MoneyInterest {
+        id: String,
+        principal_minor: i64,
+        annual_rate_percent: f64,
+        period_days: i64,
+        #[serde(default = "default_year_days")]
+        year_days: i64,
+        currency: String,
+        #[serde(default)]
+        mode: RoundingMode,
+    },
+    #[serde(rename_all = "camelCase")]
+    MoneyAmortize {
+        id: String,
+        balance_minor: i64,
+        payment_minor: i64,
+        annual_rate_percent: f64,
+        period_days: i64,
+        #[serde(default = "default_year_days")]
+        year_days: i64,
+        currency: String,
+        #[serde(default)]
+        mode: RoundingMode,
+    },
+}
+
+fn default_year_days() -> i64 {
+    365
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -118,6 +195,55 @@ pub enum FinanceResponse {
         id: String,
         result: Box<MonteCarloResult>,
     },
+    #[serde(rename_all = "camelCase")]
+    SafeWithdrawal {
+        id: String,
+        advice: Option<Box<SafeWithdrawalAdvice>>,
+    },
+    #[serde(rename_all = "camelCase")]
+    LiveTrackingForecast {
+        id: String,
+        forecast: Box<LiveForecastResult>,
+    },
+    #[serde(rename_all = "camelCase")]
+    MoneyRound {
+        id: String,
+        currency: String,
+        minor: i64,
+        major: f64,
+        exponent: u8,
+        mode: RoundingMode,
+    },
+    #[serde(rename_all = "camelCase")]
+    MoneyAdd {
+        id: String,
+        currency: String,
+        minor: i64,
+        major: f64,
+        exponent: u8,
+    },
+    #[serde(rename_all = "camelCase")]
+    MoneyInterest {
+        id: String,
+        currency: String,
+        minor: i64,
+        major: f64,
+        exponent: u8,
+        mode: RoundingMode,
+    },
+    #[serde(rename_all = "camelCase")]
+    MoneyAmortize {
+        id: String,
+        currency: String,
+        exponent: u8,
+        mode: RoundingMode,
+        balance_minor: i64,
+        interest_minor: i64,
+        principal_minor: i64,
+        balance_major: f64,
+        interest_major: f64,
+        principal_major: f64,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -125,6 +251,7 @@ pub enum BoundaryError {
     UnsupportedSchemaVersion(u16),
     InvalidDate { id: String, value: String },
     CompoundEvaluation { id: String, message: String },
+    MoneyEvaluation { id: String, message: String },
 }
 
 impl fmt::Display for BoundaryError {
@@ -139,6 +266,9 @@ impl fmt::Display for BoundaryError {
             Self::CompoundEvaluation { id, message } => {
                 write!(formatter, "case {id} compound evaluation failed: {message}")
             }
+            Self::MoneyEvaluation { id, message } => {
+                write!(formatter, "case {id} money evaluation failed: {message}")
+            }
         }
     }
 }
@@ -149,7 +279,7 @@ impl std::error::Error for BoundaryError {}
 ///
 /// # Errors
 ///
-/// Returns [`BoundaryError`] for an unsupported schema, invalid civil date, or compound failure.
+/// Returns [`BoundaryError`] for an unsupported schema, invalid civil date, compound failure, or money rounding failure.
 pub fn evaluate(batch: RequestBatch) -> Result<ResponseBatch, BoundaryError> {
     if batch.schema_version != SCHEMA_VERSION {
         return Err(BoundaryError::UnsupportedSchemaVersion(
@@ -257,11 +387,139 @@ fn evaluate_case(request: FinanceRequest) -> Result<FinanceResponse, BoundaryErr
                 result: Box::new(result),
             })
         }
+        FinanceRequest::SafeWithdrawal {
+            id,
+            params,
+            context,
+            options,
+        } => {
+            let advice = compute_safe_withdrawal_advice(&params, context.as_ref(), &options)
+                .map_err(|error| map_compound_error(&id, &error))?;
+            Ok(FinanceResponse::SafeWithdrawal {
+                id,
+                advice: advice.map(Box::new),
+            })
+        }
+        FinanceRequest::LiveTrackingForecast {
+            id,
+            params,
+            context,
+            options,
+            tracking,
+        } => {
+            let forecast =
+                build_live_tracking_forecast(&params, context.as_ref(), &options, &tracking)
+                    .map_err(|error| map_compound_error(&id, &error))?;
+            Ok(FinanceResponse::LiveTrackingForecast {
+                id,
+                forecast: Box::new(forecast),
+            })
+        }
+        FinanceRequest::MoneyRound {
+            id,
+            major,
+            currency,
+            mode,
+        } => {
+            let amount = money_from_major(major, &currency, mode)
+                .map_err(|error| map_money_error(&id, &error))?;
+            Ok(FinanceResponse::MoneyRound {
+                id,
+                currency: amount.currency.to_string(),
+                minor: amount.minor,
+                major: money_major(amount),
+                exponent: amount.currency.exponent(),
+                mode,
+            })
+        }
+        FinanceRequest::MoneyAdd {
+            id,
+            left_minor,
+            right_minor,
+            currency,
+        } => {
+            let amount = add_money(left_minor, right_minor, &currency)
+                .map_err(|error| map_money_error(&id, &error))?;
+            Ok(FinanceResponse::MoneyAdd {
+                id,
+                currency: amount.currency.to_string(),
+                minor: amount.minor,
+                major: money_major(amount),
+                exponent: amount.currency.exponent(),
+            })
+        }
+        FinanceRequest::MoneyInterest {
+            id,
+            principal_minor,
+            annual_rate_percent,
+            period_days,
+            year_days,
+            currency,
+            mode,
+        } => {
+            let amount = interest_money(
+                principal_minor,
+                annual_rate_percent,
+                period_days,
+                year_days,
+                &currency,
+                mode,
+            )
+            .map_err(|error| map_money_error(&id, &error))?;
+            Ok(FinanceResponse::MoneyInterest {
+                id,
+                currency: amount.currency.to_string(),
+                minor: amount.minor,
+                major: money_major(amount),
+                exponent: amount.currency.exponent(),
+                mode,
+            })
+        }
+        FinanceRequest::MoneyAmortize {
+            id,
+            balance_minor,
+            payment_minor,
+            annual_rate_percent,
+            period_days,
+            year_days,
+            currency,
+            mode,
+        } => {
+            let amount = amortize_money(
+                balance_minor,
+                payment_minor,
+                annual_rate_percent,
+                period_days,
+                year_days,
+                &currency,
+                mode,
+            )
+            .map_err(|error| map_money_error(&id, &error))?;
+            Ok(FinanceResponse::MoneyAmortize {
+                id,
+                currency: amount.balance.currency.to_string(),
+                exponent: amount.balance.currency.exponent(),
+                mode,
+                balance_minor: amount.balance.minor,
+                interest_minor: amount.interest.minor,
+                principal_minor: amount.principal.minor,
+                balance_major: money_major(amount.balance),
+                interest_major: money_major(amount.interest),
+                principal_major: money_major(amount.principal),
+            })
+        }
     }
 }
 
 fn map_compound_error(id: &str, error: &CompoundError) -> BoundaryError {
     BoundaryError::CompoundEvaluation {
+        id: id.to_owned(),
+        message: error.to_string(),
+    }
+}
+
+fn map_money_error(id: &str, error: &crate::MoneyError) -> BoundaryError {
+    BoundaryError::MoneyEvaluation {
         id: id.to_owned(),
         message: error.to_string(),
     }

@@ -4,7 +4,7 @@
  */
 
 const CSRF_STORAGE_KEY = "analytics.session.csrf.v1";
-const BEARER_STORAGE_KEY = "analytics.session.bearer.v1";
+export const BEARER_STORAGE_KEY = "analytics.session.bearer.v1";
 
 export interface TokenStorageAdapter {
   getCsrfToken(): string | null;
@@ -16,6 +16,25 @@ export interface TokenStorageAdapter {
 
 let memoryCsrf: string | null = null;
 let memoryBearer: string | null = null;
+
+export interface MobileTokenPersist {
+  getBearerToken(): string | null | Promise<string | null>;
+  setBearerToken(token: string | null): void | Promise<void>;
+}
+
+let mobilePersist: MobileTokenPersist | null = null;
+
+export function setMobileTokenPersist(adapter: MobileTokenPersist | null): void {
+  mobilePersist = adapter;
+}
+
+export async function hydrateMobileBearerFromPersist(): Promise<void> {
+  if (!mobilePersist) return;
+  const token = await mobilePersist.getBearerToken();
+  if (!token) return;
+  memoryBearer = token;
+  sessionStore()?.setItem(BEARER_STORAGE_KEY, token);
+}
 
 function sessionStore(): Storage | null {
   if (typeof globalThis.sessionStorage === "undefined") {
@@ -65,14 +84,17 @@ export function createMobileTokenStorage(): TokenStorageAdapter {
     setBearerToken(token) {
       memoryBearer = token;
       const store = sessionStore();
-      if (!store) return;
-      if (token) store.setItem(BEARER_STORAGE_KEY, token);
-      else store.removeItem(BEARER_STORAGE_KEY);
+      if (store) {
+        if (token) store.setItem(BEARER_STORAGE_KEY, token);
+        else store.removeItem(BEARER_STORAGE_KEY);
+      }
+      void mobilePersist?.setBearerToken(token);
     },
     clear() {
       memoryCsrf = null;
       memoryBearer = null;
       sessionStore()?.removeItem(BEARER_STORAGE_KEY);
+      void mobilePersist?.setBearerToken(null);
     },
   };
 }

@@ -6,7 +6,7 @@ use crate::auth::AuthService;
 use crate::billing::{build_billing_service, BillingService};
 use crate::config::Config;
 use crate::observability::HttpMetrics;
-use crate::repositories::BillingRepository;
+use crate::repositories::{AuditRepository, BillingRepository};
 use crate::worker::JobExecutor;
 
 #[derive(Clone)]
@@ -83,6 +83,10 @@ impl AppState {
 
     pub fn billing_repo(&self) -> BillingRepository {
         BillingRepository::new(self.pool().clone())
+    }
+
+    pub fn audit(&self) -> AuditRepository {
+        AuditRepository::new(self.pool().clone())
     }
 
     pub async fn shutdown(&self) {

@@ -2,6 +2,7 @@ import {
   BROKER_CONNECTOR_FEATURE_FLAGS,
   moneyValueToNumber,
   quotationToNumber,
+  readTbankConnectorEnvEnabled,
   redactSecrets,
   syncBrokerConnector,
   TBANK_INVEST_REST_PATHS,
@@ -78,6 +79,21 @@ describe("broker API connectors", () => {
     expect(result.report?.trades[0]?.brokerFee).toBe(39);
     expect(result.reconciliation).not.toBeNull();
     expect(JSON.stringify(result)).not.toContain("t.synthetic-runtime-token");
+  });
+
+  it("does not enable the T-Bank connector from public flags by default", () => {
+    const previousPublic = process.env.NEXT_PUBLIC_BROKER_CONNECTOR_TBANK;
+    const previousVite = process.env.VITE_BROKER_CONNECTOR_TBANK;
+    const previousServer = process.env.BROKER_CONNECTOR_TBANK_ENABLED;
+    delete process.env.NEXT_PUBLIC_BROKER_CONNECTOR_TBANK;
+    delete process.env.VITE_BROKER_CONNECTOR_TBANK;
+    delete process.env.BROKER_CONNECTOR_TBANK_ENABLED;
+    expect(readTbankConnectorEnvEnabled()).toBe(false);
+    process.env.NEXT_PUBLIC_BROKER_CONNECTOR_TBANK = "1";
+    expect(readTbankConnectorEnvEnabled()).toBe(true);
+    process.env.NEXT_PUBLIC_BROKER_CONNECTOR_TBANK = previousPublic;
+    process.env.VITE_BROKER_CONNECTOR_TBANK = previousVite;
+    process.env.BROKER_CONNECTOR_TBANK_ENABLED = previousServer;
   });
 
   it("exposes REST paths aligned with official contract", () => {

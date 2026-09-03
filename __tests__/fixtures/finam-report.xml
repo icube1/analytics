@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<finam_broker_report>
+  <meta>
+    <periodStart>01.01.2025</periodStart>
+    <periodEnd>31.01.2025</periodEnd>
+    <createdAt>01.02.2025</createdAt>
+    <investor>Тестовый Инвестор</investor>
+    <account>SANITIZED-CONTRACT</account>
+  </meta>
+  <position>
+    <name>Example ETF</name>
+    <isin>RU000A0JX0J2</isin>
+    <currency>RUB</currency>
+    <quantity>20</quantity>
+    <price>40</price>
+    <value>800</value>
+  </position>
+  <cash>
+    <currency>RUB</currency>
+    <balance>40</balance>
+  </cash>
+</finam_broker_report>
