@@ -1,21 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  CartesianGrid,
-  Legend,
-  Line,
-  LineChart,
-  ReferenceLine,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-import { ChartMoneyTooltip } from "@/components/chart-money-tooltip";
-import { ChartToggleLegend } from "@/components/chart-toggle-legend";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FieldHelp } from "@/components/field-help";
-import { CalculatorAssetChart } from "@/components/investments/calculator-asset-chart";
 import { CalculatorChartsHelp } from "@/components/investments/calculator-charts-help";
 import {
   estimateCurrentDebtPaymentBreakdown,
@@ -36,6 +22,27 @@ import type {
   CustomAssets,
   SavedForecastPlan,
 } from "@/lib/portfolio-types";
+
+const CalculatorProjectionCharts = lazy(
+  () => import("./calculator-projection-charts"),
+);
+const CalculatorPayoutChart = lazy(() => import("./calculator-payout-chart"));
+const CalculatorAssetChart = lazy(() =>
+  import("./calculator-asset-chart").then((module) => ({
+    default: module.CalculatorAssetChart,
+  })),
+);
+
+function ChartLoadingFallback({ minHeight = "18.75rem" }: { minHeight?: string }) {
+  return (
+    <div
+      className="flex items-center justify-center text-sm text-zinc-500 dark:text-zinc-400"
+      style={{ minHeight }}
+    >
+      Загрузка графика...
+    </div>
+  );
+}
 
 interface CalculatorTabProps {
   params: CompoundParams;
@@ -494,9 +501,6 @@ export function CalculatorTab({
   }, [draft.withdrawalMode]);
 
   const showDebtLine = result.points.some((p) => p.totalDebt > 0);
-  const isChartLineHidden = (dataKey: string) => hiddenChartLines.has(dataKey);
-  const isPayoutChartLineHidden = (dataKey: string) =>
-    hiddenPayoutChartLines.has(dataKey);
 
   const set = <K extends keyof CompoundParams>(key: K, value: CompoundParams[K]) =>
     setDraft((prev) => ({ ...prev, [key]: value }));
@@ -1472,149 +1476,20 @@ export function CalculatorTab({
             Monte Carlo временно недоступен: {monteCarloError}
           </p>
         )}
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-zinc-200 dark:stroke-zinc-700" />
-            <XAxis dataKey="label" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
-            <YAxis
-              tick={{ fontSize: 11 }}
-              tickFormatter={(v) =>
-                v >= 1_000_000
-                  ? `${(v / 1_000_000).toFixed(1)}M`
-                  : v >= 1000
-                    ? `${Math.round(v / 1000)}к`
-                    : String(v)
-              }
-            />
-            <Tooltip cursor={false} content={<ChartMoneyTooltip />} />
-            <Legend
-              content={(props) => (
-                <ChartToggleLegend
-                  payload={props.payload}
-                  hidden={hiddenChartLines}
-                  onToggle={toggleChartLine}
-                />
-              )}
-            />
-            <Line
-              type="monotone"
-              dataKey="nominal"
-              name="Портфель (номинал)"
-              stroke="#6366f1"
-              strokeWidth={2}
-              dot={false}
-              activeDot={false}
-              hide={isChartLineHidden("nominal")}
-            />
-            <Line
-              type="monotone"
-              dataKey="inflationHurdle"
-              name="Бенчмарк инфляции"
-              stroke="#f59e0b"
-              strokeWidth={2}
-              strokeDasharray="6 4"
-              dot={false}
-              activeDot={false}
-              hide={isChartLineHidden("inflationHurdle")}
-            />
-            <Line
-              type="monotone"
-              dataKey="realPortfolio"
-              name="Портфель (сегодняшние ₽)"
-              stroke="#10b981"
-              strokeWidth={2}
-              dot={false}
-              activeDot={false}
-              hide={isChartLineHidden("realPortfolio")}
-            />
-            <Line
-              type="monotone"
-              dataKey="realContributed"
-              name="Внесено (реальные ₽)"
-              stroke="#a1a1aa"
-              strokeWidth={2}
-              strokeDasharray="5 5"
-              dot={false}
-              activeDot={false}
-              hide={isChartLineHidden("realContributed")}
-            />
-            {showDebtLine && (
-              <Line
-                type="monotone"
-                dataKey="totalDebt"
-                name="Долг (остаток)"
-                stroke="#f43f5e"
-                strokeWidth={2}
-                strokeDasharray="4 4"
-                dot={false}
-                activeDot={false}
-                hide={isChartLineHidden("totalDebt")}
-              />
-            )}
-            {showLiquidityLine && (
-              <Line
-                type="monotone"
-                dataKey="liquidityBalance"
-                name="Ликвидная часть"
-                stroke="#8b5cf6"
-                strokeWidth={2}
-                strokeDasharray="3 3"
-                dot={false}
-                activeDot={false}
-                hide={isChartLineHidden("liquidityBalance")}
-              />
-            )}
-            {showMonteCarlo && monteCarlo && (
-              <>
-                <Line
-                  type="monotone"
-                  dataKey="mcP90"
-                  name="MC P90"
-                  stroke="#a5b4fc"
-                  strokeWidth={1.5}
-                  strokeDasharray="2 4"
-                  dot={false}
-                  activeDot={false}
-                  hide={isChartLineHidden("mcP90")}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="mcP50"
-                  name="MC медиана"
-                  stroke="#c084fc"
-                  strokeWidth={2}
-                  dot={false}
-                  activeDot={false}
-                  hide={isChartLineHidden("mcP50")}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="mcP10"
-                  name="MC P10"
-                  stroke="#a5b4fc"
-                  strokeWidth={1.5}
-                  strokeDasharray="2 4"
-                  dot={false}
-                  activeDot={false}
-                  hide={isChartLineHidden("mcP10")}
-                />
-              </>
-            )}
-            {result.withdrawalEndedEarly && withdrawalDepletionMarker && (
-              <ReferenceLine
-                x={withdrawalDepletionMarker}
-                stroke="#d97706"
-                strokeDasharray="4 4"
-                label={{
-                  value: isPercentWithdrawal ? "ликвидность 0" : "конец выплат",
-                  position: "insideTopRight",
-                  fill: "#d97706",
-                  fontSize: 10,
-                }}
-              />
-            )}
-          </LineChart>
-        </ResponsiveContainer>
+        <Suspense fallback={<ChartLoadingFallback />}>
+          <CalculatorProjectionCharts
+            chartData={chartData}
+            hiddenChartLines={hiddenChartLines}
+            onToggleChartLine={toggleChartLine}
+            showDebtLine={showDebtLine}
+            showLiquidityLine={showLiquidityLine}
+            showMonteCarlo={showMonteCarlo}
+            hasMonteCarlo={Boolean(monteCarlo)}
+            withdrawalEndedEarly={result.withdrawalEndedEarly}
+            withdrawalDepletionMarker={withdrawalDepletionMarker}
+            isPercentWithdrawal={isPercentWithdrawal}
+          />
+        </Suspense>
         {showMonteCarlo && monteCarlo && (
           <div className="mt-3 grid gap-2 rounded-lg border border-violet-100 bg-violet-50/60 px-3 py-2 text-xs text-violet-950 dark:border-violet-900 dark:bg-violet-950/30 dark:text-violet-100 sm:grid-cols-3">
             <p>
@@ -1633,7 +1508,11 @@ export function CalculatorTab({
         )}
       </div>
 
-      {hasCustomWealth && <CalculatorAssetChart points={result.points} />}
+      {hasCustomWealth && (
+        <Suspense fallback={<ChartLoadingFallback minHeight="17.5rem" />}>
+          <CalculatorAssetChart points={result.points} />
+        </Suspense>
+      )}
 
       {showPayoutChart && (
         <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
@@ -1646,62 +1525,17 @@ export function CalculatorTab({
                 : "цель vs факт"}
             </p>
           </div>
-          <ResponsiveContainer width="100%" height={180}>
-            <LineChart data={payoutChartData}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-zinc-200 dark:stroke-zinc-700" />
-              <XAxis dataKey="label" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
-              <YAxis
-                tick={{ fontSize: 11 }}
-                tickFormatter={(v) =>
-                  v >= 1000 ? `${Math.round(Number(v) / 1000)}к` : String(v)
-                }
-              />
-              <Tooltip cursor={false} content={<ChartMoneyTooltip />} />
-              <Legend
-                content={(props) => (
-                  <ChartToggleLegend
-                    payload={props.payload}
-                    hidden={hiddenPayoutChartLines}
-                    onToggle={togglePayoutChartLine}
-                  />
-                )}
-              />
-              <Line
-                type="monotone"
-                dataKey="payoutTarget"
-                name={payoutTargetLineName}
-                stroke="#a1a1aa"
-                strokeWidth={2}
-                strokeDasharray="6 4"
-                dot={false}
-                activeDot={false}
-                hide={isPayoutChartLineHidden("payoutTarget")}
-              />
-              <Line
-                type="monotone"
-                dataKey="payoutActual"
-                name="На руки (сегодняшние ₽)"
-                stroke="#10b981"
-                strokeWidth={2}
-                dot={false}
-                activeDot={false}
-                hide={isPayoutChartLineHidden("payoutActual")}
-              />
-              {result.withdrawalEndedEarly && withdrawalDepletionMarker && (
-                <ReferenceLine
-                  x={withdrawalDepletionMarker}
-                  stroke="#d97706"
-                  strokeDasharray="4 4"
-                  label={{
-                    value: isPercentWithdrawal ? "ликвидность 0" : "конец выплат",
-                    position: "insideTopRight",
-                    fill: "#d97706",
-                    fontSize: 10,
-                  }}
-                />
-              )}
-            </LineChart>
-          </ResponsiveContainer>
+          <Suspense fallback={<ChartLoadingFallback minHeight="11.25rem" />}>
+            <CalculatorPayoutChart
+              payoutChartData={payoutChartData}
+              hiddenPayoutChartLines={hiddenPayoutChartLines}
+              onTogglePayoutChartLine={togglePayoutChartLine}
+              payoutTargetLineName={payoutTargetLineName}
+              withdrawalEndedEarly={result.withdrawalEndedEarly}
+              withdrawalDepletionMarker={withdrawalDepletionMarker}
+              isPercentWithdrawal={isPercentWithdrawal}
+            />
+          </Suspense>
         </div>
       )}
 
