@@ -4,6 +4,7 @@ import { AuthCallbackPage } from "./pages/auth-callback-page";
 import { HomePage } from "./pages/home-page";
 import { InvestmentsPage } from "./pages/investments-page";
 import { JourneyPage } from "./pages/journey-page";
+import { LoginPage } from "./pages/login-page";
 import { ResiliencePage } from "./pages/resilience-page";
 
 export function AppRoutes() {
@@ -12,6 +13,7 @@ export function AppRoutes() {
       <Route path="auth/callback" element={<AuthCallbackPage />} />
       <Route element={<AppShell />}>
         <Route index element={<HomePage />} />
+        <Route path="login" element={<LoginPage />} />
         <Route path="resilience" element={<ResiliencePage />} />
         <Route path="journey" element={<JourneyPage />} />
         <Route path="investments" element={<InvestmentsPage />} />

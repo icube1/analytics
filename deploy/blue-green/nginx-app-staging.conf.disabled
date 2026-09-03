@@ -1,5 +1,6 @@
 # Vite SPA — enable only after PLATFORM_CUTOVER=1.
-# Proxies /api to finance-api on loopback; Next fallback remains available on :3000 until retired.
+# Proxies /api to finance-api on loopback. Application sessions (cookie/CSRF),
+# not nginx Basic. Next fallback remains on :3000 until retired.
 server {
     listen 80;
     listen [::]:80;
@@ -12,9 +13,6 @@ server {
     listen [::]:443 ssl http2;
     server_name app.gala-soft.ru;
     client_max_body_size 10m;
-
-    auth_basic "Analytics";
-    auth_basic_user_file /etc/nginx/.htpasswd-analytics;
 
     ssl_certificate /etc/letsencrypt/live/gala-soft.ru/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/gala-soft.ru/privkey.pem;

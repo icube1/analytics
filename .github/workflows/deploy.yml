@@ -124,6 +124,10 @@ jobs:
               printf 'ANALYTICS_ADMIN_LOGIN=admin\n' >> "$AUTH_ENV"
             fi
             chmod 600 "$AUTH_ENV"
+            if [ -f /etc/nginx/.htpasswd-analytics ]; then
+              chown root:www-data /etc/nginx/.htpasswd-analytics || true
+              chmod 640 /etc/nginx/.htpasswd-analytics
+            fi
             . "$AUTH_ENV"
             API_ENV=/etc/analytics-finance-api.env
             if [ ! -s "$API_ENV" ]; then
