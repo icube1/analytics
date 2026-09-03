@@ -42,25 +42,6 @@ function constantTimeEqual(left: string, right: string): boolean {
   return timingSafeEqual(paddedLeft, paddedRight) && !lengthMismatch;
 }
 
-function decodeBasicCredentials(header: string | null): {
-  user: string;
-  password: string;
-} | null {
-  if (!header?.startsWith("Basic ")) return null;
-
-  try {
-    const decoded = atob(header.slice(6));
-    const separator = decoded.indexOf(":");
-    if (separator < 0) return null;
-    return {
-      user: decoded.slice(0, separator),
-      password: decoded.slice(separator + 1),
-    };
-  } catch {
-    return null;
-  }
-}
-
 function sessionSecret(expected: { user: string; password: string }): string {
   const explicit = process.env.ANALYTICS_SESSION_SECRET;
   if (explicit) return explicit;
@@ -193,12 +174,7 @@ export function readOwnerSession(request: Request): OwnerSession | null {
 }
 
 export function resolveOwnerSession(request: Request): OwnerSession | null {
-  const fromCookie = readOwnerSession(request);
-  if (fromCookie) return fromCookie;
-
-  const actual = decodeBasicCredentials(request.headers.get("authorization"));
-  if (!actual) return null;
-  return verifyOwnerCredentials(actual.user, actual.password);
+  return readOwnerSession(request);
 }
 
 export function verifyOwnerCredentials(
@@ -266,9 +242,9 @@ export function clearSessionCookieOptions(): {
 
 /**
  * Single-owner gate used by the Next.js production app until Axum sessions
- * become the public API. Accepts a signed session cookie or Basic credentials
- * for machine clients. Never sends WWW-Authenticate, so browsers do not open
- * the native login dialog.
+ * become the public API. Browser sessions use a signed httpOnly cookie from
+ * `/login`. Never sends WWW-Authenticate, so browsers do not open the native
+ * HTTP Basic dialog — including when an old Basic credential is still cached.
  */
 export function requireServerAuth(request: Request): Response | null {
   const expected = credentials();
@@ -279,14 +255,6 @@ export function requireServerAuth(request: Request): Response | null {
   }
 
   if (readOwnerSession(request)) return null;
-
-  const actual = decodeBasicCredentials(request.headers.get("authorization"));
-  if (
-    actual &&
-    verifyOwnerCredentials(actual.user, actual.password)
-  ) {
-    return null;
-  }
 
   return authResponse(401, "Authentication required");
 }

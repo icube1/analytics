@@ -8,6 +8,7 @@ import {
   resolveOwnerSession,
   safeNextPath,
   verifyOwnerCredentials,
+  wantsHtmlResponse,
 } from "@/lib/server-auth";
 
 const originalEnv = { ...process.env };
@@ -67,17 +68,17 @@ describe("owner session authentication", () => {
     expect(rejected?.headers.get("content-type")).toContain("json");
   });
 
-  it("accepts valid Basic credentials for machine clients", () => {
+  it("rejects Basic credentials so browsers never see a native challenge", () => {
     setNodeEnv("production");
     configureOwner();
 
     const valid = Buffer.from("owner:correct horse battery staple").toString(
       "base64",
     );
-    expect(requireServerAuth(request({ authorization: `Basic ${valid}` }))).toBeNull();
-    expect(
-      resolveOwnerSession(request({ authorization: `Basic ${valid}` }))?.role,
-    ).toBe("admin");
+    const rejected = requireServerAuth(request({ authorization: `Basic ${valid}` }));
+    expect(rejected?.status).toBe(401);
+    expect(rejected?.headers.get("www-authenticate")).toBeNull();
+    expect(resolveOwnerSession(request({ authorization: `Basic ${valid}` }))).toBeNull();
   });
 
   it("accepts admin login aliases and a signed session cookie", () => {
@@ -117,6 +118,15 @@ describe("owner session authentication", () => {
       request({ cookie: `${SESSION_COOKIE_NAME}=${tampered}` }),
     );
     expect(rejected?.status).toBe(401);
+  });
+
+  it("treats HTML navigations as document requests for login redirects", () => {
+    expect(
+      wantsHtmlResponse(
+        request({ accept: "text/html,application/xhtml+xml;q=0.9" }),
+      ),
+    ).toBe(true);
+    expect(wantsHtmlResponse(request({ accept: "*/*" }))).toBe(false);
   });
 
   it("keeps redirect targets on-site", () => {

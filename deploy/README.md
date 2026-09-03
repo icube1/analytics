@@ -70,7 +70,7 @@ sudo cat /etc/analytics-auth.env
 ```
 
 Вход на сайте: логин `admin` (также `owner` и `admin@gala-soft.ru`) и пароль из `ANALYTICS_AUTH_PASSWORD`.
-Machine clients (deploy smoke, curl) по-прежнему могут слать `Authorization: Basic`.
+Сайт больше не использует HTTP Basic и не отдаёт `WWW-Authenticate`, поэтому браузер не показывает системное окно логина.
 
 Для Axum при первом деплое создаётся `/etc/analytics-finance-api.env` с bootstrap-аккаунтом `admin@gala-soft.ru` и тем же паролем.
 

@@ -154,11 +154,24 @@ jobs:
               journalctl -u analytics -n 80 --no-pager || true
               exit 1
             fi
-            if ! curl -fsS -u "$ANALYTICS_AUTH_USER:$ANALYTICS_AUTH_PASSWORD" \
-              -o /dev/null http://127.0.0.1:3000/; then
+            COOKIE_JAR="$(mktemp)"
+            LOGIN_JSON="$(
+              ANALYTICS_ADMIN_LOGIN="${ANALYTICS_ADMIN_LOGIN:-admin}" \
+              ANALYTICS_AUTH_PASSWORD="$ANALYTICS_AUTH_PASSWORD" \
+              python3 -c 'import json,os; print(json.dumps({"login": os.environ.get("ANALYTICS_ADMIN_LOGIN") or "admin", "password": os.environ["ANALYTICS_AUTH_PASSWORD"]}))'
+            )"
+            if ! curl -fsS -c "$COOKIE_JAR" -H 'Content-Type: application/json' \
+              -d "$LOGIN_JSON" http://127.0.0.1:3000/api/auth/login >/dev/null; then
+              rm -f "$COOKIE_JAR"
               journalctl -u analytics -n 80 --no-pager || true
               exit 1
             fi
+            if ! curl -fsS -b "$COOKIE_JAR" -o /dev/null http://127.0.0.1:3000/; then
+              rm -f "$COOKIE_JAR"
+              journalctl -u analytics -n 80 --no-pager || true
+              exit 1
+            fi
+            rm -f "$COOKIE_JAR"
             echo "Deploy OK"
 
   platform-stage:
