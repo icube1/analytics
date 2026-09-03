@@ -22,7 +22,7 @@ export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextPath = safeNext(searchParams.get("next"));
-  const [login, setLogin] = useState("");
+  const [login, setLogin] = useState("admin");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
@@ -78,8 +78,9 @@ export function LoginForm() {
         Вход в аналитику
       </h1>
       <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-        Форма приложения, без системного окна браузера. Сессия хранится в
-        httpOnly cookie.
+        Админский аккаунт: логин{" "}
+        <span className="font-medium text-zinc-800 dark:text-zinc-200">admin</span>.
+        Сессия хранится в httpOnly cookie, без системного окна браузера.
       </p>
 
       <label className="mt-6 block text-sm">
@@ -92,6 +93,7 @@ export function LoginForm() {
           autoCorrect="off"
           spellCheck={false}
           required
+          placeholder="admin"
           value={login}
           onChange={(event) => setLogin(event.target.value)}
           className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-zinc-900 outline-none ring-indigo-500 focus:ring-2 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"

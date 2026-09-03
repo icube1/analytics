@@ -101,7 +101,10 @@ describe("owner session authentication", () => {
     expect(
       resolveOwnerSession(request({ cookie: `${SESSION_COOKIE_NAME}=${token}` }))
         ?.login,
-    ).toBe("owner");
+    ).toBe("admin");
+    expect(
+      verifyOwnerCredentials("admin", "correct horse battery staple")?.login,
+    ).toBe("admin");
   });
 
   it("rejects tampered session cookies", () => {

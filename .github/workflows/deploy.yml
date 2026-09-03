@@ -120,8 +120,21 @@ jobs:
             if ! grep -q '^ANALYTICS_AUTH_DISPLAY_NAME=' "$AUTH_ENV"; then
               printf 'ANALYTICS_AUTH_DISPLAY_NAME=%s\n' 'Администратор' >> "$AUTH_ENV"
             fi
+            if ! grep -q '^ANALYTICS_ADMIN_LOGIN=' "$AUTH_ENV"; then
+              printf 'ANALYTICS_ADMIN_LOGIN=admin\n' >> "$AUTH_ENV"
+            fi
             chmod 600 "$AUTH_ENV"
             . "$AUTH_ENV"
+            API_ENV=/etc/analytics-finance-api.env
+            if [ ! -s "$API_ENV" ]; then
+              {
+                printf '%s\n' "FINANCE_API_BOOTSTRAP_EMAIL=admin@gala-soft.ru"
+                printf '%s\n' "FINANCE_API_BOOTSTRAP_PASSWORD=$ANALYTICS_AUTH_PASSWORD"
+                printf '%s\n' "FINANCE_API_BOOTSTRAP_DISPLAY_NAME=Администратор"
+                printf '%s\n' "FINANCE_API_BOOTSTRAP_HOUSEHOLD_NAME=Household"
+              } > "$API_ENV"
+              chmod 600 "$API_ENV"
+            fi
             install -d -o analytics -g analytics -m 700 \
               "$APP_DIR/data" "$APP_DIR/data/backups" "$APP_DIR/statements"
             tar -xzf "$RELEASE_DIR/deploy.tar.gz" -C "$APP_DIR"

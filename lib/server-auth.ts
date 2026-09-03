@@ -89,8 +89,12 @@ export function ownerDisplayName(): string {
   return process.env.ANALYTICS_AUTH_DISPLAY_NAME?.trim() || "Администратор";
 }
 
+export function canonicalAdminLogin(): string {
+  return process.env.ANALYTICS_ADMIN_LOGIN?.trim() || "admin";
+}
+
 export function acceptedAdminLogins(user: string): string[] {
-  const logins = new Set<string>([user, "admin"]);
+  const logins = new Set<string>([user, canonicalAdminLogin(), "admin"]);
   const extra = process.env.ANALYTICS_ADMIN_LOGIN?.trim();
   if (extra) logins.add(extra);
   if (!user.includes("@")) {
@@ -182,7 +186,7 @@ export function readOwnerSession(request: Request): OwnerSession | null {
   }
 
   return {
-    login: expected.user,
+    login: canonicalAdminLogin(),
     role: "admin",
     displayName: ownerDisplayName(),
   };
@@ -212,7 +216,7 @@ export function verifyOwnerCredentials(
   }
 
   return {
-    login: expected.user,
+    login: canonicalAdminLogin(),
     role: "admin",
     displayName: ownerDisplayName(),
   };

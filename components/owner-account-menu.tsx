@@ -56,7 +56,7 @@ export function OwnerAccountMenu() {
         <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
           {user.displayName}
         </p>
-        <p className="text-xs text-zinc-500">{user.login} · admin</p>
+        <p className="text-xs text-zinc-500">{user.login}</p>
       </div>
       <button
         type="button"

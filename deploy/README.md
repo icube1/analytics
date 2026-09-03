@@ -58,7 +58,8 @@ Production доступен по адресу **https://gala-soft.ru**. Nginx и
 
 При первом деплое workflow создаёт `/etc/analytics-auth.env`:
 
-- `ANALYTICS_AUTH_USER` / `ANALYTICS_AUTH_PASSWORD` — админский аккаунт;
+- `ANALYTICS_AUTH_USER` / `ANALYTICS_AUTH_PASSWORD` — секрет админа (пароль);
+- `ANALYTICS_ADMIN_LOGIN` — публичный логин (`admin`);
 - `ANALYTICS_SESSION_SECRET` — подпись cookie;
 - `ANALYTICS_AUTH_DISPLAY_NAME` — подпись в интерфейсе.
 
@@ -68,8 +69,10 @@ Production доступен по адресу **https://gala-soft.ru**. Nginx и
 sudo cat /etc/analytics-auth.env
 ```
 
-Логины-алиасы того же админа: `owner`, `admin`, `admin@gala-soft.ru`.
+Вход на сайте: логин `admin` (также `owner` и `admin@gala-soft.ru`) и пароль из `ANALYTICS_AUTH_PASSWORD`.
 Machine clients (deploy smoke, curl) по-прежнему могут слать `Authorization: Basic`.
+
+Для Axum при первом деплое создаётся `/etc/analytics-finance-api.env` с bootstrap-аккаунтом `admin@gala-soft.ru` и тем же паролем.
 
 Приложение:
 
