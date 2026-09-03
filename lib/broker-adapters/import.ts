@@ -55,7 +55,13 @@ function chooseAdapter(
 }
 
 function isRecognized(ledger: ReturnType<BrokerAdapter["parse"]>["ledger"]): boolean {
-  return ledger.securities.length > 0 || ledger.assetsEnd > 0;
+  return (
+    ledger.securities.length > 0 ||
+    ledger.cash.length > 0 ||
+    ledger.trades.length > 0 ||
+    ledger.cashFlows.length > 0 ||
+    ledger.assetsEnd > 0
+  );
 }
 
 export function importBrokerReport(

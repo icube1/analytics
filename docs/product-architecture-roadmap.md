@@ -822,7 +822,8 @@ Webhook:
 - персонализированная система резервов;
 - debt/reserve trade-off;
 - family stress scenarios;
-- sinking funds и фонд впечатлений;
+- sinking funds и фонд впечатлений (редактор на `/journey` и `/resilience`;
+  распределение профицита — `proposeSurplusAllocation`, без единого совета);
 - milestones и immediate feedback;
 - ethical retention loops.
 
@@ -830,10 +831,12 @@ Webhook:
 
 - строгий Sber adapter;
 - общий tabular/XML layer;
-- T‑Bank и ВТБ (CSV/text export, sanitized fixtures);
-- Альфа и Финам (XML fixtures);
-- БКС tabular;
-- Газпромбанк и Открытие (CSV/text export, sanitized fixtures);
+- T‑Bank и ВТБ (CSV/text export, sanitized fixtures: buy, empty account,
+  year-boundary);
+- Альфа и Финам (XML fixtures; Альфа — empty + year-boundary);
+- БКС tabular (empty + year-boundary);
+- Газпромбанк и Открытие (CSV/text export, sanitized fixtures: buy, empty,
+  year-boundary);
 - reconciliation dashboard;
 - fixture contribution и sanitization pipeline;
 - UI загрузки принимает HTML/CSV/TSV/XML и показывает сверку импорта;

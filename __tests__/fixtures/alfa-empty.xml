@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<alfa_broker_report version="1" broker="alfa-invest">
+  <meta periodStart="01.02.2026" periodEnd="28.02.2026" createdAt="01.03.2026" investor="Тестовый Инвестор" contract="SANITIZED-CONTRACT"/>
+  <cash>
+    <platform>Alfa RUB</platform>
+    <currency>RUB</currency>
+    <end>0</end>
+  </cash>
+</alfa_broker_report>

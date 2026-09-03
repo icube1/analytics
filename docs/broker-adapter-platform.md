@@ -38,13 +38,13 @@ Versioned import pipeline for brokerage reports. Production adapters require san
 |----|--------|----------|
 | `sber-html-v1` | Sber Investments HTML | `public/portfolio.html`, `__tests__/fixtures/sber-t1-report.html` |
 | `manual-csv-v1` | Manual CSV template | generated via `buildManualCsvTemplate()` |
-| `tbank-xlsx` | T-Bank CSV/TSV text export | `__tests__/fixtures/tbank-report.csv` |
-| `vtb-xls` | VTB CSV/TSV text export | `__tests__/fixtures/vtb-report.csv` |
-| `alfa-xml` | Alfa-Investments XML | `__tests__/fixtures/alfa-report.xml` |
+| `tbank-xlsx` | T-Bank CSV/TSV text export | `__tests__/fixtures/tbank-report.csv`, `tbank-empty.csv`, `tbank-year-boundary.csv` |
+| `vtb-xls` | VTB CSV/TSV text export | `__tests__/fixtures/vtb-report.csv`, `vtb-empty.csv`, `vtb-year-boundary.csv` |
+| `alfa-xml` | Alfa-Investments XML | `__tests__/fixtures/alfa-report.xml`, `alfa-empty.xml`, `alfa-year-boundary.xml` |
 | `finam-xml` | Finam XML | `__tests__/fixtures/finam-report.xml` |
-| `bcs-xls` | BCS CSV/TSV text export | `__tests__/fixtures/bcs-report.csv` |
-| `gazprombank-csv` | Gazprombank CSV/TSV text export | `__tests__/fixtures/gazprombank-report.csv` |
-| `otkritie-csv` | Otkritie CSV/TSV text export | `__tests__/fixtures/otkritie-report.csv` |
+| `bcs-xls` | BCS CSV/TSV text export | `__tests__/fixtures/bcs-report.csv`, `bcs-empty.csv`, `bcs-year-boundary.csv` |
+| `gazprombank-csv` | Gazprombank CSV/TSV text export | `__tests__/fixtures/gazprombank-report.csv`, `gazprombank-empty.csv`, `gazprombank-year-boundary.csv` |
+| `otkritie-csv` | Otkritie CSV/TSV text export | `__tests__/fixtures/otkritie-report.csv`, `otkritie-empty.csv`, `otkritie-year-boundary.csv` |
 
 Shared parsers live in `lib/broker-adapters/tabular.ts` and `xml.ts`.
 Binary Excel workbooks are **not** unzipped; save/export as CSV or XML.
