@@ -33,12 +33,12 @@ function request(
 }
 
 describe("finance worker protocol v1", () => {
-  it("runs a deterministic request with explicit seed and asOf", () => {
+  it("runs a deterministic request with explicit seed and asOf", async () => {
     const input = request();
 
     expect(isFinanceWorkerRequest(input)).toBe(true);
-    const first = handleFinanceWorkerRequest(input);
-    const repeated = handleFinanceWorkerRequest(input);
+    const first = await handleFinanceWorkerRequest(input);
+    const repeated = await handleFinanceWorkerRequest(input);
 
     expect(first).toEqual(repeated);
     expect(first.version).toBe(1);
@@ -50,22 +50,49 @@ describe("finance worker protocol v1", () => {
     }
   });
 
-  it("rejects unsupported versions and invalid dates", () => {
+  it("rejects unsupported versions and invalid dates", async () => {
     const unsupported = {
       ...request(),
       version: 2,
     };
     const invalidDate = request({ asOf: "not-a-date" });
 
-    expect(handleFinanceWorkerRequest(unsupported)).toMatchObject({
+    expect(await handleFinanceWorkerRequest(unsupported)).toMatchObject({
       requestId: "test-request",
       type: "finance.error",
       error: { code: "INVALID_REQUEST" },
     });
-    expect(handleFinanceWorkerRequest(invalidDate)).toMatchObject({
+    expect(await handleFinanceWorkerRequest(invalidDate)).toMatchObject({
       requestId: "test-request",
       type: "finance.error",
       error: { code: "INVALID_REQUEST" },
     });
+  });
+
+  it("projects compound interest with an explicit asOf", async () => {
+    const input = {
+      version: FINANCE_WORKER_PROTOCOL_VERSION,
+      requestId: "compound-test",
+      type: "compound-projection.run" as const,
+      payload: {
+        params: {
+          ...DEFAULT_COMPOUND_PARAMS,
+          initialCapital: 100_000,
+          monthlyContribution: 10_000,
+          years: 1,
+        },
+        options: {
+          asOf: "2026-01-15T00:00:00.000Z",
+        },
+      },
+    };
+
+    expect(isFinanceWorkerRequest(input)).toBe(true);
+    const response = await handleFinanceWorkerRequest(input);
+    expect(response.type).toBe("compound-projection.result");
+    if (response.type === "compound-projection.result") {
+      expect(response.payload.points.length).toBeGreaterThan(0);
+      expect(response.engine).toBe("typescript");
+    }
   });
 });

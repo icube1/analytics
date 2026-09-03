@@ -195,6 +195,8 @@ crates/
   `moneyAdd` / `moneyInterest` / `moneyAmortize`;
 - текущая разбивка платежа в UI идёт через целочисленные minor units, а
   compound / Monte Carlo остаются на `f64` до отдельной проверки паритета;
+- калькулятор считает прогноз и Monte Carlo в finance Worker; WASM включается
+  только флагом `NEXT_PUBLIC_RUST_COMPOUND_PARITY`;
 - вероятностные прогнозы, IRR и волатильность остаются на `f64`;
 - даты передаются как явные civil dates без скрытого `new Date()`;
 - seed Monte Carlo является частью входного контракта.

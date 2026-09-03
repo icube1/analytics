@@ -1,58 +1,47 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { MonteCarloResult } from "../compound-interest/monte-carlo";
-import type { CompoundContext } from "../compound-interest/types";
-import type { CompoundParams } from "../portfolio-types";
+import type { CompoundContext, CompoundResult } from "../compound-interest/types";
 import {
   isRustCompoundParityEnabled,
   shouldCheckCompoundParity,
 } from "../compound-feature-flags";
+import type { CompoundParams } from "../portfolio-types";
 import { createFinanceWorker } from "./browser-worker";
 import {
-  createMonteCarloWorkerRequest,
+  createCompoundWorkerRequest,
   FinanceWorkerCancelledError,
-  startMonteCarloWorkerJob,
+  startCompoundWorkerJob,
 } from "./client";
 
-interface UseMonteCarloWorkerOptions {
-  enabled: boolean;
+interface UseCompoundWorkerOptions {
   params: CompoundParams;
   context: CompoundContext;
-  simulations: number;
-  volatilityPercent: number;
-  seed: number;
   asOf: string;
+  allMonths?: boolean;
 }
 
-interface MonteCarloWorkerState {
-  result: MonteCarloResult | null;
+interface CompoundWorkerState {
+  result: CompoundResult | null;
   isLoading: boolean;
   error: string | null;
 }
 
-const IDLE_STATE: MonteCarloWorkerState = {
+const IDLE_STATE: CompoundWorkerState = {
   result: null,
   isLoading: false,
   error: null,
 };
 
-export function useMonteCarloWorker({
-  enabled,
+export function useCompoundWorker({
   params,
   context,
-  simulations,
-  volatilityPercent,
-  seed,
   asOf,
-}: UseMonteCarloWorkerOptions): MonteCarloWorkerState {
-  const [state, setState] = useState<MonteCarloWorkerState>(IDLE_STATE);
+  allMonths,
+}: UseCompoundWorkerOptions): CompoundWorkerState {
+  const [state, setState] = useState<CompoundWorkerState>(IDLE_STATE);
 
   useEffect(() => {
-    if (!enabled) {
-      return;
-    }
-
     let active = true;
     let worker;
     try {
@@ -74,19 +63,17 @@ export function useMonteCarloWorker({
       };
     }
 
-    const request = createMonteCarloWorkerRequest({
+    const request = createCompoundWorkerRequest({
       params,
       context,
       options: {
-        simulations,
-        volatilityPercent,
-        seed,
         asOf,
+        allMonths,
         preferWasm: isRustCompoundParityEnabled(),
         checkParity: shouldCheckCompoundParity(),
       },
     });
-    const job = startMonteCarloWorkerJob(worker, request);
+    const job = startCompoundWorkerJob(worker, request);
 
     queueMicrotask(() => {
       if (!active) return;
@@ -109,7 +96,7 @@ export function useMonteCarloWorker({
           error:
             error instanceof Error
               ? error.message
-              : "Monte Carlo calculation failed",
+              : "Compound projection failed",
         });
       },
     );
@@ -118,15 +105,7 @@ export function useMonteCarloWorker({
       active = false;
       job.cancel();
     };
-  }, [
-    enabled,
-    params,
-    context,
-    simulations,
-    volatilityPercent,
-    seed,
-    asOf,
-  ]);
+  }, [params, context, asOf, allMonths]);
 
-  return enabled ? state : IDLE_STATE;
+  return state;
 }

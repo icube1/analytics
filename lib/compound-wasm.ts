@@ -63,7 +63,10 @@ function evaluateCompoundWithWasm(
         id: "ui",
         params,
         context,
-        options,
+        options: {
+          allMonths: options.allMonths,
+          asOf: options.asOf,
+        },
       },
     ],
   };
@@ -92,7 +95,15 @@ function evaluateMonteCarloWithWasm(
         id: "ui",
         params,
         context,
-        options,
+        options: {
+          simulations: options.simulations,
+          volatilityPercent: options.volatilityPercent,
+          seed: options.seed,
+          asOf:
+            options.asOf instanceof Date
+              ? options.asOf.toISOString()
+              : options.asOf,
+        },
       },
     ],
   };

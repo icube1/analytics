@@ -26,6 +26,7 @@ import { calculateCompoundInterest } from "@/lib/compound-interest";
 import type { MonteCarloPercentilePoint } from "@/lib/compound-interest/monte-carlo";
 import { buildForecastPlan } from "@/lib/forecast-plans";
 import { getCustomAssetsMonthlyIncome } from "@/lib/custom-assets";
+import { useCompoundWorker } from "@/lib/finance-worker/use-compound-worker";
 import { useMonteCarloWorker } from "@/lib/finance-worker/use-monte-carlo-worker";
 import { formatMoney } from "@/lib/portfolio-wealth";
 import { computeSafeWithdrawalAdvice } from "@/lib/safe-withdrawal";
@@ -337,19 +338,27 @@ export function CalculatorTab({
     customAssets,
   ]);
 
-  const result = useMemo(
-    () =>
-      calculateCompoundInterest(simParams, {
-        customAssets,
-        brokerTotal,
-      }),
-    [simParams, customAssets, brokerTotal],
-  );
-
   const monteCarloContext = useMemo(
     () => ({ customAssets, brokerTotal }),
     [customAssets, brokerTotal],
   );
+  const {
+    result: workerProjection,
+    isLoading: isProjectionLoading,
+    error: projectionError,
+  } = useCompoundWorker({
+    params: simParams,
+    context: monteCarloContext,
+    asOf: monteCarloAsOf,
+  });
+  const [seedProjection] = useState(() =>
+    calculateCompoundInterest(simParams, monteCarloContext, {
+      asOf: new Date(monteCarloAsOf),
+    }),
+  );
+  const lastProjectionRef = useRef(seedProjection);
+  if (workerProjection) lastProjectionRef.current = workerProjection;
+  const result = workerProjection ?? lastProjectionRef.current;
   const {
     result: monteCarlo,
     isLoading: isMonteCarloLoading,
@@ -1286,6 +1295,20 @@ export function CalculatorTab({
         </div>
       )}
 
+      {(isProjectionLoading || projectionError) && (
+        <p
+          className={`rounded-md px-3 py-2 text-xs ${
+            projectionError
+              ? "border border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200"
+              : "border border-zinc-200 bg-zinc-50 text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300"
+          }`}
+          role={projectionError ? "alert" : "status"}
+        >
+          {projectionError
+            ? `Прогноз обновляется в TypeScript: ${projectionError}`
+            : "Обновляем прогноз в фоне…"}
+        </p>
+      )}
       <div className="flex gap-2 overflow-x-auto pb-1">
         <MiniStat
           label="Итого"

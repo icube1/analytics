@@ -12,5 +12,7 @@ interface FinanceWorkerScope {
 const workerScope = self as unknown as FinanceWorkerScope;
 
 workerScope.addEventListener("message", (event) => {
-  workerScope.postMessage(handleFinanceWorkerRequest(event.data));
+  void handleFinanceWorkerRequest(event.data).then((response) => {
+    workerScope.postMessage(response);
+  });
 });
