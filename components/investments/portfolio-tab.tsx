@@ -28,10 +28,10 @@ interface PortfolioTabProps {
   onUpload: (file: File) => void;
   fileName: string;
   brokerSnapshots: BrokerBalanceSnapshot[];
-  lastImport?: Pick<
-    BrokerUploadResult,
-    "provenance" | "warnings" | "reconciliation"
-  > | null;
+  lastImport?: BrokerUploadResult | null;
+  pendingConfirmation?: boolean;
+  onConfirmIncomplete?: () => void;
+  onDiscardIncomplete?: () => void;
   connectorPanel?: ReactNode;
 }
 
@@ -41,6 +41,9 @@ export function PortfolioTab({
   fileName,
   brokerSnapshots,
   lastImport,
+  pendingConfirmation = false,
+  onConfirmIncomplete,
+  onDiscardIncomplete,
   connectorPanel,
 }: PortfolioTabProps) {
   if (!report) {
@@ -179,6 +182,10 @@ export function PortfolioTab({
           provenance={lastImport.provenance}
           warnings={lastImport.warnings}
           reconciliation={lastImport.reconciliation}
+          coverage={lastImport.coverage}
+          pendingConfirmation={pendingConfirmation}
+          onConfirmIncomplete={onConfirmIncomplete}
+          onDiscardIncomplete={onDiscardIncomplete}
         />
       )}
       {connectorPanel}

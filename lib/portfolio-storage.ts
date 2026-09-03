@@ -12,6 +12,7 @@ import { normalizeCompoundParams } from "./normalize-compound-params";
 import {
   describeBrokerUploadError,
   importUploadedBrokerFile,
+  type BrokerImportCoverage,
   type BrokerImportProvenance,
   type BrokerImportReconciliation,
   type BrokerImportResult,
@@ -183,9 +184,10 @@ export interface BrokerUploadResult {
   provenance: BrokerImportProvenance;
   warnings: BrokerImportWarning[];
   reconciliation: BrokerImportReconciliation | null;
+  coverage: BrokerImportCoverage | null;
 }
 
-export async function uploadBrokerReport(
+export async function parseBrokerReportFile(
   file: File,
 ): Promise<BrokerUploadResult> {
   const content = await file.text();
@@ -200,11 +202,27 @@ export async function uploadBrokerReport(
     throw new Error(describeBrokerUploadError(imported, fileName));
   }
 
-  const report = imported.report;
+  return {
+    report: imported.report,
+    fileName,
+    provenance: imported.provenance,
+    warnings: imported.warnings,
+    reconciliation: imported.reconciliation,
+    coverage: imported.coverage,
+  };
+}
+
+export async function commitBrokerUploadResult(
+  parsed: BrokerUploadResult,
+): Promise<BrokerUploadResult> {
+  if (!parsed.report) {
+    throw new Error("Broker import has no report to save");
+  }
+
   const current = await fetchPortfolioDocument();
   const snapshot = createBrokerSnapshot(
-    report,
-    fileName,
+    parsed.report,
+    parsed.fileName,
     current.customAssets,
   );
   const debtBalanceHistory = appendDebtBalanceIfChanged(
@@ -214,52 +232,33 @@ export async function uploadBrokerReport(
   );
 
   await savePortfolioDocument({
-    lastBrokerFileName: fileName,
-    brokerReport: report,
+    lastBrokerFileName: parsed.fileName,
+    brokerReport: parsed.report,
     brokerSnapshots: [...current.brokerSnapshots, snapshot],
     debtBalanceHistory,
   });
 
-  return {
-    report,
-    fileName,
-    provenance: imported.provenance,
-    warnings: imported.warnings,
-    reconciliation: imported.reconciliation,
-  };
+  return parsed;
 }
 
-export async function applyBrokerConnectorReport(
-  result: BrokerConnectorSyncResult,
+export async function uploadBrokerReport(
+  file: File,
 ): Promise<BrokerUploadResult> {
+  const parsed = await parseBrokerReportFile(file);
+  return commitBrokerUploadResult(parsed);
+}
+
+export function brokerUploadResultFromConnector(
+  result: BrokerConnectorSyncResult,
+): BrokerUploadResult {
   if (!result.ok || !result.report) {
     const detail = result.errors[0]?.message ?? "Broker connector sync failed";
     throw new Error(detail);
   }
 
-  const report = result.report;
   const fileName = `tbank-invest-api:${result.provenance.accountId ?? "account"}`;
-  const current = await fetchPortfolioDocument();
-  const snapshot = createBrokerSnapshot(
-    report,
-    fileName,
-    current.customAssets,
-  );
-  const debtBalanceHistory = appendDebtBalanceIfChanged(
-    current.debtBalanceHistory ?? [],
-    getTotalDebtBalance(current.customAssets),
-    "broker-upload",
-  );
-
-  await savePortfolioDocument({
-    lastBrokerFileName: fileName,
-    brokerReport: report,
-    brokerSnapshots: [...current.brokerSnapshots, snapshot],
-    debtBalanceHistory,
-  });
-
   return {
-    report,
+    report: result.report,
     fileName,
     provenance: {
       adapterId: "tbank-xlsx",
@@ -273,7 +272,14 @@ export async function applyBrokerConnectorReport(
     },
     warnings: result.warnings,
     reconciliation: result.reconciliation,
+    coverage: result.coverage,
   };
+}
+
+export async function applyBrokerConnectorReport(
+  result: BrokerConnectorSyncResult,
+): Promise<BrokerUploadResult> {
+  return commitBrokerUploadResult(brokerUploadResultFromConnector(result));
 }
 
 async function importBrokerFileOffMainThread(

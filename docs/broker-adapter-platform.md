@@ -30,6 +30,9 @@ Versioned import pipeline for brokerage reports. Production adapters require san
 - `coverage` — which sections were parsed and row counts
 - `warnings` — non-fatal issues (`INVALID_NUMBER`, `SKIPPED_ROW`, `RECONCILIATION_MISMATCH`, …)
 - `reconciliation` — reported vs computed totals (RUB tolerance ±1)
+- UI сверки — покрытие разделов, таблица брокер/расчёт/Δ, полный список
+  warnings. Неполный импорт (расхождение, битые строки, нет периода)
+  не сохраняется, пока пользователь явно не подтвердит.
 - `errors` — deterministic codes (`NO_ADAPTER_MATCH`, `FILE_TOO_LARGE`, `RECOGNITION_FAILED`, …)
 
 ## Production adapters

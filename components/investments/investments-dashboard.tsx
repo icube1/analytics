@@ -12,10 +12,12 @@ import {
   savePortfolioDocument,
   addForecastPlan,
   removeForecastPlan,
-  uploadBrokerReport,
-  applyBrokerConnectorReport,
+  parseBrokerReportFile,
+  commitBrokerUploadResult,
+  brokerUploadResultFromConnector,
   type BrokerUploadResult,
 } from "@/lib/portfolio-storage";
+import { assessBrokerImportCompleteness } from "@/lib/broker-adapters";
 import { TbankConnectorPanel } from "@/components/investments/tbank-connector-panel";
 import type { BrokerConnectorSyncResult } from "@/lib/broker-connectors";
 import { BROKER_TEXT_UPLOAD_EXTENSIONS } from "@/lib/broker-adapters";
@@ -89,10 +91,10 @@ export function InvestmentsDashboard() {
   const [debtBalanceHistory, setDebtBalanceHistory] = useState<
     DebtBalanceEntry[]
   >([]);
-  const [lastImport, setLastImport] = useState<Pick<
-    BrokerUploadResult,
-    "provenance" | "warnings" | "reconciliation"
-  > | null>(null);
+  const [lastImport, setLastImport] = useState<BrokerUploadResult | null>(null);
+  const [pendingImport, setPendingImport] = useState<BrokerUploadResult | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>("idle");
@@ -201,49 +203,88 @@ export function InvestmentsDashboard() {
     [persist],
   );
 
-  const handleUpload = useCallback(async (file: File) => {
+  const applyCommittedImport = useCallback(async (data: BrokerUploadResult) => {
+    setReport(data.report);
+    setFileName(data.fileName);
+    setLastImport(data);
+    setPendingImport(null);
+    const doc = await fetchPortfolioDocument();
+    setBrokerSnapshots(doc.brokerSnapshots);
+    setDebtBalanceHistory(doc.debtBalanceHistory ?? []);
+    setLastSavedAt(doc.updatedAt);
+    setSaveState("saved");
+    setError(null);
+  }, []);
+
+  const handleUpload = useCallback(
+    async (file: File) => {
+      setSaveState("saving");
+      try {
+        const parsed = await parseBrokerReportFile(file);
+        setLastImport(parsed);
+        const completeness = assessBrokerImportCompleteness(parsed);
+        if (completeness.complete) {
+          const data = await commitBrokerUploadResult(parsed);
+          await applyCommittedImport(data);
+          return;
+        }
+        setPendingImport(parsed);
+        setReport(parsed.report);
+        setFileName(parsed.fileName);
+        setSaveState("idle");
+        setError(null);
+      } catch (err) {
+        setSaveState("error");
+        setError(
+          err instanceof Error ? err.message : "Не удалось сохранить отчёт",
+        );
+      }
+    },
+    [applyCommittedImport],
+  );
+
+  const handleConfirmIncompleteImport = useCallback(async () => {
+    if (!pendingImport) return;
     setSaveState("saving");
     try {
-      const data = await uploadBrokerReport(file);
-      setReport(data.report);
-      setFileName(data.fileName);
-      setLastImport({
-        provenance: data.provenance,
-        warnings: data.warnings,
-        reconciliation: data.reconciliation,
-      });
-      const doc = await fetchPortfolioDocument();
-      setBrokerSnapshots(doc.brokerSnapshots);
-      setDebtBalanceHistory(doc.debtBalanceHistory ?? []);
-      setLastSavedAt(doc.updatedAt);
-      setSaveState("saved");
-      setError(null);
+      const data = await commitBrokerUploadResult(pendingImport);
+      await applyCommittedImport(data);
     } catch (err) {
       setSaveState("error");
       setError(
         err instanceof Error ? err.message : "Не удалось сохранить отчёт",
       );
     }
+  }, [pendingImport, applyCommittedImport]);
+
+  const handleDiscardIncompleteImport = useCallback(async () => {
+    setPendingImport(null);
+    setLastImport(null);
+    const doc = await fetchPortfolioDocument();
+    setReport(doc.brokerReport);
+    setFileName(doc.lastBrokerFileName);
+    setBrokerSnapshots(doc.brokerSnapshots);
+    setSaveState("idle");
+    setError(null);
   }, []);
 
   const handleConnectorSync = useCallback(
     async (result: BrokerConnectorSyncResult) => {
       setSaveState("saving");
       try {
-        const data = await applyBrokerConnectorReport(result);
-        setReport(data.report);
-        setFileName(data.fileName);
-        setLastImport({
-          provenance: data.provenance,
-          warnings: data.warnings,
-          reconciliation: data.reconciliation,
-        });
-        const doc = await fetchPortfolioDocument();
-        setBrokerSnapshots(doc.brokerSnapshots);
-        setDebtBalanceHistory(doc.debtBalanceHistory ?? []);
-        setLastSavedAt(doc.updatedAt);
-        setSaveState("saved");
-        setError(null);
+        const parsed = brokerUploadResultFromConnector(result);
+        setLastImport(parsed);
+        const completeness = assessBrokerImportCompleteness(parsed);
+        if (!completeness.complete) {
+          setPendingImport(parsed);
+          setReport(parsed.report);
+          setFileName(parsed.fileName);
+          setSaveState("idle");
+          setError(null);
+          return;
+        }
+        const data = await commitBrokerUploadResult(parsed);
+        await applyCommittedImport(data);
       } catch (err) {
         setSaveState("error");
         setError(
@@ -252,7 +293,7 @@ export function InvestmentsDashboard() {
         throw err;
       }
     },
-    [],
+    [applyCommittedImport],
   );
 
   const handleSavePlan = useCallback(async (plan: SavedForecastPlan) => {
@@ -458,6 +499,9 @@ export function InvestmentsDashboard() {
             onUpload={handleUpload}
             brokerSnapshots={brokerSnapshots}
             lastImport={lastImport}
+            pendingConfirmation={pendingImport != null}
+            onConfirmIncomplete={handleConfirmIncompleteImport}
+            onDiscardIncomplete={handleDiscardIncompleteImport}
             connectorPanel={
               <TbankConnectorPanel onSynced={handleConnectorSync} />
             }

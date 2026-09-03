@@ -12,6 +12,12 @@ export {
 export { ledgerToBrokerReport, emptyLedger } from "./normalize";
 export { reconcileBrokerLedger, emptyReconciliation } from "./reconcile";
 export {
+  assessBrokerImportCompleteness,
+  type BrokerImportCompleteness,
+  type BrokerImportGap,
+  type BrokerImportGapCode,
+} from "./completeness";
+export {
   BROKER_ADAPTERS,
   PLANNED_BROKER_ADAPTER_IDS,
   getBrokerAdapter,

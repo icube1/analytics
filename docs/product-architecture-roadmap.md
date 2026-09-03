@@ -837,7 +837,8 @@ Webhook:
 - БКС tabular (empty + year-boundary);
 - Газпромбанк и Открытие (CSV/text export, sanitized fixtures: buy, empty,
   year-boundary);
-- reconciliation dashboard;
+- reconciliation dashboard (coverage, reported vs computed, warnings;
+  incomplete imports require an explicit confirm before persist);
 - T‑Bank Invest API connector (`tbank-invest-api-v1`) has an experimental
   `/investments` panel gated by `NEXT_PUBLIC_BROKER_CONNECTOR_TBANK` /
   `VITE_BROKER_CONNECTOR_TBANK` / `BROKER_CONNECTOR_TBANK_ENABLED`; the token
