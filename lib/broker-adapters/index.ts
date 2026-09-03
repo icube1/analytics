@@ -28,6 +28,12 @@ export {
   importUploadedBrokerFile,
 } from "./upload";
 export { sanitizeBrokerFixture } from "../broker-fixture-sanitize";
+export {
+  BROKER_WORKER_PROTOCOL_VERSION,
+  isBrokerWorkerRequest,
+  isBrokerWorkerResponse,
+} from "./worker-contract";
+export { handleBrokerWorkerRequest } from "./worker-handler";
 export { sberHtmlAdapter, parseSberPortfolioHtml } from "./adapters/sber-html";
 export {
   manualCsvAdapter,

@@ -553,7 +553,7 @@ PDF используется только при отсутствии струк
 - ограничение глубины XML;
 - игнорирование macros, formulas и external links в spreadsheets;
 - запрет прямого отображения импортированного HTML;
-- parsing в Worker или изолированном server job;
+- parsing в Worker (клиентский broker Worker) или изолированном server job;
 - явное подтверждение неполного импорта;
 - хранение source provenance для каждой операции.
 
@@ -818,7 +818,8 @@ Webhook:
 - БКС tabular;
 - reconciliation dashboard;
 - fixture contribution и sanitization pipeline;
-- UI загрузки принимает HTML/CSV/TSV/XML и показывает сверку импорта.
+- UI загрузки принимает HTML/CSV/TSV/XML и показывает сверку импорта;
+- разбор HTML/CSV/XML идёт в broker Worker, с синхронным fallback.
 
 Двоичный Excel `.xlsx`/`.xls` по-прежнему требует живой образец: текущие
 адаптеры принимают текстовый CSV/TSV/XML с теми же идентификаторами.

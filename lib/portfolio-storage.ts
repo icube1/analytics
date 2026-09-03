@@ -14,6 +14,7 @@ import {
   importUploadedBrokerFile,
   type BrokerImportProvenance,
   type BrokerImportReconciliation,
+  type BrokerImportResult,
   type BrokerImportWarning,
 } from "./broker-adapters";
 import { apiFetch } from "./api-base";
@@ -188,7 +189,11 @@ export async function uploadBrokerReport(
 ): Promise<BrokerUploadResult> {
   const content = await file.text();
   const fileName = file.name || "broker-report.html";
-  const imported = importUploadedBrokerFile(content, fileName, file.type || undefined);
+  const imported = await importBrokerFileOffMainThread(
+    content,
+    fileName,
+    file.type || undefined,
+  );
 
   if (!imported.ok || !imported.report) {
     throw new Error(describeBrokerUploadError(imported, fileName));
@@ -221,6 +226,25 @@ export async function uploadBrokerReport(
     warnings: imported.warnings,
     reconciliation: imported.reconciliation,
   };
+}
+
+async function importBrokerFileOffMainThread(
+  content: string,
+  fileName: string,
+  mimeType?: string,
+): Promise<BrokerImportResult> {
+  if (typeof Worker === "undefined") {
+    return importUploadedBrokerFile(content, fileName, mimeType);
+  }
+
+  try {
+    const { importBrokerReportInWorker } = await import(
+      "./broker-adapters/worker-client"
+    );
+    return await importBrokerReportInWorker({ content, fileName, mimeType });
+  } catch {
+    return importUploadedBrokerFile(content, fileName, mimeType);
+  }
 }
 
 export function readLegacyLocalStorage(): Partial<PortfolioDocument> | null {

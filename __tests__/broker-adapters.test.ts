@@ -5,7 +5,9 @@ import {
   describeBrokerUploadError,
   detectBrokerAdapters,
   importBrokerReport,
+  handleBrokerWorkerRequest,
   importUploadedBrokerFile,
+  isBrokerWorkerRequest,
   parseBrokerNumber,
   parseSberPortfolioHtml,
 } from "@/lib/broker-adapters";
@@ -132,6 +134,30 @@ describe("broker adapter platform", () => {
     expect(result.ok).toBe(true);
     expect(result.provenance.adapterId).toBe("tbank-xlsx");
     expect(result.provenance.fileName).toBe("tbank-export.csv");
+  });
+
+  it("parses a tabular report through the broker worker protocol", () => {
+    const content = fs.readFileSync(
+      path.join(process.cwd(), "__tests__", "fixtures", "tbank-report.csv"),
+      "utf8",
+    );
+    const request = {
+      version: 1 as const,
+      requestId: "broker-test",
+      type: "broker-import.run" as const,
+      payload: {
+        content,
+        fileName: "tbank-export.csv",
+      },
+    };
+
+    expect(isBrokerWorkerRequest(request)).toBe(true);
+    const response = handleBrokerWorkerRequest(request);
+    expect(response.type).toBe("broker-import.result");
+    if (response.type === "broker-import.result") {
+      expect(response.payload.ok).toBe(true);
+      expect(response.payload.provenance.adapterId).toBe("tbank-xlsx");
+    }
   });
 
   it("explains that binary Excel still needs a CSV export", () => {
