@@ -95,7 +95,18 @@ impl AuditRepository {
         &self,
         scope: TenantScope,
         limit: i64,
+        action: Option<&str>,
+        before_id: Option<Uuid>,
     ) -> ApiResult<Vec<AuditRecord>> {
+        let cursor = if let Some(id) = before_id {
+            match self.get(id).await {
+                Ok(record) if record.household_id == Some(scope.household_id()) => Some(record),
+                Ok(_) | Err(ApiError::NotFound) => None,
+                Err(error) => return Err(error),
+            }
+        } else {
+            None
+        };
         let rows = sqlx::query_as::<
             _,
             (
@@ -110,10 +121,20 @@ impl AuditRepository {
             "SELECT id, household_id, actor_user_id, action, metadata_json, created_at
              FROM audit_events
              WHERE household_id = ?1
+               AND (?2 IS NULL OR action = ?2)
+               AND (
+                    ?3 IS NULL
+                    OR created_at < ?4
+                    OR (created_at = ?4 AND id < ?5)
+               )
              ORDER BY created_at DESC, id DESC
-             LIMIT ?2",
+             LIMIT ?6",
         )
         .bind(scope.household_id().to_string())
+        .bind(action)
+        .bind(cursor.as_ref().map(|record| record.id.to_string()))
+        .bind(cursor.as_ref().map(|record| record.created_at.to_rfc3339()))
+        .bind(cursor.as_ref().map(|record| record.id.to_string()))
         .bind(limit.clamp(1, 100))
         .fetch_all(&self.pool)
         .await?;

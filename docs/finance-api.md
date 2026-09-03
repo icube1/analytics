@@ -58,7 +58,7 @@ finance-api (binary)
 | GET/POST | `/api/v1/broker/imports` | session |
 | GET | `/api/v1/broker/imports/:id(/content)` | session |
 | GET | `/api/v1/backup/export` | session |
-| GET | `/api/v1/audit-events` | session |
+| GET | `/api/v1/audit-events` | session (`limit`, `action`, `before`) |
 | GET | `/api/v1/usage-summary` | session |
 
 ## Schema (SQLite WAL)

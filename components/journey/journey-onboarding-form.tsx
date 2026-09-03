@@ -91,6 +91,25 @@ export function JourneyOnboardingForm({
           />
           Есть иждивенцы
         </label>
+        <label className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-200 sm:col-span-2">
+          <input
+            type="checkbox"
+            checked={input.household.hasSecondaryHouseholdIncome}
+            onChange={(event) =>
+              setInput((current) => ({
+                ...current,
+                household: {
+                  ...current.household,
+                  hasSecondaryHouseholdIncome: event.target.checked,
+                  incomeSourceCount: event.target.checked
+                    ? Math.max(current.household.incomeSourceCount, 2)
+                    : 1,
+                },
+              }))
+            }
+          />
+          Есть второй доход в семье
+        </label>
       </div>
       <button
         type="submit"

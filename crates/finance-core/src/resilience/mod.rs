@@ -113,6 +113,19 @@ mod tests {
     }
 
     #[test]
+    fn partner_income_loss_appears_for_dual_income() {
+        let mut input = sample_input();
+        input.household.has_secondary_household_income = true;
+        input.household.income_source_count = 2;
+        let plan = evaluate_resilience(&input);
+        assert_eq!(plan.stress.len(), 7);
+        assert!(plan
+            .stress
+            .iter()
+            .any(|scenario| scenario.id == "partner-income-loss"));
+    }
+
+    #[test]
     fn notes_include_disclaimer() {
         let plan = evaluate_resilience(&sample_input());
         assert!(plan.notes.iter().any(|note| note.topic == "disclaimer"));

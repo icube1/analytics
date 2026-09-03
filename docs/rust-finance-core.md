@@ -76,7 +76,8 @@ architecture roadmap:
 `dto::v1` exposes a `resiliencePlan` operation. Inputs include mandatory
 expenses, liquid assets, household risk factors, debt burden, sinking-fund
 goals, and experiences targets. Outputs include layer ranges, coverage
-percentages, a risk score, six deterministic stress scenarios, factor
+percentages, a risk score, six deterministic stress scenarios plus an
+optional partner-income-loss case when a second household income exists, factor
 explanations, and descriptive debt-tradeoff notes. Nothing in this module
 constitutes personalized securities or credit advice.
 

@@ -20,10 +20,13 @@ describe("resilience plan contract", () => {
       expect(first.totals.allLayersRecommended).toBeGreaterThanOrEqual(
         first.totals.emergencyOnlyRecommended,
       );
-      expect(first.stress).toHaveLength(6);
+      expect(first.stress.length).toBeGreaterThanOrEqual(6);
       expect(
         first.stress.some((scenario) => scenario.id === "family-care-shock"),
       ).toBe(true);
+      expect(
+        first.stress.some((scenario) => scenario.id === "partner-income-loss"),
+      ).toBe(input.household.hasSecondaryHouseholdIncome);
       expect(
         first.notes.some((note) => note.topic === "disclaimer"),
       ).toBe(true);

@@ -17,6 +17,8 @@ pub fn router() -> Router<AppState> {
 #[derive(Deserialize)]
 struct ListQuery {
     limit: Option<i64>,
+    action: Option<String>,
+    before: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -33,6 +35,7 @@ struct AuditEventResponse {
 #[serde(rename_all = "camelCase")]
 struct AuditListResponse {
     items: Vec<AuditEventResponse>,
+    next_cursor: Option<String>,
 }
 
 async fn list_audit_events(
@@ -40,9 +43,18 @@ async fn list_audit_events(
     Extension(auth): Extension<Authenticated>,
     Query(query): Query<ListQuery>,
 ) -> ApiResult<Json<AuditListResponse>> {
-    let items = AuditRepository::new(state.pool().clone())
-        .list_for_household(auth.scope(), query.limit.unwrap_or(50))
-        .await?
+    let limit = query.limit.unwrap_or(50).clamp(1, 100);
+    let before = query
+        .before
+        .as_deref()
+        .and_then(|value| value.parse::<uuid::Uuid>().ok());
+    let records = AuditRepository::new(state.pool().clone())
+        .list_for_household(auth.scope(), limit, query.action.as_deref(), before)
+        .await?;
+    let next_cursor = (records.len() as i64 >= limit)
+        .then(|| records.last().map(|record| record.id.to_string()))
+        .flatten();
+    let items = records
         .into_iter()
         .map(|record| AuditEventResponse {
             id: record.id.to_string(),
@@ -52,5 +64,5 @@ async fn list_audit_events(
             created_at: record.created_at.to_rfc3339(),
         })
         .collect();
-    Ok(Json(AuditListResponse { items }))
+    Ok(Json(AuditListResponse { items, next_cursor }))
 }

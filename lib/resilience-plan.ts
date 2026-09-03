@@ -385,7 +385,7 @@ function computeLayers(input: ResilienceInput): {
 }
 
 function runStressScenarios(input: ResilienceInput): StressScenarioResult[] {
-  return [
+  const scenarios = [
     incomeLoss(input, 1, "income-loss-1m", "One-month income interruption"),
     incomeLoss(input, 3, "income-loss-3m", "Three-month income interruption"),
     incomeLoss(input, 6, "income-loss-6m", "Six-month income interruption"),
@@ -393,6 +393,10 @@ function runStressScenarios(input: ResilienceInput): StressScenarioResult[] {
     incomeLossWithDebt(input),
     familyCareShock(input),
   ];
+  if (input.household.hasSecondaryHouseholdIncome) {
+    scenarios.push(partnerIncomeLoss(input));
+  }
+  return scenarios;
 }
 
 function incomeLoss(
@@ -477,6 +481,28 @@ function familyCareShock(input: ResilienceInput): StressScenarioResult {
   return {
     id: "family-care-shock",
     label: "Family care or medical shock",
+    monthsTested: months,
+    survivable,
+    shortfall,
+    remainingLiquid: Math.max(remaining, 0),
+    summary,
+  };
+}
+
+function partnerIncomeLoss(input: ResilienceInput): StressScenarioResult {
+  const months = 3;
+  const mandatory = Math.max(input.mandatoryMonthlyExpenses, 0);
+  const uncovered = mandatory * 0.5;
+  const burn = uncovered * months;
+  const remaining = input.liquidAssets - burn;
+  const survivable = remaining >= 0;
+  const shortfall = Math.max(-remaining, 0);
+  const summary = survivable
+    ? `If one household income stops, liquid assets cover ${months} months of the uncovered half of mandatory expenses.`
+    : `Losing one of two household incomes for ${months} months would require about ${shortfall.toFixed(0)} more liquidity.`;
+  return {
+    id: "partner-income-loss",
+    label: "Partner or second income interruption",
     monthsTested: months,
     survivable,
     shortfall,

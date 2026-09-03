@@ -11,7 +11,8 @@ SPA under `apps/web` without replacing the production shell.
 - Layered reserves: operational buffer, starter emergency fund, core reserve,
   extended reserve, sinking funds, experiences fund.
 - Household and debt factors with immediate explanatory feedback.
-- Six deterministic stress scenarios, including a family care/medical shock.
+- Six deterministic stress scenarios, including a family care/medical shock,
+  plus partner-income-loss when a second household income is present.
 - Ethical progress UX: neutral milestone language, no shame framing.
 - Local persistence in `localStorage` with `schemaVersion: 1`.
 - Responsive two-column layout with accessible form controls and progress bars.

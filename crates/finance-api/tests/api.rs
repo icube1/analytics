@@ -112,6 +112,28 @@ async fn audit_trail_records_login_and_stays_tenant_scoped() {
         .collect();
     assert!(actions.contains(&"auth.login"));
     assert!(actions.contains(&"portfolio.push"));
+    let filtered = server
+        .get("/api/v1/audit-events?action=portfolio.push&limit=1")
+        .add_header("Authorization", format!("Bearer {token_a}"))
+        .await;
+    filtered.assert_status_ok();
+    let filtered_body = filtered.json::<serde_json::Value>();
+    assert_eq!(filtered_body["items"].as_array().unwrap().len(), 1);
+    assert_eq!(filtered_body["items"][0]["action"], "portfolio.push");
+    if let Some(cursor) = filtered_body["nextCursor"].as_str() {
+        let page = server
+            .get(&format!(
+                "/api/v1/audit-events?action=portfolio.push&limit=1&before={cursor}"
+            ))
+            .add_header("Authorization", format!("Bearer {token_a}"))
+            .await;
+        page.assert_status_ok();
+        assert!(page.json::<serde_json::Value>()["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|item| item["id"] != cursor));
+    }
     assert!(body["items"]
         .as_array()
         .unwrap()

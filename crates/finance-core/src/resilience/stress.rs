@@ -17,7 +17,7 @@ pub struct StressScenarioResult {
 
 #[must_use]
 pub fn run_stress_scenarios(input: &ResilienceInput) -> Vec<StressScenarioResult> {
-    vec![
+    let mut scenarios = vec![
         income_loss(input, 1, "income-loss-1m", "One-month income interruption"),
         income_loss(
             input,
@@ -29,7 +29,11 @@ pub fn run_stress_scenarios(input: &ResilienceInput) -> Vec<StressScenarioResult
         unexpected_expense(input),
         income_loss_with_debt(input),
         family_care_shock(input),
-    ]
+    ];
+    if input.household.has_secondary_household_income {
+        scenarios.push(partner_income_loss(input));
+    }
+    scenarios
 }
 
 fn income_loss(input: &ResilienceInput, months: u8, id: &str, label: &str) -> StressScenarioResult {
@@ -139,6 +143,34 @@ fn family_care_shock(input: &ResilienceInput) -> StressScenarioResult {
     StressScenarioResult {
         id: "family-care-shock".to_owned(),
         label: "Family care or medical shock".to_owned(),
+        months_tested: months,
+        survivable,
+        shortfall,
+        remaining_liquid: remaining.max(0.0),
+        summary,
+    }
+}
+
+fn partner_income_loss(input: &ResilienceInput) -> StressScenarioResult {
+    let months: u8 = 3;
+    let mandatory = input.mandatory_monthly_expenses.max(0.0);
+    let uncovered = mandatory * 0.5;
+    let burn = uncovered * f64::from(months);
+    let remaining = input.liquid_assets - burn;
+    let survivable = remaining >= 0.0;
+    let shortfall = (-remaining).max(0.0);
+    let summary = if survivable {
+        format!(
+            "If one household income stops, liquid assets cover {months} months of the uncovered half of mandatory expenses."
+        )
+    } else {
+        format!(
+            "Losing one of two household incomes for {months} months would require about {shortfall:.0} more liquidity."
+        )
+    };
+    StressScenarioResult {
+        id: "partner-income-loss".to_owned(),
+        label: "Partner or second income interruption".to_owned(),
         months_tested: months,
         survivable,
         shortfall,
