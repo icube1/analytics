@@ -2,11 +2,15 @@ import type { CompoundParams } from "./portfolio-types";
 import type { CompoundContext, CompoundResult } from "./compound-interest/types";
 import type { MonteCarloOptions, MonteCarloResult } from "./compound-interest/monte-carlo";
 import type { SafeWithdrawalAdvice } from "./safe-withdrawal";
+import type { LiveForecastResult } from "./tracking-forecast";
+import { toCivilDateString } from "./civil-date";
 import {
   compoundResultsMatch,
+  liveForecastResultsMatch,
   monteCarloResultsMatch,
   safeWithdrawalAdviceMatch,
 } from "./compound-parity";
+import type { LiveTrackingWorkerInput } from "./finance-worker/contract";
 
 interface WasmExports {
   evaluate_finance_core: (requestJson: string) => string;
@@ -30,6 +34,12 @@ export interface MonteCarloWasmEvaluation {
 
 export interface SafeWithdrawalWasmEvaluation {
   result: SafeWithdrawalAdvice | null;
+  parityVerified: boolean | null;
+  engine: "typescript" | "wasm";
+}
+
+export interface LiveTrackingWasmEvaluation {
+  result: LiveForecastResult;
   parityVerified: boolean | null;
   engine: "typescript" | "wasm";
 }
@@ -76,7 +86,7 @@ function evaluateCompoundWithWasm(
         context,
         options: {
           allMonths: options.allMonths,
-          asOf: options.asOf,
+          asOf: toCivilDateString(options.asOf),
         },
       },
     ],
@@ -110,10 +120,11 @@ function evaluateMonteCarloWithWasm(
           simulations: options.simulations,
           volatilityPercent: options.volatilityPercent,
           seed: options.seed,
-          asOf:
+          asOf: toCivilDateString(
             options.asOf instanceof Date
               ? options.asOf.toISOString()
               : options.asOf,
+          ),
         },
       },
     ],
@@ -189,7 +200,7 @@ function evaluateSafeWithdrawalWithWasm(
         params,
         context,
         options: {
-          asOf: options.asOf,
+          asOf: toCivilDateString(options.asOf),
         },
       },
     ],
@@ -277,6 +288,91 @@ export async function evaluateMonteCarloWithOptionalWasm(
       return { result: wasmResult, parityVerified: null, engine: "wasm" };
     }
     const parityVerified = monteCarloResultsMatch(tsResult, wasmResult);
+    return {
+      result: parityVerified ? wasmResult : tsResult,
+      parityVerified,
+      engine: parityVerified ? "wasm" : "typescript",
+    };
+  } catch {
+    return {
+      result: tsResult,
+      parityVerified: options.checkParity ? false : null,
+      engine: "typescript",
+    };
+  }
+}
+
+function evaluateLiveTrackingWithWasm(
+  module: WasmExports,
+  params: CompoundParams,
+  context: CompoundContext | undefined,
+  options: { asOf?: string },
+  tracking: LiveTrackingWorkerInput,
+): LiveForecastResult {
+  const request = {
+    schemaVersion: 1,
+    cases: [
+      {
+        operation: "liveTrackingForecast",
+        id: "ui",
+        params,
+        context,
+        options: {
+          allMonths: true,
+          asOf: toCivilDateString(options.asOf),
+        },
+        tracking,
+      },
+    ],
+  };
+  const response = JSON.parse(module.evaluate_finance_core(JSON.stringify(request))) as {
+    cases?: Array<{ forecast?: LiveForecastResult }>;
+    error?: { message: string };
+  };
+  const forecast = response.cases?.[0]?.forecast;
+  if (!forecast) {
+    throw new Error(response.error?.message ?? "WASM live-tracking evaluation failed");
+  }
+  return forecast;
+}
+
+export async function evaluateLiveTrackingWithOptionalWasm(
+  calculateTs: () => LiveForecastResult,
+  params: CompoundParams,
+  context: CompoundContext | undefined,
+  tracking: LiveTrackingWorkerInput,
+  options: {
+    asOf?: string;
+    preferWasm?: boolean;
+    checkParity?: boolean;
+  },
+): Promise<LiveTrackingWasmEvaluation> {
+  const tsResult = calculateTs();
+  if (!options.preferWasm) {
+    return { result: tsResult, parityVerified: null, engine: "typescript" };
+  }
+
+  const wasm = await loadWasmModule();
+  if (!wasm) {
+    return {
+      result: tsResult,
+      parityVerified: options.checkParity ? true : null,
+      engine: "typescript",
+    };
+  }
+
+  try {
+    const wasmResult = evaluateLiveTrackingWithWasm(
+      wasm,
+      params,
+      context,
+      options,
+      tracking,
+    );
+    if (!options.checkParity) {
+      return { result: wasmResult, parityVerified: null, engine: "wasm" };
+    }
+    const parityVerified = liveForecastResultsMatch(tsResult, wasmResult);
     return {
       result: parityVerified ? wasmResult : tsResult,
       parityVerified,

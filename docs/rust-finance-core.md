@@ -4,9 +4,11 @@
 workspace library with both `rlib` and `cdylib` outputs so a native backend can
 link it now and a later `wasm-bindgen` adapter can wrap the same public API.
 
-The calculator finance Worker evaluates compound and Monte Carlo in TypeScript
-off the main thread. When `NEXT_PUBLIC_RUST_COMPOUND_PARITY=1`, the same worker
-may call `evaluate_finance_core` WASM and fall back to TypeScript on mismatch.
+The calculator finance Worker evaluates compound, Monte Carlo, safe-withdrawal,
+and live tracking in TypeScript off the main thread. When
+`NEXT_PUBLIC_RUST_COMPOUND_PARITY=1`, the same worker may call
+`evaluate_finance_core` WASM (civil `YYYY-MM-DD` dates) and fall back to
+TypeScript on mismatch.
 Production stays on TypeScript until that flag is enabled after CI parity stays
 green.
 

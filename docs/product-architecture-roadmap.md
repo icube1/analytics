@@ -200,7 +200,11 @@ crates/
   через compound Worker; календарный маппинг live forecast — DTO
   `liveTrackingForecast` и Worker `live-tracking.run`, с дифференциальными
   тестами TS/Rust;
-  WASM включается только флагом `NEXT_PUBLIC_RUST_COMPOUND_PARITY`;
+  WASM включается только флагом `NEXT_PUBLIC_RUST_COMPOUND_PARITY`,
+  даты в WASM приводятся к `YYYY-MM-DD`;
+- размещение расчёта выбирает `chooseComputePlacement`: по умолчанию
+  local Worker; Axum `finance.evaluate` только для тяжёлого Monte Carlo
+  при явном флаге, online и entitlement `finance.heavy`;
 - вероятностные прогнозы, IRR и волатильность остаются на `f64`;
 - даты передаются как явные civil dates без скрытого `new Date()`;
 - seed Monte Carlo является частью входного контракта.
@@ -629,7 +633,7 @@ timestamps. Уникальные индексы также включают tena
 Redis, Kafka и Temporal не добавляются до появления требований, которые SQLite
 или PostgreSQL job table не покрывает.
 
-Решение local/server принимается по policy:
+Решение local/server принимается по policy (`lib/compute-placement.ts`):
 
 - размер задачи;
 - характеристики устройства;
@@ -637,6 +641,9 @@ Redis, Kafka и Temporal не добавляются до появления т�
 - battery-saving preference;
 - тариф;
 - наличие результата в кэше.
+
+Клиент по умолчанию остаётся на local Worker. Server-job включается только
+явным флагом после того, как Axum станет публичным.
 
 ---
 

@@ -1,7 +1,9 @@
 import { calculateCompoundInterest } from "../compound-interest";
 import { runMonteCarloSimulation } from "../compound-interest/monte-carlo";
+import { parseCivilDate } from "../civil-date";
 import {
   evaluateCompoundWithOptionalWasm,
+  evaluateLiveTrackingWithOptionalWasm,
   evaluateMonteCarloWithOptionalWasm,
   evaluateSafeWithdrawalWithOptionalWasm,
 } from "../compound-wasm";
@@ -14,15 +16,7 @@ import {
 } from "./contract";
 
 function parseWorkerAsOf(value: string): Date {
-  const civil = /^(-?\d+)-(\d{2})-(\d{2})$/.exec(value);
-  if (civil) {
-    return new Date(
-      Number(civil[1]),
-      Number(civil[2]) - 1,
-      Number(civil[3]),
-    );
-  }
-  return new Date(value);
+  return parseCivilDate(value);
 }
 
 function requestIdFrom(value: unknown): string {
@@ -97,33 +91,45 @@ export async function handleFinanceWorkerRequest(
     }
 
     if (request.type === "live-tracking.run") {
-      const result = calculateCompoundInterest(
+      const evaluation = await evaluateLiveTrackingWithOptionalWasm(
+        () => {
+          const result = calculateCompoundInterest(
+            request.payload.params,
+            request.payload.context,
+            { allMonths: true, asOf },
+          );
+          return mapLiveForecastFromProjection({
+            result,
+            asOf,
+            horizonMonths: request.payload.tracking.horizonMonths,
+            currentGrandTotal: request.payload.tracking.currentGrandTotal,
+            monthlyContribution: request.payload.tracking.monthlyContribution,
+            suggestedFromScenario: request.payload.tracking.suggestedFromScenario,
+            depositsByMonth: new Map(
+              Object.entries(request.payload.tracking.depositsByMonth),
+            ),
+            withdrawAfterYears: request.payload.tracking.withdrawAfterYears,
+            withdrawCalendarMonth: request.payload.tracking.withdrawCalendarMonth,
+            basePlanId: request.payload.tracking.basePlanId,
+            basePlanName: request.payload.tracking.basePlanName,
+          });
+        },
         request.payload.params,
         request.payload.context,
-        { allMonths: true, asOf },
+        request.payload.tracking,
+        {
+          asOf: request.payload.options.asOf,
+          preferWasm: request.payload.options.preferWasm === true,
+          checkParity: request.payload.options.checkParity === true,
+        },
       );
-      const forecast = mapLiveForecastFromProjection({
-        result,
-        asOf,
-        horizonMonths: request.payload.tracking.horizonMonths,
-        currentGrandTotal: request.payload.tracking.currentGrandTotal,
-        monthlyContribution: request.payload.tracking.monthlyContribution,
-        suggestedFromScenario: request.payload.tracking.suggestedFromScenario,
-        depositsByMonth: new Map(
-          Object.entries(request.payload.tracking.depositsByMonth),
-        ),
-        withdrawAfterYears: request.payload.tracking.withdrawAfterYears,
-        withdrawCalendarMonth: request.payload.tracking.withdrawCalendarMonth,
-        basePlanId: request.payload.tracking.basePlanId,
-        basePlanName: request.payload.tracking.basePlanName,
-      });
       return {
         version: FINANCE_WORKER_PROTOCOL_VERSION,
         requestId,
         type: "live-tracking.result",
-        payload: forecast,
-        engine: "typescript",
-        parityVerified: null,
+        payload: evaluation.result,
+        engine: evaluation.engine,
+        parityVerified: evaluation.parityVerified,
       };
     }
 

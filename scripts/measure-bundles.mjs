@@ -108,9 +108,13 @@ if (ciMode) {
   const wasmDist = path.join(viteDist, "wasm/finance-wasm/finance_wasm_bg.wasm");
   const wasmSourceBytes = fs.existsSync(wasmSource) ? fs.statSync(wasmSource).size : 0;
   const wasmDistBytes = fs.existsSync(wasmDist) ? fs.statSync(wasmDist).size : 0;
-  const wasmOk = wasmSourceBytes > 100_000 && wasmDistBytes > 100_000;
+  const wasmMax = Number(process.env.BUDGET_FINANCE_WASM_BYTES ?? 600 * 1024);
+  const wasmOk =
+    wasmSourceBytes > 100_000 &&
+    wasmDistBytes > 100_000 &&
+    wasmSourceBytes <= wasmMax;
   console.log(
-    `  [${wasmOk ? "OK" : "FAIL"}] financeWasmShipped: source ${formatBytes(wasmSourceBytes)}, vite ${formatBytes(wasmDistBytes)}`,
+    `  [${wasmOk ? "OK" : "FAIL"}] financeWasmShipped: source ${formatBytes(wasmSourceBytes)}, vite ${formatBytes(wasmDistBytes)} / max ${formatBytes(wasmMax)}`,
   );
   if (!wasmOk) failed = true;
   if (failed) process.exit(1);

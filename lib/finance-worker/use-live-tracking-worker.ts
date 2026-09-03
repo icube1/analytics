@@ -4,6 +4,10 @@ import { useEffect, useState } from "react";
 import type { CompoundContext } from "../compound-interest/types";
 import type { CompoundParams } from "../portfolio-types";
 import type { LiveForecastResult } from "../tracking-forecast";
+import {
+  isRustCompoundParityEnabled,
+  shouldCheckCompoundParity,
+} from "../compound-feature-flags";
 import { createFinanceWorker } from "./browser-worker";
 import {
   createLiveTrackingWorkerRequest,
@@ -70,7 +74,11 @@ export function useLiveTrackingWorker({
     const request = createLiveTrackingWorkerRequest({
       params,
       context,
-      options: { asOf },
+      options: {
+        asOf,
+        preferWasm: isRustCompoundParityEnabled(),
+        checkParity: shouldCheckCompoundParity(),
+      },
       tracking,
     });
     const job = startLiveTrackingWorkerJob(worker, request);
