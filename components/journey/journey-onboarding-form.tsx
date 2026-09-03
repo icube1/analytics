@@ -65,6 +65,12 @@ export function JourneyOnboardingForm({
           onChange={(value) => update("monthlySurplus", value)}
         />
         <NumberField
+          id="journey-discretionary"
+          label="Дискреционные расходы, ₽/мес"
+          value={input.discretionaryMonthlyExpenses}
+          onChange={(value) => update("discretionaryMonthlyExpenses", value)}
+        />
+        <NumberField
           id="journey-debt"
           label="Долг, ₽ (необязательно)"
           value={input.debt.totalBalance}
@@ -72,6 +78,17 @@ export function JourneyOnboardingForm({
             setInput((current) => ({
               ...current,
               debt: { ...current.debt, totalBalance: value },
+            }))
+          }
+        />
+        <NumberField
+          id="journey-debt-payment"
+          label="Платёж по долгу, ₽/мес"
+          value={input.debt.monthlyPayments}
+          onChange={(value) =>
+            setInput((current) => ({
+              ...current,
+              debt: { ...current.debt, monthlyPayments: value },
             }))
           }
         />

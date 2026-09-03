@@ -1,6 +1,7 @@
 import {
   DEFAULT_RESILIENCE_INPUT,
   ZERO_CAPITAL_RESILIENCE_INPUT,
+  createSinkingFundGoal,
 } from "@/lib/resilience-defaults";
 import { evaluateResiliencePlan } from "@/lib/resilience-plan";
 import {
@@ -103,6 +104,55 @@ describe("journey progress", () => {
     expect(
       snapshot.milestones.find((m) => m.id === "baseline-data-quality")?.status,
     ).not.toBe("locked");
+  });
+
+  it("unlocks sinking-funds after a goal is added", () => {
+    const withoutFunds = computeJourneyProgress(
+      DEFAULT_RESILIENCE_INPUT,
+      evaluateResiliencePlan(DEFAULT_RESILIENCE_INPUT),
+      {
+        milestoneOrder: defaultMilestoneOrder(),
+        optedOutMilestones: [],
+        completedBabySteps: {},
+        acknowledgedMilestones: [],
+      },
+    );
+    expect(
+      withoutFunds.milestones.find((m) => m.id === "sinking-funds")?.status,
+    ).toBe("skipped");
+
+    const input = {
+      ...DEFAULT_RESILIENCE_INPUT,
+      sinkingFunds: [
+        createSinkingFundGoal({
+          id: "repair",
+          label: "Ремонт",
+          targetAmount: 60_000,
+          currentAmount: 15_000,
+          monthsUntilDue: 6,
+        }),
+      ],
+    };
+    const snapshot = computeJourneyProgress(
+      input,
+      evaluateResiliencePlan(input),
+      {
+        milestoneOrder: defaultMilestoneOrder(),
+        optedOutMilestones: [],
+        completedBabySteps: {},
+        acknowledgedMilestones: [],
+      },
+    );
+    const sinking = snapshot.milestones.find((m) => m.id === "sinking-funds");
+    expect(sinking?.status).not.toBe("skipped");
+    expect(sinking?.babySteps.find((step) => step.id === "define-goals")?.completed).toBe(
+      true,
+    );
+    expect(
+      snapshot.milestones.find((m) => m.id === "experiences-fund")?.babySteps.find(
+        (step) => step.id === "annual-target",
+      )?.completed,
+    ).toBe(true);
   });
 });
 

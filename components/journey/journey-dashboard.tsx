@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { StatCard } from "@/components/stat-card";
 import { JourneyMilestoneCard } from "@/components/journey/journey-milestone-card";
 import { JourneyOnboardingForm } from "@/components/journey/journey-onboarding-form";
+import { JourneyReserveLayersPanel } from "@/components/journey/journey-reserve-layers-panel";
 import { JourneyReviewCard } from "@/components/journey/journey-review-card";
 import { JourneySettingsPanel } from "@/components/journey/journey-settings-panel";
 import { computeContinuity } from "@/lib/journey/continuity";
@@ -39,6 +40,7 @@ export function JourneyDashboard() {
     () => readJourneyDocument() ?? createDefaultJourneyDocument(),
   );
   const [baseline, setBaseline] = useState<ResilienceInput | null>(null);
+  const [editingBaseline, setEditingBaseline] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -62,8 +64,18 @@ export function JourneyDashboard() {
     );
   }, [hydrated]);
 
+  const persistBaseline = useCallback((input: ResilienceInput) => {
+    const document = {
+      ...(readResilienceDocument() ?? createZeroCapitalResilienceDocument()),
+      input,
+    };
+    writeResilienceDocument(document);
+    setBaseline(input);
+    setEditingBaseline(false);
+  }, []);
+
   const resilienceInput = baseline ?? ZERO_CAPITAL_RESILIENCE_INPUT;
-  const needsOnboarding = hydrated && baseline === null;
+  const needsOnboarding = hydrated && (baseline === null || editingBaseline);
 
   const plan = useMemo(
     () => evaluateResiliencePlan(resilienceInput),
@@ -156,8 +168,9 @@ export function JourneyDashboard() {
           >
             карте устойчивости
           </a>
-          . Обновите базовые данные там — здесь появится количественная
-          обратная связь. Это не инвестиционный совет и не гарантия результата.
+          . Базовые цифры, целевые фонды и фонд впечатлений можно вести здесь;
+          карта слоёв и стресс-сценариев — там. Это не инвестиционный совет и
+          не гарантия результата.
         </p>
         <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400" aria-live="polite">
           {continuity.message}
@@ -166,16 +179,20 @@ export function JourneyDashboard() {
 
       {needsOnboarding ? (
         <JourneyOnboardingForm
-          onSave={(input) => {
-            const document = {
-              ...createZeroCapitalResilienceDocument(),
-              input,
-            };
-            writeResilienceDocument(document);
-            setBaseline(input);
-          }}
+          initial={baseline ?? undefined}
+          onSave={persistBaseline}
         />
-      ) : null}
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setEditingBaseline(true)}
+            className="rounded-xl border border-zinc-200 px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            Изменить базовые цифры
+          </button>
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
@@ -235,6 +252,14 @@ export function JourneyDashboard() {
           ))}
         </ul>
       </section>
+
+      {baseline ? (
+        <JourneyReserveLayersPanel
+          input={resilienceInput}
+          plan={plan}
+          onChange={persistBaseline}
+        />
+      ) : null}
 
       <JourneyReviewCard
         progress={progress}
