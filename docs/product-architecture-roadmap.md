@@ -833,6 +833,7 @@ Webhook:
 - T‑Bank и ВТБ (CSV/text export, sanitized fixtures);
 - Альфа и Финам (XML fixtures);
 - БКС tabular;
+- Газпромбанк и Открытие (CSV/text export, sanitized fixtures);
 - reconciliation dashboard;
 - fixture contribution и sanitization pipeline;
 - UI загрузки принимает HTML/CSV/TSV/XML и показывает сверку импорта;

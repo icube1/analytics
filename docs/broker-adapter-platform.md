@@ -43,6 +43,8 @@ Versioned import pipeline for brokerage reports. Production adapters require san
 | `alfa-xml` | Alfa-Investments XML | `__tests__/fixtures/alfa-report.xml` |
 | `finam-xml` | Finam XML | `__tests__/fixtures/finam-report.xml` |
 | `bcs-xls` | BCS CSV/TSV text export | `__tests__/fixtures/bcs-report.csv` |
+| `gazprombank-csv` | Gazprombank CSV/TSV text export | `__tests__/fixtures/gazprombank-report.csv` |
+| `otkritie-csv` | Otkritie CSV/TSV text export | `__tests__/fixtures/otkritie-report.csv` |
 
 Shared parsers live in `lib/broker-adapters/tabular.ts` and `xml.ts`.
 Binary Excel workbooks are **not** unzipped; save/export as CSV or XML.

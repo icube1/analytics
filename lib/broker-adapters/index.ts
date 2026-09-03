@@ -43,6 +43,14 @@ export {
 export { tbankTabularAdapter, TBANK_CSV_MAGIC } from "./adapters/tbank-tabular";
 export { vtbTabularAdapter, VTB_CSV_MAGIC } from "./adapters/vtb-tabular";
 export { bcsTabularAdapter, BCS_CSV_MAGIC } from "./adapters/bcs-tabular";
+export {
+  gazprombankTabularAdapter,
+  GAZPROMBANK_CSV_MAGIC,
+} from "./adapters/gazprombank-tabular";
+export {
+  otkritieTabularAdapter,
+  OTKRITIE_CSV_MAGIC,
+} from "./adapters/otkritie-tabular";
 export { alfaXmlAdapter, finamXmlAdapter } from "./adapters/xml-brokers";
 export type {
   BrokerAdapter,

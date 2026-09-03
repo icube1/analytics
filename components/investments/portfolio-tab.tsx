@@ -48,7 +48,7 @@ export function PortfolioTab({
           Загрузите отчёт брокера: HTML Сбера, CSV/TSV или XML
         </p>
         <p className="mt-2 text-xs text-zinc-400 dark:text-zinc-500">
-          Т‑Банк, ВТБ, БКС — текстовый CSV; Альфа и Финам — XML. Двоичный Excel пока
+          Т‑Банк, ВТБ, БКС, Газпромбанк, Открытие — текстовый CSV; Альфа и Финам — XML. Двоичный Excel пока
           не читается.
         </p>
         <label className="mt-4 inline-flex cursor-pointer rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white">

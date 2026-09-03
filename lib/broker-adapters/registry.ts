@@ -3,6 +3,8 @@ import { sberHtmlAdapter } from "./adapters/sber-html";
 import { tbankTabularAdapter } from "./adapters/tbank-tabular";
 import { vtbTabularAdapter } from "./adapters/vtb-tabular";
 import { bcsTabularAdapter } from "./adapters/bcs-tabular";
+import { gazprombankTabularAdapter } from "./adapters/gazprombank-tabular";
+import { otkritieTabularAdapter } from "./adapters/otkritie-tabular";
 import { alfaXmlAdapter, finamXmlAdapter } from "./adapters/xml-brokers";
 import type { BrokerAdapter, BrokerAdapterId } from "./types";
 
@@ -15,6 +17,8 @@ export const BROKER_ADAPTERS: BrokerAdapter[] = [
   alfaXmlAdapter,
   finamXmlAdapter,
   bcsTabularAdapter,
+  gazprombankTabularAdapter,
+  otkritieTabularAdapter,
 ];
 
 /** Formats that still need a live broker sample before a dedicated parser. */

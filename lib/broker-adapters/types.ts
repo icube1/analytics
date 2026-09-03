@@ -8,7 +8,9 @@ export type BrokerAdapterId =
   | "vtb-xls"
   | "alfa-xml"
   | "finam-xml"
-  | "bcs-xls";
+  | "bcs-xls"
+  | "gazprombank-csv"
+  | "otkritie-csv";
 
 export type BrokerAdapterStatus = "production" | "planned";
 

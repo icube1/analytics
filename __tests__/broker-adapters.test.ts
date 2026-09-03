@@ -108,6 +108,8 @@ describe("broker adapter platform", () => {
     ["tbank-xlsx", "tbank-report.csv", "tbank.csv"],
     ["vtb-xls", "vtb-report.csv", "vtb.csv"],
     ["bcs-xls", "bcs-report.csv", "bcs.csv"],
+    ["gazprombank-csv", "gazprombank-report.csv", "gpb.csv"],
+    ["otkritie-csv", "otkritie-report.csv", "otkritie.csv"],
     ["alfa-xml", "alfa-report.xml", "alfa.xml"],
     ["finam-xml", "finam-report.xml", "finam.xml"],
   ] as const)("imports sanitized %s fixture", (adapterId, fileName, uploadName) => {
