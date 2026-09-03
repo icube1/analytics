@@ -10,6 +10,7 @@ import {
 } from "@/lib/journey/milestones";
 import type { ContinuityEngagement } from "@/lib/journey/continuity";
 import { recordEngagement } from "@/lib/journey/continuity";
+import type { JourneyReviewSnapshot } from "@/lib/journey/review-snapshot";
 
 export const JOURNEY_STORAGE_SCHEMA_VERSION = 1 as const;
 const STORAGE_KEY = "analytics.beginner-journey.v1";
@@ -24,6 +25,7 @@ export interface JourneyStorageDocument {
   completedBabySteps: Record<string, string>;
   acknowledgedMilestones: MilestoneId[];
   lastReviewAt?: string;
+  lastReviewSnapshot?: JourneyReviewSnapshot;
   engagements: ContinuityEngagement[];
   productEvents: ProductEvent[];
 }
@@ -34,6 +36,16 @@ function isObject(value: unknown): value is Record<string, unknown> {
 
 function isMilestoneId(value: unknown): value is MilestoneId {
   return typeof value === "string";
+}
+
+function isReviewSnapshot(value: unknown): value is JourneyReviewSnapshot {
+  if (!isObject(value)) return false;
+  return (
+    typeof value.recordedAt === "string" &&
+    typeof value.monthsCovered === "number" &&
+    typeof value.stressSurvivableCount === "number" &&
+    typeof value.milestonesCompleted === "number"
+  );
 }
 
 export function createDefaultJourneyDocument(): JourneyStorageDocument {
@@ -88,6 +100,9 @@ export function normalizeJourneyDocument(value: unknown): JourneyStorageDocument
       : [],
     lastReviewAt:
       typeof value.lastReviewAt === "string" ? value.lastReviewAt : undefined,
+    lastReviewSnapshot: isReviewSnapshot(value.lastReviewSnapshot)
+      ? value.lastReviewSnapshot
+      : undefined,
     engagements: Array.isArray(value.engagements)
       ? value.engagements.filter(
           (e) =>
@@ -246,11 +261,15 @@ export function reorderMilestones(
 
 export function recordPlanReview(
   document: JourneyStorageDocument,
+  snapshot?: JourneyReviewSnapshot,
 ): JourneyStorageDocument {
   const now = new Date().toISOString();
   let next: JourneyStorageDocument = {
     ...touchEngagement(document),
     lastReviewAt: now,
+    lastReviewSnapshot: snapshot
+      ? { ...snapshot, recordedAt: now }
+      : document.lastReviewSnapshot,
     completedBabySteps: {
       ...document.completedBabySteps,
       "plan-vs-fact-review:record-review": now,

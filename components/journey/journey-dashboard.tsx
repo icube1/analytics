@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { StatCard } from "@/components/stat-card";
 import { JourneyMilestoneCard } from "@/components/journey/journey-milestone-card";
 import { JourneyOnboardingForm } from "@/components/journey/journey-onboarding-form";
+import { JourneyReviewCard } from "@/components/journey/journey-review-card";
 import { JourneySettingsPanel } from "@/components/journey/journey-settings-panel";
 import { computeContinuity } from "@/lib/journey/continuity";
 import { computeJourneyProgress } from "@/lib/journey/progress";
@@ -18,9 +19,11 @@ import {
   readJourneyDocument,
   recordPlanReview,
   reorderMilestones,
+  touchEngagement,
   writeJourneyDocument,
   type JourneyStorageDocument,
 } from "@/lib/journey-storage";
+import type { JourneyReviewSnapshot } from "@/lib/journey/review-snapshot";
 import { ZERO_CAPITAL_RESILIENCE_INPUT } from "@/lib/resilience-defaults";
 import {
   createZeroCapitalResilienceDocument,
@@ -51,6 +54,13 @@ export function JourneyDashboard() {
     if (!hydrated) return;
     writeJourneyDocument(journey);
   }, [hydrated, journey]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    setJourney((current) =>
+      current.optedIn ? touchEngagement(current) : current,
+    );
+  }, [hydrated]);
 
   const resilienceInput = baseline ?? ZERO_CAPITAL_RESILIENCE_INPUT;
   const needsOnboarding = hydrated && baseline === null;
@@ -226,6 +236,15 @@ export function JourneyDashboard() {
         </ul>
       </section>
 
+      <JourneyReviewCard
+        progress={progress}
+        lastReviewAt={journey.lastReviewAt}
+        lastReviewSnapshot={journey.lastReviewSnapshot}
+        onRecordReview={(snapshot: JourneyReviewSnapshot) =>
+          updateJourney(recordPlanReview(journey, snapshot))
+        }
+      />
+
       <div className="flex flex-wrap gap-2">
         <a
           href="/resilience"
@@ -233,13 +252,6 @@ export function JourneyDashboard() {
         >
           Открыть карту устойчивости
         </a>
-        <button
-          type="button"
-          onClick={() => updateJourney(recordPlanReview(journey))}
-          className="rounded-xl border border-zinc-200 px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
-        >
-          Зафиксировать обзор план/факт
-        </button>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">

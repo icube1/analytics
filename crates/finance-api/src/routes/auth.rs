@@ -1,5 +1,6 @@
 use crate::auth::{Authenticated, SESSION_COOKIE};
 use crate::config::Environment;
+use crate::entitlements::{infer_plan, EntitlementService};
 use crate::error::{ApiError, ApiResult};
 use crate::repositories::{
     hash_audit_identifier, ClientKind, HouseholdRepository, MembershipRepository, UserRepository,
@@ -55,6 +56,8 @@ struct MeResponse {
     role: String,
     session_id: String,
     expires_at: String,
+    plan: String,
+    features: Vec<String>,
 }
 
 async fn login(
@@ -167,6 +170,9 @@ async fn me(
     let m = MembershipRepository::new(state.pool().clone())
         .get_member(auth.scope(), auth.context.user_id)
         .await?;
+    let features = EntitlementService::new(state.billing_repo())
+        .list_active_features(auth.scope())
+        .await?;
     Ok(Json(MeResponse {
         user_id: user.id.to_string(),
         email: user.email,
@@ -176,6 +182,8 @@ async fn me(
         role: m.role.as_str().to_owned(),
         session_id: auth.session.id.to_string(),
         expires_at: auth.session.expires_at.to_rfc3339(),
+        plan: infer_plan(None, &features).to_owned(),
+        features,
     }))
 }
 fn session_cookie(

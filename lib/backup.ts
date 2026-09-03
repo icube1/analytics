@@ -17,7 +17,15 @@ import {
   type EncryptedAnalyticsBackup,
 } from "./backup-crypto";
 import { normalizeCustomAssets } from "./custom-assets";
+import {
+  readJourneyDocument,
+  writeJourneyDocument,
+} from "./journey-storage";
 import { normalizeCompoundParams } from "./normalize-compound-params";
+import {
+  readResilienceDocument,
+  writeResilienceDocument,
+} from "./resilience-storage";
 import {
   DEFAULT_DOCUMENT,
   type PortfolioDocument,
@@ -55,6 +63,8 @@ export async function exportAnalyticsBackup(): Promise<AnalyticsBackup> {
     exportedAt: new Date().toISOString(),
     portfolio,
     statements,
+    journey: readJourneyDocument() ?? undefined,
+    resilience: readResilienceDocument() ?? undefined,
   };
 }
 
@@ -98,6 +108,12 @@ export async function importAnalyticsBackup(
 
   await writePortfolioToDb(portfolio);
   await saveAllStatementsToDb(statements);
+  if (backup.journey) {
+    writeJourneyDocument(backup.journey);
+  }
+  if (backup.resilience) {
+    writeResilienceDocument(backup.resilience);
+  }
   clearLegacyPortfolioStorage();
 }
 

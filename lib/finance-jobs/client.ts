@@ -3,6 +3,7 @@ import type { MonteCarloResult } from "../compound-interest/monte-carlo";
 import type { CompoundContext } from "../compound-interest/types";
 import { chooseComputePlacement } from "../compute-placement";
 import type { CompoundParams } from "../portfolio-types";
+import { readCachedMe } from "../session-sync/auth-client";
 import { authenticatedFetch } from "../session-sync/transport";
 
 export function isServerFinanceJobsEnabled(): boolean {
@@ -13,10 +14,13 @@ export function isServerFinanceJobsEnabled(): boolean {
 }
 
 export function isHeavyComputeEntitled(): boolean {
-  return (
+  if (
     process.env.NEXT_PUBLIC_FINANCE_HEAVY === "1" ||
     process.env.VITE_FINANCE_HEAVY === "1"
-  );
+  ) {
+    return true;
+  }
+  return Boolean(readCachedMe()?.features?.includes("finance.heavy"));
 }
 
 export function resolveMonteCarloPlacement(input: {

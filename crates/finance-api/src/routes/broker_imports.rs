@@ -10,7 +10,7 @@ use crate::models::import::{
     broker_import_metadata, BrokerImportListResponse, BrokerImportMetadataResponse,
     CreateBrokerImportRequest,
 };
-use crate::repositories::{BrokerImportRepository, ACTION_BROKER_IMPORT_CREATE};
+use crate::repositories::{BrokerImportRepository, UsageRepository, ACTION_BROKER_IMPORT_CREATE};
 use crate::state::AppState;
 
 pub fn router() -> Router<AppState> {
@@ -107,6 +107,9 @@ async fn create_broker_import(
                 "byteSize": record.byte_size,
             }),
         )
+        .await;
+    UsageRepository::new(state.pool().clone())
+        .record_best_effort(auth.scope(), "broker.import", Some(&body.provider))
         .await;
     Ok((StatusCode::CREATED, Json(broker_import_metadata(&record))))
 }

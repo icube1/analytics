@@ -13,6 +13,7 @@ mod migration_run;
 mod portfolio;
 mod session;
 mod statement;
+mod usage;
 mod user;
 pub use audit::{
     hash_audit_identifier, AuditRecord, AuditRepository, ACTION_AUTH_LOGIN,
@@ -39,4 +40,5 @@ pub use migration_run::{
 pub use portfolio::{PortfolioDocumentHead, PortfolioRepository, PortfolioRevisionRecord};
 pub use session::{ClientKind, CreatedSession, SessionRecord, SessionRepository};
 pub use statement::{StatementRecord, StatementRepository};
+pub use usage::{UsageCount, UsageEventRecord, UsageRepository};
 pub use user::{UserRecord, UserRepository};

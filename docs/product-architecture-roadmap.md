@@ -812,7 +812,8 @@ Webhook:
   требует entitlement `finance.heavy`);
 - encrypted backup and restore drills (`analytics.backup.encrypted.v1`,
   client-side PBKDF2 + AES-GCM; passphrase never stored on the server);
-- audit trail (`GET /api/v1/audit-events`, household-scoped, no amounts).
+- audit trail (`GET /api/v1/audit-events`, household-scoped, no amounts);
+- usage metering (`usage_events`, `GET /api/v1/usage-summary`, plan/features on `/auth/me`).
 
 ### Phase 5. Resilience journey
 

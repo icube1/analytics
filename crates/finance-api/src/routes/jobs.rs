@@ -3,7 +3,7 @@ use crate::entitlements::{EntitlementService, FEATURE_HEAVY_COMPUTE, FEATURE_RES
 use crate::error::{ApiError, ApiResult};
 use crate::repositories::{
     is_supported_job_kind, payload_sha256, CalculationRepository, JobRecord, JobRepository,
-    ACTION_JOBS_ENQUEUE, JOB_KIND_FINANCE_EVALUATE, JOB_KIND_RESILIENCE,
+    UsageRepository, ACTION_JOBS_ENQUEUE, JOB_KIND_FINANCE_EVALUATE, JOB_KIND_RESILIENCE,
 };
 use crate::state::AppState;
 use axum::{
@@ -115,6 +115,9 @@ async fn create_job(
                     serde_json::json!({ "kind": body.kind, "cacheHit": true }),
                 )
                 .await;
+            UsageRepository::new(state.pool().clone())
+                .record_best_effort(auth.scope(), &body.kind, None)
+                .await;
             return Ok((
                 StatusCode::ACCEPTED,
                 Json(to_resp(job, Some(true), Some(ENGINE_ID))?),
@@ -133,6 +136,9 @@ async fn create_job(
             ACTION_JOBS_ENQUEUE,
             serde_json::json!({ "kind": body.kind, "cacheHit": false }),
         )
+        .await;
+    UsageRepository::new(state.pool().clone())
+        .record_best_effort(auth.scope(), &body.kind, None)
         .await;
     let engine = (body.kind == JOB_KIND_FINANCE_EVALUATE).then_some(ENGINE_ID);
     Ok((

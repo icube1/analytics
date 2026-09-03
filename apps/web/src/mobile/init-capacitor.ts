@@ -9,6 +9,11 @@ import {
   registerNativeBridge,
   type NativeBridge,
 } from "@/lib/mobile/native-bridge";
+import {
+  BEARER_STORAGE_KEY,
+  hydrateMobileBearerFromPersist,
+  setMobileTokenPersist,
+} from "@/lib/session-sync/token-storage";
 
 async function createCapacitorBridge(): Promise<NativeBridge> {
   const [{ App: CapacitorApp }, { Browser }, { Network }] = await Promise.all([
@@ -56,4 +61,20 @@ export async function initCapacitorShell(): Promise<void> {
   const config = readMobileRuntimeConfig();
   applyMobileApiBase(config);
   registerNativeBridge(await createCapacitorBridge());
+
+  const { Preferences } = await import("@capacitor/preferences");
+  setMobileTokenPersist({
+    async getBearerToken() {
+      const stored = await Preferences.get({ key: BEARER_STORAGE_KEY });
+      return stored.value;
+    },
+    async setBearerToken(token) {
+      if (token) {
+        await Preferences.set({ key: BEARER_STORAGE_KEY, value: token });
+        return;
+      }
+      await Preferences.remove({ key: BEARER_STORAGE_KEY });
+    },
+  });
+  await hydrateMobileBearerFromPersist();
 }

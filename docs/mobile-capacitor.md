@@ -29,8 +29,8 @@ The WebView loads the same bundle as the browser SPA. Offline IndexedDB/localSto
 | API fetch via `lib/api-base.ts` | ✅ | `MOBILE_API_BASE` injection |
 | Offline indicator | ✅ | `@capacitor/network` + `navigator.onLine` |
 | External links | ✅ | `@capacitor/browser` in-app browser |
-| Auth callback deep link | ✅ design | `analytics://app/auth/callback` + `/auth/callback` route |
-| Background sync | ❌ | Not implemented (see limitations) |
+| Auth callback deep link | ✅ | Bearer stored via mobile token storage + Preferences |
+| Background sync | ⚠️ | Replay offline queue when the network returns; no OS background runner |
 | Push notifications | ❌ | Out of scope |
 
 ## Quick start (local)
@@ -94,8 +94,9 @@ Native intent-filter / URL-type snippets live in `apps/mobile/native-config/` �
 
 ### Background sync
 
-- No Service Worker background sync in Capacitor shell.
-- Offline edits stay in IndexedDB/localStorage until the user returns online and triggers a fetch.
+- No Service Worker or OS background runner in the Capacitor shell.
+- When the network returns, `NetworkStatusBanner` replays the offline portfolio queue and schedules a cloud sync.
+- Bearer tokens persist via `@capacitor/preferences` (not localStorage).
 - Future: Capacitor Background Runner or native sync via Rust FFI (below).
 
 ## Path to native Rust bindings

@@ -20,6 +20,8 @@ finance-api (binary)
 │   ├── /api/v1/broker/imports
 │   ├── /api/v1/backup/export
 │   ├── /api/v1/jobs/*
+│   ├── /api/v1/audit-events
+│   ├── /api/v1/usage-summary
 │   └── /api/v1/billing/webhook
 ├── repositories    # tenant-scoped SQLite access
 └── db              # SQLite WAL pool + embedded migrations
@@ -56,11 +58,13 @@ finance-api (binary)
 | GET/POST | `/api/v1/broker/imports` | session |
 | GET | `/api/v1/broker/imports/:id(/content)` | session |
 | GET | `/api/v1/backup/export` | session |
+| GET | `/api/v1/audit-events` | session |
+| GET | `/api/v1/usage-summary` | session |
 
 ## Schema (SQLite WAL)
 
 Migrations: `001_initial.sql`, `002_product_backend.sql`, `003_import_storage.sql`,
-`004_calculation_cache.sql`
+`004_calculation_cache.sql`, `005_audit_events.sql`, `006_usage_events.sql`
 
 | Table | Purpose |
 | --- | --- |
@@ -72,6 +76,8 @@ Migrations: `001_initial.sql`, `002_product_backend.sql`, `003_import_storage.sq
 | `data_migration_runs` | CLI migration idempotency + rollback snapshots |
 | `jobs` | bounded queue (+ timing/cancel columns) |
 | `calculation_results` | per-household finance-core result cache |
+| `audit_events` | household-scoped security events without amounts |
+| `usage_events` | privacy-safe job/import counters |
 | (existing) | users, households, memberships, portfolio, billing, entitlements |
 
 ## Resource limits

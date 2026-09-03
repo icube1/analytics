@@ -31,6 +31,8 @@ export interface MeResponse {
   role: string;
   sessionId: string;
   expiresAt: string;
+  plan?: string;
+  features?: string[];
 }
 
 export interface PortfolioSyncRequest {

@@ -169,6 +169,68 @@ async fn invalid_password_is_unauthorized() {
 }
 
 #[tokio::test]
+async fn me_and_usage_are_tenant_scoped_without_payloads() {
+    let harness = TestHarness::new().await;
+    let server = TestServer::new(harness.app()).unwrap();
+    let token_a = harness
+        .login_bearer(&harness.email_a, &harness.password_a)
+        .await;
+    let me_a = server
+        .get("/api/v1/auth/me")
+        .add_header("Authorization", format!("Bearer {token_a}"))
+        .await;
+    me_a.assert_status_ok();
+    let me_body = me_a.json::<serde_json::Value>();
+    assert_eq!(me_body["plan"], "pro");
+    assert!(me_body["features"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|feature| feature == "finance.heavy"));
+
+    server
+        .post("/api/v1/jobs")
+        .add_header("Authorization", format!("Bearer {token_a}"))
+        .json(&sample_resilience_payload())
+        .await
+        .assert_status(StatusCode::ACCEPTED);
+
+    let usage_a = server
+        .get("/api/v1/usage-summary")
+        .add_header("Authorization", format!("Bearer {token_a}"))
+        .await;
+    usage_a.assert_status_ok();
+    let usage_body = usage_a.json::<serde_json::Value>();
+    assert!(usage_body["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|item| item["kind"] == "resilience.evaluate" && item["count"] == 1));
+    assert!(serde_json::to_string(&usage_body)
+        .unwrap()
+        .contains("resilience.evaluate"));
+    assert!(!serde_json::to_string(&usage_body)
+        .unwrap()
+        .contains("liquidAssets"));
+
+    let token_b = harness
+        .login_bearer(&harness.email_b, &harness.password_b)
+        .await;
+    let me_b = server
+        .get("/api/v1/auth/me")
+        .add_header("Authorization", format!("Bearer {token_b}"))
+        .await
+        .json::<serde_json::Value>();
+    assert_eq!(me_b["plan"], "free");
+    let usage_b = server
+        .get("/api/v1/usage-summary")
+        .add_header("Authorization", format!("Bearer {token_b}"))
+        .await
+        .json::<serde_json::Value>();
+    assert!(usage_b["items"].as_array().unwrap().is_empty());
+}
+
+#[tokio::test]
 async fn resilience_job_requires_entitlement() {
     let harness = TestHarness::new().await;
     let server = TestServer::new(harness.app()).unwrap();
