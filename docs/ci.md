@@ -4,6 +4,8 @@ See `scripts/ci-verify.sh` for the deterministic local entry point.
 Workflow YAML is parsed in that gate (`scripts/check-github-workflows.sh`).
 Do not use bash heredocs in `appleboy/ssh-action` scripts: `script_stop`
 injects shell between lines, and an unindented heredoc invalidates the workflow file.
+The test slot runs `deploy/apply-test-release.sh` as a single SSH command and
+retries `GET :3001/login`, printing `journalctl` on failure.
 
 ## Workflows
 
