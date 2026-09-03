@@ -10,7 +10,7 @@ import {
 } from "@/lib/debt-amortization";
 import { calculateCompoundInterest } from "@/lib/compound-interest";
 import type { MonteCarloPercentilePoint } from "@/lib/compound-interest/monte-carlo";
-import { buildForecastPlan } from "@/lib/forecast-plans";
+import { buildForecastPlanOffMainThread } from "@/lib/forecast-plans-worker";
 import { getCustomAssetsMonthlyIncome } from "@/lib/custom-assets";
 import { useCompoundWorker } from "@/lib/finance-worker/use-compound-worker";
 import { useMonteCarloWorker } from "@/lib/finance-worker/use-monte-carlo-worker";
@@ -227,6 +227,8 @@ export function CalculatorTab({
   const [draft, setDraft] = useState(savedParams);
   const [planName, setPlanName] = useState("");
   const [showSavePlan, setShowSavePlan] = useState(false);
+  const [isSavingPlan, setIsSavingPlan] = useState(false);
+  const [savePlanError, setSavePlanError] = useState<string | null>(null);
   const [planToRestore, setPlanToRestore] = useState<SavedForecastPlan | null>(
     null,
   );
@@ -1292,6 +1294,11 @@ export function CalculatorTab({
                 autoFocus
               />
             </label>
+            {savePlanError && (
+              <p className="mt-3 text-xs text-rose-700 dark:text-rose-300" role="alert">
+                {savePlanError}
+              </p>
+            )}
             <div className="mt-5 flex justify-end gap-2">
               <button
                 type="button"
@@ -1302,19 +1309,35 @@ export function CalculatorTab({
               </button>
               <button
                 type="button"
+                disabled={isSavingPlan}
                 onClick={() => {
-                  const plan = buildForecastPlan(
+                  setIsSavingPlan(true);
+                  setSavePlanError(null);
+                  void buildForecastPlanOffMainThread(
                     planName,
                     simParams,
                     customAssets,
                     brokerTotal,
-                  );
-                  onSavePlan(plan);
-                  setShowSavePlan(false);
+                    monteCarloAsOf,
+                  )
+                    .then((plan) => {
+                      onSavePlan(plan);
+                      setShowSavePlan(false);
+                    })
+                    .catch((error: unknown) => {
+                      setSavePlanError(
+                        error instanceof Error
+                          ? error.message
+                          : "Не удалось сохранить сценарий",
+                      );
+                    })
+                    .finally(() => {
+                      setIsSavingPlan(false);
+                    });
                 }}
-                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white"
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
               >
-                Сохранить
+                {isSavingPlan ? "Сохранение..." : "Сохранить"}
               </button>
             </div>
           </div>
