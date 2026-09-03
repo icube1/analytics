@@ -131,7 +131,7 @@ assert_no_secret_leaks() {
   if [[ ! -f "$log_file" ]]; then
     return 0
   fi
-  if rg -qi '(password|bearerToken|csrfToken|bootstrap_password|ANALYTICS_AUTH_PASSWORD)=' "$log_file"; then
+  if grep -qiE '(password|bearerToken|csrfToken|bootstrap_password|ANALYTICS_AUTH_PASSWORD)=' "$log_file"; then
     echo "Secret leak detected in API log" >&2
     return 1
   fi
@@ -276,7 +276,7 @@ scenario_statements_and_export() {
     -d '{"fileName":"e2e.csv","content":"date,amount\n2026-01-01,42\n"}' \
     | jq -r .id)"
   curl -fsS "$API_BASE/api/v1/statements/$statement_id/content" \
-    -H "Authorization: Bearer $token" | rg -q '2026-01-01'
+    -H "Authorization: Bearer $token" | grep -q '2026-01-01'
   export_body="$(curl -fsS "$API_BASE/api/v1/backup/export" \
     -H "Authorization: Bearer $token")"
   echo "$export_body" | jq -e '.formatVersion == 1 and (.statements | length) >= 1' >/dev/null
@@ -356,7 +356,7 @@ scenario_metrics_auth() {
   body="$(curl -fsS "$API_BASE/internal/metrics" \
     -u "$METRICS_USER:$METRICS_PASSWORD")"
   echo "$body" | jq -e '.schema_version == 1' >/dev/null
-  ! printf '%s' "$body" | rg -qi 'portfolio|payload_json'
+  ! printf '%s' "$body" | grep -qiE 'portfolio|payload_json'
 }
 
 scenario_logout() {

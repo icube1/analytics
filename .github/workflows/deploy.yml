@@ -107,20 +107,21 @@ jobs:
               useradd --system --home-dir "$APP_DIR" --shell /usr/sbin/nologin analytics
             fi
             AUTH_ENV=/etc/analytics-auth.env
-            AUTH_FILE=/etc/nginx/.htpasswd-analytics
+            umask 077
             if [ ! -s "$AUTH_ENV" ]; then
               ANALYTICS_AUTH_USER=owner
               ANALYTICS_AUTH_PASSWORD="$(openssl rand -base64 24 | tr -d '\n')"
-              umask 077
               printf 'ANALYTICS_AUTH_USER=%s\nANALYTICS_AUTH_PASSWORD=%s\n' \
                 "$ANALYTICS_AUTH_USER" "$ANALYTICS_AUTH_PASSWORD" > "$AUTH_ENV"
             fi
-            . "$AUTH_ENV"
-            if [ ! -s "$AUTH_FILE" ]; then
-              AUTH_HASH="$(openssl passwd -apr1 "$ANALYTICS_AUTH_PASSWORD")"
-              printf '%s:%s\n' "$ANALYTICS_AUTH_USER" "$AUTH_HASH" > "$AUTH_FILE"
-              chmod 600 "$AUTH_FILE"
+            if ! grep -q '^ANALYTICS_SESSION_SECRET=' "$AUTH_ENV"; then
+              printf 'ANALYTICS_SESSION_SECRET=%s\n' "$(openssl rand -hex 32)" >> "$AUTH_ENV"
             fi
+            if ! grep -q '^ANALYTICS_AUTH_DISPLAY_NAME=' "$AUTH_ENV"; then
+              printf 'ANALYTICS_AUTH_DISPLAY_NAME=%s\n' 'Администратор' >> "$AUTH_ENV"
+            fi
+            chmod 600 "$AUTH_ENV"
+            . "$AUTH_ENV"
             install -d -o analytics -g analytics -m 700 \
               "$APP_DIR/data" "$APP_DIR/data/backups" "$APP_DIR/statements"
             tar -xzf "$RELEASE_DIR/deploy.tar.gz" -C "$APP_DIR"
@@ -136,8 +137,15 @@ jobs:
             systemctl enable nginx
             systemctl reload nginx
             sleep 2
-            curl -fsS -u "$ANALYTICS_AUTH_USER:$ANALYTICS_AUTH_PASSWORD" \
-              -o /dev/null http://127.0.0.1:3000/
+            if ! curl -fsS -o /dev/null http://127.0.0.1:3000/login; then
+              journalctl -u analytics -n 80 --no-pager || true
+              exit 1
+            fi
+            if ! curl -fsS -u "$ANALYTICS_AUTH_USER:$ANALYTICS_AUTH_PASSWORD" \
+              -o /dev/null http://127.0.0.1:3000/; then
+              journalctl -u analytics -n 80 --no-pager || true
+              exit 1
+            fi
             echo "Deploy OK"
 
   platform-stage:

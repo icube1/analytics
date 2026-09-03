@@ -87,7 +87,7 @@ If the SPA is hosted at `https://example.com/app/`:
 | Next.js `app/` production | Unchanged |
 | SSR / metadata | ❌ SPA only (client render) |
 | `next/font` Geist | System font stack in Vite shell |
-| Auth (HTTP Basic on nginx) | Works when API and SPA share origin |
+| Auth (app login cookie or Basic for machines) | Next.js `/login` session; Vite SPA uses feature-gated finance-api sessions |
 
 ## Future cutover
 
