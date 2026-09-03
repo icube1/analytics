@@ -1,4 +1,7 @@
-import { DEFAULT_RESILIENCE_INPUT } from "@/lib/resilience-defaults";
+import {
+  DEFAULT_RESILIENCE_INPUT,
+  ZERO_CAPITAL_RESILIENCE_INPUT,
+} from "@/lib/resilience-defaults";
 import { evaluateResiliencePlan } from "@/lib/resilience-plan";
 import {
   computeContinuity,
@@ -80,6 +83,26 @@ describe("journey progress", () => {
       (m) => m.id === "extended-emergency-fund",
     );
     expect(extended?.status).toBe("skipped");
+  });
+
+  it("starts the zero-capital path without invented reserves", () => {
+    const plan = evaluateResiliencePlan(ZERO_CAPITAL_RESILIENCE_INPUT);
+    const snapshot = computeJourneyProgress(
+      ZERO_CAPITAL_RESILIENCE_INPUT,
+      plan,
+      {
+        milestoneOrder: defaultMilestoneOrder(),
+        optedOutMilestones: [],
+        completedBabySteps: {},
+        acknowledgedMilestones: [],
+      },
+    );
+    expect(ZERO_CAPITAL_RESILIENCE_INPUT.liquidAssets).toBe(0);
+    expect(ZERO_CAPITAL_RESILIENCE_INPUT.monthlySurplus).toBe(0);
+    expect(snapshot.monthsCovered).toBe(0);
+    expect(
+      snapshot.milestones.find((m) => m.id === "baseline-data-quality")?.status,
+    ).not.toBe("locked");
   });
 });
 

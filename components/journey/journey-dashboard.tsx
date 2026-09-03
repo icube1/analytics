@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { StatCard } from "@/components/stat-card";
 import { JourneyMilestoneCard } from "@/components/journey/journey-milestone-card";
+import { JourneyOnboardingForm } from "@/components/journey/journey-onboarding-form";
 import { JourneySettingsPanel } from "@/components/journey/journey-settings-panel";
 import { computeContinuity } from "@/lib/journey/continuity";
 import { computeJourneyProgress } from "@/lib/journey/progress";
@@ -20,23 +21,28 @@ import {
   writeJourneyDocument,
   type JourneyStorageDocument,
 } from "@/lib/journey-storage";
+import { ZERO_CAPITAL_RESILIENCE_INPUT } from "@/lib/resilience-defaults";
 import {
-  createDefaultResilienceDocument,
+  createZeroCapitalResilienceDocument,
   readResilienceDocument,
+  writeResilienceDocument,
 } from "@/lib/resilience-storage";
 import { evaluateResiliencePlan } from "@/lib/resilience-plan";
+import type { ResilienceInput } from "@/lib/resilience-plan";
 import { formatMonths } from "@/lib/resilience-format";
 
 export function JourneyDashboard() {
   const [journey, setJourney] = useState<JourneyStorageDocument>(
     () => readJourneyDocument() ?? createDefaultJourneyDocument(),
   );
+  const [baseline, setBaseline] = useState<ResilienceInput | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     queueMicrotask(() => {
       const stored = readJourneyDocument();
       if (stored) setJourney(stored);
+      setBaseline(readResilienceDocument()?.input ?? null);
       setHydrated(true);
     });
   }, []);
@@ -46,11 +52,8 @@ export function JourneyDashboard() {
     writeJourneyDocument(journey);
   }, [hydrated, journey]);
 
-  const resilienceInput =
-    hydrated
-      ? (readResilienceDocument()?.input ??
-        createDefaultResilienceDocument().input)
-      : createDefaultResilienceDocument().input;
+  const resilienceInput = baseline ?? ZERO_CAPITAL_RESILIENCE_INPUT;
+  const needsOnboarding = hydrated && baseline === null;
 
   const plan = useMemo(
     () => evaluateResiliencePlan(resilienceInput),
@@ -109,6 +112,7 @@ export function JourneyDashboard() {
           </p>
         </header>
         <ul className="list-disc space-y-2 pl-5 text-sm text-zinc-600 dark:text-zinc-300">
+          <li>Можно начать с нулевых резервов — брокерский счёт не нужен</li>
           <li>Версионированные ориентиры с ветвлением под ваш профиль</li>
           <li>Мгновенная обратная связь из расчёта устойчивости</li>
           <li>Локальное хранение; события — только id ориентиров и время</li>
@@ -149,6 +153,19 @@ export function JourneyDashboard() {
           {continuity.message}
         </p>
       </header>
+
+      {needsOnboarding ? (
+        <JourneyOnboardingForm
+          onSave={(input) => {
+            const document = {
+              ...createZeroCapitalResilienceDocument(),
+              input,
+            };
+            writeResilienceDocument(document);
+            setBaseline(input);
+          }}
+        />
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard

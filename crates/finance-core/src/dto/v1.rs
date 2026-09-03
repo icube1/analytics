@@ -6,9 +6,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     compound::{
-        calculate_compound_interest, compute_safe_withdrawal_advice, run_monte_carlo_simulation,
-        CompoundContext, CompoundError, CompoundOptions, CompoundParams, CompoundResult,
-        MonteCarloOptions, MonteCarloResult, SafeWithdrawalAdvice,
+        build_live_tracking_forecast, calculate_compound_interest, compute_safe_withdrawal_advice,
+        run_monte_carlo_simulation, CompoundContext, CompoundError, CompoundOptions,
+        CompoundParams, CompoundResult, LiveForecastResult, LiveTrackingInput, MonteCarloOptions,
+        MonteCarloResult, SafeWithdrawalAdvice,
     },
     date::CivilDate,
     debt::{
@@ -22,6 +23,15 @@ use crate::{
 };
 
 pub const SCHEMA_VERSION: u16 = 1;
+
+impl RequestBatch {
+    #[must_use]
+    pub fn contains_monte_carlo(&self) -> bool {
+        self.cases
+            .iter()
+            .any(|case| matches!(case, FinanceRequest::MonteCarlo { .. }))
+    }
+}
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -86,6 +96,16 @@ pub enum FinanceRequest {
         context: Option<CompoundContext>,
         #[serde(default)]
         options: CompoundOptions,
+    },
+    #[serde(rename_all = "camelCase")]
+    LiveTrackingForecast {
+        id: String,
+        params: CompoundParams,
+        #[serde(default)]
+        context: Option<CompoundContext>,
+        #[serde(default)]
+        options: CompoundOptions,
+        tracking: LiveTrackingInput,
     },
     #[serde(rename_all = "camelCase")]
     MoneyRound {
@@ -179,6 +199,11 @@ pub enum FinanceResponse {
     SafeWithdrawal {
         id: String,
         advice: Option<Box<SafeWithdrawalAdvice>>,
+    },
+    #[serde(rename_all = "camelCase")]
+    LiveTrackingForecast {
+        id: String,
+        forecast: Box<LiveForecastResult>,
     },
     #[serde(rename_all = "camelCase")]
     MoneyRound {
@@ -373,6 +398,21 @@ fn evaluate_case(request: FinanceRequest) -> Result<FinanceResponse, BoundaryErr
             Ok(FinanceResponse::SafeWithdrawal {
                 id,
                 advice: advice.map(Box::new),
+            })
+        }
+        FinanceRequest::LiveTrackingForecast {
+            id,
+            params,
+            context,
+            options,
+            tracking,
+        } => {
+            let forecast =
+                build_live_tracking_forecast(&params, context.as_ref(), &options, &tracking)
+                    .map_err(|error| map_compound_error(&id, &error))?;
+            Ok(FinanceResponse::LiveTrackingForecast {
+                id,
+                forecast: Box::new(forecast),
             })
         }
         FinanceRequest::MoneyRound {

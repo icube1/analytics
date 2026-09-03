@@ -1,5 +1,6 @@
 import {
   DEFAULT_RESILIENCE_INPUT,
+  ZERO_CAPITAL_RESILIENCE_INPUT,
   createSinkingFundGoal,
 } from "./resilience-defaults";
 import type { ResilienceInput } from "./resilience-plan";
@@ -37,6 +38,14 @@ export function createDefaultResilienceDocument(): ResilienceStorageDocument {
     schemaVersion: RESILIENCE_STORAGE_SCHEMA_VERSION,
     savedAt: new Date().toISOString(),
     input: structuredClone(DEFAULT_RESILIENCE_INPUT),
+  };
+}
+
+export function createZeroCapitalResilienceDocument(): ResilienceStorageDocument {
+  return {
+    schemaVersion: RESILIENCE_STORAGE_SCHEMA_VERSION,
+    savedAt: new Date().toISOString(),
+    input: structuredClone(ZERO_CAPITAL_RESILIENCE_INPUT),
   };
 }
 

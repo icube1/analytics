@@ -3,6 +3,8 @@ use crate::error::ApiResult;
 use crate::repositories::BillingRepository;
 
 pub const FEATURE_RESILIENCE: &str = "resilience.compute";
+/// Heavy server-side simulations (Monte Carlo). Free local Workers stay available.
+pub const FEATURE_HEAVY_COMPUTE: &str = "finance.heavy";
 
 #[derive(Clone)]
 pub struct EntitlementService {

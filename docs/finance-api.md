@@ -9,7 +9,7 @@ remain authoritative.
 ```text
 finance-api (binary)
 ├── auth            # opaque sessions, Argon2id, CSRF, login/logout/me
-├── worker          # bounded SQLite job executor (finance-core resilience)
+├── worker          # bounded SQLite job executor (resilience + finance-core DTO)
 ├── billing         # provider-neutral webhook ingestion (Null/Test/YooKassa*)
 ├── entitlements    # feature checks (e.g. resilience.compute)
 ├── routes
@@ -32,6 +32,11 @@ finance-api (binary)
 - **Mobile**: `Authorization: Bearer <token>` (CSRF exempt)
 - **Passwords**: Argon2id via `local_credentials` (bootstrap env only)
 - **Tenant context**: membership-based `household_id` from session, never client headers
+- **Jobs**: `resilience.evaluate` (entitlement `resilience.compute`);
+  `finance.evaluate` accepts a finance-core `RequestBatch`. Compound / money /
+  tracking / safe-withdrawal run for any authenticated household. Monte Carlo
+  requires `finance.heavy`. Identical `finance.evaluate` payloads are served
+  from `calculation_results` keyed by `ENGINE_ID` + SHA-256.
 
 ### Endpoints
 
@@ -54,7 +59,8 @@ finance-api (binary)
 
 ## Schema (SQLite WAL)
 
-Migrations: `001_initial.sql`, `002_product_backend.sql`, `003_import_storage.sql`
+Migrations: `001_initial.sql`, `002_product_backend.sql`, `003_import_storage.sql`,
+`004_calculation_cache.sql`
 
 | Table | Purpose |
 | --- | --- |
@@ -65,6 +71,7 @@ Migrations: `001_initial.sql`, `002_product_backend.sql`, `003_import_storage.sq
 | `broker_accounts` / `broker_imports` | broker import metadata (+ delegated parse flag) |
 | `data_migration_runs` | CLI migration idempotency + rollback snapshots |
 | `jobs` | bounded queue (+ timing/cancel columns) |
+| `calculation_results` | per-household finance-core result cache |
 | (existing) | users, households, memberships, portfolio, billing, entitlements |
 
 ## Resource limits
@@ -109,3 +116,5 @@ kill $PID
 3. **Real billing provider** — YooKassa adapter available but disabled by default; see `docs/yookassa-billing-ru.md`.
 4. **Payload storage** — implemented in `003_import_storage.sql`; production routing still on Next.js.
 5. **Broker parsing** — Rust stores raw imports only; parsing delegated to TS pipeline.
+6. **Server finance jobs** — `finance.evaluate` runs the same DTO as WASM/native;
+   production routing still points at Next.js, so clients keep using the local Worker.

@@ -6,6 +6,12 @@ use sqlx::{Row, SqlitePool};
 use uuid::Uuid;
 
 pub const JOB_KIND_RESILIENCE: &str = "resilience.evaluate";
+pub const JOB_KIND_FINANCE_EVALUATE: &str = "finance.evaluate";
+
+#[must_use]
+pub fn is_supported_job_kind(kind: &str) -> bool {
+    matches!(kind, JOB_KIND_RESILIENCE | JOB_KIND_FINANCE_EVALUATE)
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum JobStatus {
@@ -85,6 +91,40 @@ impl JobRepository {
         let id = Uuid::new_v4();
         sqlx::query("INSERT INTO jobs (id,household_id,kind,status,idempotency_key,payload_json) VALUES (?1,?2,?3,?4,?5,?6)")
             .bind(id.to_string()).bind(scope.household_id().to_string()).bind(kind).bind(JobStatus::Pending.as_str()).bind(idempotency_key).bind(payload_json).execute(&self.pool).await?;
+        self.get(scope, id).await
+    }
+
+    pub async fn enqueue_completed(
+        &self,
+        scope: TenantScope,
+        kind: &str,
+        payload_json: &str,
+        result_json: &str,
+        idempotency_key: Option<&str>,
+    ) -> ApiResult<JobRecord> {
+        if let Some(k) = idempotency_key {
+            if let Some(existing) = self.get_by_idempotency(scope, k).await? {
+                return Ok(existing);
+            }
+        }
+        let id = Uuid::new_v4();
+        let now = Utc::now().to_rfc3339();
+        sqlx::query(
+            "INSERT INTO jobs
+                (id, household_id, kind, status, idempotency_key, payload_json,
+                 result_json, started_at, finished_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?8)",
+        )
+        .bind(id.to_string())
+        .bind(scope.household_id().to_string())
+        .bind(kind)
+        .bind(JobStatus::Completed.as_str())
+        .bind(idempotency_key)
+        .bind(payload_json)
+        .bind(result_json)
+        .bind(&now)
+        .execute(&self.pool)
+        .await?;
         self.get(scope, id).await
     }
     pub async fn get(&self, scope: TenantScope, job_id: Uuid) -> ApiResult<JobRecord> {

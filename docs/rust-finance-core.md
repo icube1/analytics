@@ -24,11 +24,11 @@ green.
   extended reserves, sinking funds, experiences fund, household/debt risk
   scoring, stress scenarios, and descriptive (non-advisory) notes.
 - `dto::v1`: serde request/response boundary with an explicit
-  `schemaVersion: 1`. New transports should depend on this boundary rather
-  than exposing Rust internals.
+  `schemaVersion: 1`, including `liveTrackingForecast` calendar mapping.
+  New transports should depend on this boundary rather than exposing Rust
+  internals. Server jobs cache results as `finance-core/<version>/dto-1`.
 
-Monte Carlo, portfolio state mutation, asset growth, deposits, and UI wiring
-remain in TypeScript.
+Portfolio state mutation and UI wiring remain in TypeScript.
 
 ## Compound module
 
@@ -40,7 +40,9 @@ withdrawals/taxes/IRR, portfolio/debt context, and seeded Monte Carlo from
 - `compound::wealth` — debt stepping, custom asset growth, deposits, income.
 - `compound::monte_carlo` — mulberry32-seeded paths with percentile bands.
 - `compound::safe_withdrawal` — binary-search safe percent and fixed monthly limits.
-- `dto::v1` operations: `compoundProjection`, `monteCarlo`, `safeWithdrawal`.
+- `compound::tracking` — live forecast calendar points from a projection.
+- `dto::v1` operations: `compoundProjection`, `monteCarlo`, `safeWithdrawal`,
+  `liveTrackingForecast`.
 
 Unsupported document fields (not read by Rust): `brokerReport`, `forecastPlans`,
 `brokerSnapshots`, `debtBalanceHistory`. See `UNSUPPORTED_COMPOUND_FIELDS`.
@@ -48,7 +50,9 @@ Unsupported document fields (not read by Rust): `brokerReport`, `forecastPlans`,
 `fixtures/finance-core/compound-v1.json` drives differential tests via
 `npm run compare:finance-core:compound`. Safe-withdrawal search uses
 `fixtures/finance-core/safe-withdrawal-v1.json` and
-`npm run compare:finance-core:safe-withdrawal`. Parity tolerance: `1e-10`
+`npm run compare:finance-core:safe-withdrawal`. Live tracking uses
+`fixtures/finance-core/live-tracking-v1.json` and
+`npm run compare:finance-core:live-tracking`. Parity tolerance: `1e-10`
 relative for compound/`f64` values; safe-withdrawal compare uses `1e-8`.
 Experimental UI integration is gated by `NEXT_PUBLIC_RUST_COMPOUND_PARITY=1`;
 production keeps TypeScript unless parity passes (`lib/compound-wasm.ts`).

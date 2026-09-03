@@ -1,3 +1,4 @@
+import { shiftCalendarMonth } from "@/lib/broker-deposits";
 import {
   averageRecentBrokerDeposits,
   buildLiveTrackingForecast,
@@ -10,6 +11,11 @@ import { DEFAULT_COMPOUND_PARAMS, type SavedForecastPlan } from "@/lib/portfolio
 import { buildForecastPlan } from "@/lib/forecast-plans";
 
 describe("tracking-forecast", () => {
+  it("shifts civil months without Date time zones", () => {
+    expect(shiftCalendarMonth("2026-07", 1)).toBe("2026-08");
+    expect(shiftCalendarMonth("2026-01", -1)).toBe("2025-12");
+  });
+
   it("averages recent non-zero broker deposits", () => {
     const deposits = new Map([
       ["2026-05", 50_000],

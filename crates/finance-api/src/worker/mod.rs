@@ -1,6 +1,12 @@
-use crate::repositories::{JobRepository, JOB_KIND_RESILIENCE};
+use crate::auth::TenantScope;
+use crate::repositories::{
+    payload_sha256, CalculationRepository, JobRepository, JOB_KIND_FINANCE_EVALUATE,
+    JOB_KIND_RESILIENCE,
+};
 use crate::state::AppState;
+use finance_core::dto::v1::{evaluate, RequestBatch};
 use finance_core::resilience::{evaluate_resilience, ResilienceInput};
+use finance_core::ENGINE_ID;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -56,6 +62,7 @@ impl JobExecutor {
                         .clone()
                 };
                 let jobs = JobRepository::new(pool.clone());
+                let cache_pool = pool.clone();
                 let timeout = config
                     .job_timeout
                     .to_std()
@@ -71,6 +78,7 @@ impl JobExecutor {
                     let exec = async {
                         match job.kind.as_str() {
                             JOB_KIND_RESILIENCE => run_resilience(&job.payload_json),
+                            JOB_KIND_FINANCE_EVALUATE => run_finance_evaluate(&job.payload_json),
                             k => Err(format!("unsupported: {k}")),
                         }
                     };
@@ -80,6 +88,21 @@ impl JobExecutor {
                     }
                     match result {
                         Ok(Ok(json)) => {
+                            if job.kind == JOB_KIND_FINANCE_EVALUATE {
+                                let cache = CalculationRepository::new(cache_pool);
+                                let hash = payload_sha256(&job.payload_json);
+                                let _ = cache
+                                    .upsert(
+                                        TenantScope {
+                                            household_id: job.household_id,
+                                        },
+                                        ENGINE_ID,
+                                        &job.kind,
+                                        &hash,
+                                        &json,
+                                    )
+                                    .await;
+                            }
                             let _ = jobs.mark_completed(job.id, &json).await;
                             info!(job_id=%job.id, "completed");
                         }
@@ -109,4 +132,10 @@ impl JobExecutor {
 fn run_resilience(payload: &str) -> Result<String, String> {
     let input: ResilienceInput = serde_json::from_str(payload).map_err(|e| e.to_string())?;
     serde_json::to_string(&evaluate_resilience(&input)).map_err(|e| e.to_string())
+}
+
+fn run_finance_evaluate(payload: &str) -> Result<String, String> {
+    let batch: RequestBatch = serde_json::from_str(payload).map_err(|e| e.to_string())?;
+    let response = evaluate(batch).map_err(|e| e.to_string())?;
+    serde_json::to_string(&response).map_err(|e| e.to_string())
 }

@@ -33,6 +33,7 @@ pub mod safe_withdrawal;
 pub mod simulate;
 pub mod snapshot;
 pub mod taxes;
+pub mod tracking;
 pub mod types;
 pub mod wealth;
 pub mod withdrawal;
@@ -43,6 +44,10 @@ pub use safe_withdrawal::{
     SafeWithdrawalAdvice,
 };
 pub use simulate::{calculate_compound_interest, CompoundError};
+pub use tracking::{
+    build_live_tracking_forecast, live_forecast_from_projection, LiveForecastResult,
+    LiveTrackingInput,
+};
 pub use types::{
     CompoundContext, CompoundOptions, CompoundParams, CompoundResult, MonteCarloOptions,
     MonteCarloResult, UNSUPPORTED_COMPOUND_FIELDS,

@@ -197,8 +197,9 @@ crates/
   compound / Monte Carlo остаются на `f64` до отдельной проверки паритета;
 - калькулятор считает прогноз, Monte Carlo и поиск безопасного вывода в
   finance Worker; живой прогноз трекинга и сохранение сценария тоже идут
-  через compound Worker; WASM включается только флагом
-  `NEXT_PUBLIC_RUST_COMPOUND_PARITY`;
+  через compound Worker; календарный маппинг live forecast — DTO
+  `liveTrackingForecast` с дифференциальными тестами TS/Rust;
+  WASM включается только флагом `NEXT_PUBLIC_RUST_COMPOUND_PARITY`;
 - вероятностные прогнозы, IRR и волатильность остаются на `f64`;
 - даты передаются как явные civil dates без скрытого `new Date()`;
 - seed Monte Carlo является частью входного контракта.
@@ -768,7 +769,8 @@ Webhook:
 
 - server/client/product metrics;
 - bundle-size budgets;
-- Lighthouse и load scenarios;
+- Lighthouse и load scenarios (`scripts/measure-load-scenarios.sh`,
+  loopback TTFB/index budgets; Lighthouse — если бинарь установлен);
 - убрать `linkedom` из browser graph (клиент: `DOMParser`; Node: `linkedom` через server-only polyfill);
 - lazy-load вкладки и графики;
 - измерить TypeScript calculations в Worker.
@@ -797,13 +799,16 @@ Webhook:
 - SQLite WAL migrations;
 - users, sessions, tenants и households;
 - revision-based sync;
-- bounded jobs;
+- bounded jobs (`resilience.evaluate` и `finance.evaluate` с кэшем
+  `calculation_results` по `ENGINE_ID` + hash; Monte Carlo на сервере
+  требует entitlement `finance.heavy`);
 - encrypted backup and restore drills;
 - audit trail.
 
 ### Phase 5. Resilience journey
 
-- быстрый zero-capital onboarding;
+- быстрый zero-capital onboarding (`/journey` без выдуманных 300k
+  резервов; форма дохода/расходов/ликвидности до карты устойчивости);
 - персонализированная система резервов;
 - debt/reserve trade-off;
 - family stress scenarios;
