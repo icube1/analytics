@@ -1,5 +1,6 @@
 import {
   addMoney,
+  amortizeMoney,
   interestMoney,
   moneyFromMajor,
   roundMoney,
@@ -35,6 +36,38 @@ describe("exact money rounding", () => {
       currency: "RUB",
     });
     expect(Number.isInteger(interest.minor)).toBe(true);
-    expect(interest.minor).toBe(Math.sign(interest.minor) * Math.trunc(Math.abs(100000 * 0.2 * (31 / 365)) + 0.5));
+    expect(interest.minor).toBe(
+      Math.sign(interest.minor) *
+        Math.trunc(Math.abs(100000 * 0.2 * (31 / 365)) + 0.5),
+    );
+  });
+
+  it("amortizes a RUB payment after rounding interest to kopecks", () => {
+    const result = amortizeMoney({
+      balanceMinor: 10_000_000,
+      paymentMinor: 250_000,
+      annualRatePercent: 20,
+      periodDays: 31,
+      yearDays: 365,
+      currency: "RUB",
+    });
+    expect(result.interestMinor).toBe(169_863);
+    expect(result.principalMinor).toBe(80_137);
+    expect(result.interestMinor + result.principalMinor).toBe(250_000);
+    expect(result.balanceMinor + result.principalMinor).toBe(10_000_000);
+  });
+
+  it("does not reduce principal when accrued interest exceeds the payment", () => {
+    const result = amortizeMoney({
+      balanceMinor: 10_000_000,
+      paymentMinor: 150_000,
+      annualRatePercent: 20,
+      periodDays: 31,
+      yearDays: 365,
+      currency: "RUB",
+    });
+    expect(result.interestMinor).toBe(169_863);
+    expect(result.principalMinor).toBe(0);
+    expect(result.balanceMinor).toBe(10_000_000);
   });
 });

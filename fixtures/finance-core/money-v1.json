@@ -45,6 +45,28 @@
       "yearDays": 365,
       "currency": "RUB",
       "mode": "halfAwayFromZero"
+    },
+    {
+      "operation": "moneyAmortize",
+      "id": "rub-month-exact",
+      "balanceMinor": 10000000,
+      "paymentMinor": 250000,
+      "annualRatePercent": 20,
+      "periodDays": 31,
+      "yearDays": 365,
+      "currency": "RUB",
+      "mode": "halfAwayFromZero"
+    },
+    {
+      "operation": "moneyAmortize",
+      "id": "rub-month-interest-exceeds-payment",
+      "balanceMinor": 10000000,
+      "paymentMinor": 150000,
+      "annualRatePercent": 20,
+      "periodDays": 31,
+      "yearDays": 365,
+      "currency": "RUB",
+      "mode": "halfAwayFromZero"
     }
   ]
 }

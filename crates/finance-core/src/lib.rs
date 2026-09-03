@@ -36,6 +36,6 @@ pub use compound::{
 };
 pub use date::CivilDate;
 pub use money::{
-    add_money, interest_money, money_from_major, money_from_minor, money_major, CurrencyCode,
-    Money, MoneyError, RoundingMode,
+    add_money, amortize_money, interest_money, money_from_major, money_from_minor, money_major,
+    CurrencyCode, Money, MoneyAmortization, MoneyError, RoundingMode,
 };

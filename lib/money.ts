@@ -30,6 +30,27 @@ export interface MoneyInterestInput {
   mode?: RoundingMode;
 }
 
+export interface MoneyAmortizeInput {
+  balanceMinor: number;
+  paymentMinor: number;
+  annualRatePercent: number;
+  periodDays: number;
+  yearDays?: number;
+  currency: CurrencyCode;
+  mode?: RoundingMode;
+}
+
+export interface MoneyAmortizeResult {
+  currency: CurrencyCode;
+  exponent: number;
+  balanceMinor: number;
+  interestMinor: number;
+  principalMinor: number;
+  balanceMajor: number;
+  interestMajor: number;
+  principalMajor: number;
+}
+
 const ZERO_DECIMAL_CURRENCIES = new Set(["JPY", "KRW", "VND", "CLP"]);
 const THREE_DECIMAL_CURRENCIES = new Set(["KWD", "BHD", "OMR", "JOD"]);
 
@@ -161,4 +182,53 @@ export function interestMoney(input: MoneyInterestInput): MoneyAmount {
   const minor = roundScaled(accrued, mode);
   assertSafeInteger(minor, "interest minor units");
   return moneyFromMinor(minor, code);
+}
+
+export function amortizeMoney(input: MoneyAmortizeInput): MoneyAmortizeResult {
+  const code = normalizeCurrency(input.currency);
+  assertSafeInteger(input.balanceMinor, "balanceMinor");
+  assertSafeInteger(input.paymentMinor, "paymentMinor");
+  const exponent = currencyExponent(code);
+  const factor = 10 ** exponent;
+  const empty = (balanceMinor: number): MoneyAmortizeResult => ({
+    currency: code,
+    exponent,
+    balanceMinor: Math.max(0, balanceMinor),
+    interestMinor: 0,
+    principalMinor: 0,
+    balanceMajor: Math.max(0, balanceMinor) / factor,
+    interestMajor: 0,
+    principalMajor: 0,
+  });
+
+  if (input.balanceMinor <= 0 || input.paymentMinor <= 0) {
+    return empty(input.balanceMinor);
+  }
+
+  const interest = interestMoney({
+    principalMinor: input.balanceMinor,
+    annualRatePercent: input.annualRatePercent,
+    periodDays: input.periodDays,
+    yearDays: input.yearDays,
+    currency: code,
+    mode: input.mode,
+  });
+  const interestMinor = Math.max(0, interest.minor);
+  // Interest is the full rounded accrual. When it exceeds the payment, principal
+  // is 0 and the balance is unchanged — unpaid interest is not capitalized.
+  const principalMinor = Math.max(
+    0,
+    Math.min(input.balanceMinor, input.paymentMinor - interestMinor),
+  );
+  const balanceMinor = Math.max(0, input.balanceMinor - principalMinor);
+  return {
+    currency: code,
+    exponent,
+    balanceMinor,
+    interestMinor,
+    principalMinor,
+    balanceMajor: balanceMinor / factor,
+    interestMajor: interestMinor / factor,
+    principalMajor: principalMinor / factor,
+  };
 }

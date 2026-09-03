@@ -14,7 +14,9 @@ use crate::{
         amortize_debt_month, current_payment_period_days, estimate_payoff_months,
         simulation_payment_period_days, surrounding_payment_dates,
     },
-    money::{add_money, interest_money, money_from_major, money_major, RoundingMode},
+    money::{
+        add_money, amortize_money, interest_money, money_from_major, money_major, RoundingMode,
+    },
     resilience::{evaluate_resilience, ResilienceInput, ResiliencePlan},
 };
 
@@ -102,6 +104,19 @@ pub enum FinanceRequest {
         #[serde(default)]
         mode: RoundingMode,
     },
+    #[serde(rename_all = "camelCase")]
+    MoneyAmortize {
+        id: String,
+        balance_minor: i64,
+        payment_minor: i64,
+        annual_rate_percent: f64,
+        period_days: i64,
+        #[serde(default = "default_year_days")]
+        year_days: i64,
+        currency: String,
+        #[serde(default)]
+        mode: RoundingMode,
+    },
 }
 
 fn default_year_days() -> i64 {
@@ -175,6 +190,19 @@ pub enum FinanceResponse {
         major: f64,
         exponent: u8,
         mode: RoundingMode,
+    },
+    #[serde(rename_all = "camelCase")]
+    MoneyAmortize {
+        id: String,
+        currency: String,
+        exponent: u8,
+        mode: RoundingMode,
+        balance_minor: i64,
+        interest_minor: i64,
+        principal_minor: i64,
+        balance_major: f64,
+        interest_major: f64,
+        principal_major: f64,
     },
 }
 
@@ -377,6 +405,39 @@ fn evaluate_case(request: FinanceRequest) -> Result<FinanceResponse, BoundaryErr
                 major: money_major(amount),
                 exponent: amount.currency.exponent(),
                 mode,
+            })
+        }
+        FinanceRequest::MoneyAmortize {
+            id,
+            balance_minor,
+            payment_minor,
+            annual_rate_percent,
+            period_days,
+            year_days,
+            currency,
+            mode,
+        } => {
+            let amount = amortize_money(
+                balance_minor,
+                payment_minor,
+                annual_rate_percent,
+                period_days,
+                year_days,
+                &currency,
+                mode,
+            )
+            .map_err(|error| map_money_error(&id, &error))?;
+            Ok(FinanceResponse::MoneyAmortize {
+                id,
+                currency: amount.balance.currency.to_string(),
+                exponent: amount.balance.currency.exponent(),
+                mode,
+                balance_minor: amount.balance.minor,
+                interest_minor: amount.interest.minor,
+                principal_minor: amount.principal.minor,
+                balance_major: money_major(amount.balance),
+                interest_major: money_major(amount.interest),
+                principal_major: money_major(amount.principal),
             })
         }
     }

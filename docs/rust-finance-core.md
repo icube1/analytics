@@ -13,7 +13,8 @@ No UI code calls Rust yet.
   amortization, and payoff estimation.
 - `money`: integer minor-unit amounts, ISO currency exponents, and explicit
   rounding (`halfAwayFromZero`, `halfEven`, `towardZero`) for balances, fees,
-  and tax line items. Compound / Monte Carlo remain on `f64`.
+  and tax line items. `moneyAmortize` rounds actual/365 interest to minor units
+  before splitting a payment. Compound / Monte Carlo remain on `f64`.
 - `resilience`: layered operational buffer, starter emergency fund, core and
   extended reserves, sinking funds, experiences fund, household/debt risk
   scoring, stress scenarios, and descriptive (non-advisory) notes.
@@ -116,15 +117,19 @@ functions in `lib/debt-amortization.ts`. Rust intentionally preserves:
 - a payment on the as-of date beginning the next payment period;
 - actual/365 simple interest and the `365 / 12` default period;
 - principal capped by both payment after interest and remaining balance;
+- when accrued interest exceeds the payment, principal is 0 and unpaid interest
+  is not capitalized;
 - the existing 600-payment payoff cap behavior.
 
 `fixtures/finance-core/v1.json` covers bank-schedule examples and edge cases.
 The differential command evaluates every fixture through both implementations
 and compares integer/string/null values exactly and finite floating-point
-
-Money rounding uses `fixtures/finance-core/money-v1.json` and
-`npm run compare:finance-core:money`.
 values with a `1e-10` relative tolerance.
+
+Money rounding and `moneyAmortize` use `fixtures/finance-core/money-v1.json`
+and `npm run compare:finance-core:money`. Current payment splits in the UI go
+through integer minor units (`amortizeDebtMonthExact`); compound / Monte Carlo
+simulations stay on the `f64` `amortizeDebtMonth` path.
 
 ## Commands
 

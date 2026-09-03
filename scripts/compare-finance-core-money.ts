@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 
 import {
   addMoney,
+  amortizeMoney,
   interestMoney,
   roundMoney,
   type RoundingMode,
@@ -36,9 +37,21 @@ type MoneyInterestCase = {
   mode?: RoundingMode;
 };
 
+type MoneyAmortizeCase = {
+  operation: "moneyAmortize";
+  id: string;
+  balanceMinor: number;
+  paymentMinor: number;
+  annualRatePercent: number;
+  periodDays: number;
+  yearDays?: number;
+  currency: string;
+  mode?: RoundingMode;
+};
+
 type Fixture = {
   schemaVersion: 1;
-  cases: Array<MoneyRoundCase | MoneyAddCase | MoneyInterestCase>;
+  cases: Array<MoneyRoundCase | MoneyAddCase | MoneyInterestCase | MoneyAmortizeCase>;
 };
 
 const fixturePath = resolve(
@@ -110,6 +123,30 @@ function evaluateTypeScript(
       minor: amount.minor,
       major: amount.major,
       exponent: amount.exponent,
+    };
+  }
+  if (testCase.operation === "moneyAmortize") {
+    const amount = amortizeMoney({
+      balanceMinor: testCase.balanceMinor,
+      paymentMinor: testCase.paymentMinor,
+      annualRatePercent: testCase.annualRatePercent,
+      periodDays: testCase.periodDays,
+      yearDays: testCase.yearDays,
+      currency: testCase.currency,
+      mode: testCase.mode,
+    });
+    return {
+      operation: "moneyAmortize",
+      id: testCase.id,
+      currency: amount.currency,
+      exponent: amount.exponent,
+      mode: testCase.mode ?? "halfAwayFromZero",
+      balanceMinor: amount.balanceMinor,
+      interestMinor: amount.interestMinor,
+      principalMinor: amount.principalMinor,
+      balanceMajor: amount.balanceMajor,
+      interestMajor: amount.interestMajor,
+      principalMajor: amount.principalMajor,
     };
   }
   const amount = interestMoney({

@@ -206,6 +206,57 @@ pub fn interest_money(
     money_from_minor(minor, currency)
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct MoneyAmortization {
+    pub balance: Money,
+    pub interest: Money,
+    pub principal: Money,
+}
+
+/// Rounds actual/365 interest to minor units, then splits the payment.
+///
+/// # Errors
+///
+/// Returns [`MoneyError`] for invalid inputs or overflow.
+pub fn amortize_money(
+    balance_minor: i64,
+    payment_minor: i64,
+    annual_rate_percent: f64,
+    period_days: i64,
+    year_days: i64,
+    currency: &str,
+    mode: RoundingMode,
+) -> Result<MoneyAmortization, MoneyError> {
+    assert_safe_integer(balance_minor, "balanceMinor")?;
+    assert_safe_integer(payment_minor, "paymentMinor")?;
+    if balance_minor <= 0 || payment_minor <= 0 {
+        return Ok(MoneyAmortization {
+            balance: money_from_minor(balance_minor.max(0), currency)?,
+            interest: money_from_minor(0, currency)?,
+            principal: money_from_minor(0, currency)?,
+        });
+    }
+
+    let interest = interest_money(
+        balance_minor,
+        annual_rate_percent,
+        period_days,
+        year_days,
+        currency,
+        mode,
+    )?;
+    // Interest is the full rounded accrual. When it exceeds the payment, principal
+    // is 0 and the balance is unchanged — unpaid interest is not capitalized.
+    let interest_minor = interest.minor.max(0);
+    let principal_minor = (payment_minor - interest_minor).max(0).min(balance_minor);
+    let next_balance = (balance_minor - principal_minor).max(0);
+    Ok(MoneyAmortization {
+        balance: money_from_minor(next_balance, currency)?,
+        interest: money_from_minor(interest_minor, currency)?,
+        principal: money_from_minor(principal_minor, currency)?,
+    })
+}
+
 #[must_use]
 pub fn money_major(amount: Money) -> f64 {
     amount.minor as f64 / factor(amount.currency.exponent())
@@ -233,5 +284,40 @@ mod tests {
         let money = money_from_major(100.4, "JPY", RoundingMode::HalfAwayFromZero).unwrap();
         assert_eq!(money.minor, 100);
         assert_eq!(money.currency.exponent(), 0);
+    }
+
+    #[test]
+    fn amortize_splits_payment_after_rounding_interest() {
+        let result = amortize_money(
+            10_000_000,
+            250_000,
+            20.0,
+            31,
+            365,
+            "RUB",
+            RoundingMode::HalfAwayFromZero,
+        )
+        .unwrap();
+        assert_eq!(result.interest.minor, 169_863);
+        assert_eq!(result.principal.minor, 80_137);
+        assert_eq!(result.interest.minor + result.principal.minor, 250_000);
+        assert_eq!(result.balance.minor + result.principal.minor, 10_000_000);
+    }
+
+    #[test]
+    fn amortize_does_not_reduce_principal_when_interest_exceeds_payment() {
+        let result = amortize_money(
+            10_000_000,
+            150_000,
+            20.0,
+            31,
+            365,
+            "RUB",
+            RoundingMode::HalfAwayFromZero,
+        )
+        .unwrap();
+        assert_eq!(result.interest.minor, 169_863);
+        assert_eq!(result.principal.minor, 0);
+        assert_eq!(result.balance.minor, 10_000_000);
     }
 }

@@ -192,7 +192,9 @@ crates/
 - точные денежные остатки хранятся в минимальных единицах валюты;
 - долги, комиссии и налоги получают явно описанные правила округления
   (`halfAwayFromZero`, `halfEven`, `towardZero`) через DTO `moneyRound` /
-  `moneyAdd` / `moneyInterest`;
+  `moneyAdd` / `moneyInterest` / `moneyAmortize`;
+- текущая разбивка платежа в UI идёт через целочисленные minor units, а
+  compound / Monte Carlo остаются на `f64` до отдельной проверки паритета;
 - вероятностные прогнозы, IRR и волатильность остаются на `f64`;
 - даты передаются как явные civil dates без скрытого `new Date()`;
 - seed Monte Carlo является частью входного контракта.
