@@ -14,6 +14,7 @@ use crate::{
         amortize_debt_month, current_payment_period_days, estimate_payoff_months,
         simulation_payment_period_days, surrounding_payment_dates,
     },
+    money::{add_money, interest_money, money_from_major, money_major, RoundingMode},
     resilience::{evaluate_resilience, ResilienceInput, ResiliencePlan},
 };
 
@@ -74,6 +75,37 @@ pub enum FinanceRequest {
         #[serde(default)]
         options: MonteCarloOptions,
     },
+    #[serde(rename_all = "camelCase")]
+    MoneyRound {
+        id: String,
+        major: f64,
+        currency: String,
+        #[serde(default)]
+        mode: RoundingMode,
+    },
+    #[serde(rename_all = "camelCase")]
+    MoneyAdd {
+        id: String,
+        left_minor: i64,
+        right_minor: i64,
+        currency: String,
+    },
+    #[serde(rename_all = "camelCase")]
+    MoneyInterest {
+        id: String,
+        principal_minor: i64,
+        annual_rate_percent: f64,
+        period_days: i64,
+        #[serde(default = "default_year_days")]
+        year_days: i64,
+        currency: String,
+        #[serde(default)]
+        mode: RoundingMode,
+    },
+}
+
+fn default_year_days() -> i64 {
+    365
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -118,6 +150,32 @@ pub enum FinanceResponse {
         id: String,
         result: Box<MonteCarloResult>,
     },
+    #[serde(rename_all = "camelCase")]
+    MoneyRound {
+        id: String,
+        currency: String,
+        minor: i64,
+        major: f64,
+        exponent: u8,
+        mode: RoundingMode,
+    },
+    #[serde(rename_all = "camelCase")]
+    MoneyAdd {
+        id: String,
+        currency: String,
+        minor: i64,
+        major: f64,
+        exponent: u8,
+    },
+    #[serde(rename_all = "camelCase")]
+    MoneyInterest {
+        id: String,
+        currency: String,
+        minor: i64,
+        major: f64,
+        exponent: u8,
+        mode: RoundingMode,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -125,6 +183,7 @@ pub enum BoundaryError {
     UnsupportedSchemaVersion(u16),
     InvalidDate { id: String, value: String },
     CompoundEvaluation { id: String, message: String },
+    MoneyEvaluation { id: String, message: String },
 }
 
 impl fmt::Display for BoundaryError {
@@ -139,6 +198,9 @@ impl fmt::Display for BoundaryError {
             Self::CompoundEvaluation { id, message } => {
                 write!(formatter, "case {id} compound evaluation failed: {message}")
             }
+            Self::MoneyEvaluation { id, message } => {
+                write!(formatter, "case {id} money evaluation failed: {message}")
+            }
         }
     }
 }
@@ -149,7 +211,7 @@ impl std::error::Error for BoundaryError {}
 ///
 /// # Errors
 ///
-/// Returns [`BoundaryError`] for an unsupported schema, invalid civil date, or compound failure.
+/// Returns [`BoundaryError`] for an unsupported schema, invalid civil date, compound failure, or money rounding failure.
 pub fn evaluate(batch: RequestBatch) -> Result<ResponseBatch, BoundaryError> {
     if batch.schema_version != SCHEMA_VERSION {
         return Err(BoundaryError::UnsupportedSchemaVersion(
@@ -257,11 +319,78 @@ fn evaluate_case(request: FinanceRequest) -> Result<FinanceResponse, BoundaryErr
                 result: Box::new(result),
             })
         }
+        FinanceRequest::MoneyRound {
+            id,
+            major,
+            currency,
+            mode,
+        } => {
+            let amount = money_from_major(major, &currency, mode)
+                .map_err(|error| map_money_error(&id, &error))?;
+            Ok(FinanceResponse::MoneyRound {
+                id,
+                currency: amount.currency.to_string(),
+                minor: amount.minor,
+                major: money_major(amount),
+                exponent: amount.currency.exponent(),
+                mode,
+            })
+        }
+        FinanceRequest::MoneyAdd {
+            id,
+            left_minor,
+            right_minor,
+            currency,
+        } => {
+            let amount = add_money(left_minor, right_minor, &currency)
+                .map_err(|error| map_money_error(&id, &error))?;
+            Ok(FinanceResponse::MoneyAdd {
+                id,
+                currency: amount.currency.to_string(),
+                minor: amount.minor,
+                major: money_major(amount),
+                exponent: amount.currency.exponent(),
+            })
+        }
+        FinanceRequest::MoneyInterest {
+            id,
+            principal_minor,
+            annual_rate_percent,
+            period_days,
+            year_days,
+            currency,
+            mode,
+        } => {
+            let amount = interest_money(
+                principal_minor,
+                annual_rate_percent,
+                period_days,
+                year_days,
+                &currency,
+                mode,
+            )
+            .map_err(|error| map_money_error(&id, &error))?;
+            Ok(FinanceResponse::MoneyInterest {
+                id,
+                currency: amount.currency.to_string(),
+                minor: amount.minor,
+                major: money_major(amount),
+                exponent: amount.currency.exponent(),
+                mode,
+            })
+        }
     }
 }
 
 fn map_compound_error(id: &str, error: &CompoundError) -> BoundaryError {
     BoundaryError::CompoundEvaluation {
+        id: id.to_owned(),
+        message: error.to_string(),
+    }
+}
+
+fn map_money_error(id: &str, error: &crate::MoneyError) -> BoundaryError {
+    BoundaryError::MoneyEvaluation {
         id: id.to_owned(),
         message: error.to_string(),
     }

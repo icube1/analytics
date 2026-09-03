@@ -1,10 +1,21 @@
 import { parseHTML } from "linkedom";
 
+function hasDomParser(): boolean {
+  return typeof globalThis.DOMParser === "function";
+}
+
 export function parseHtmlDocument(html: string): Document {
-  if (typeof DOMParser !== "undefined") {
-    return new DOMParser().parseFromString(html, "text/html");
+  if (hasDomParser()) {
+    return new globalThis.DOMParser().parseFromString(html, "text/html");
   }
   return parseHTML(html).document as unknown as Document;
+}
+
+export function parseXmlDocument(xml: string): Document {
+  if (hasDomParser()) {
+    return new globalThis.DOMParser().parseFromString(xml, "application/xml");
+  }
+  return parseHTML(xml).document as unknown as Document;
 }
 
 export function cellText(row: Element, index: number): string {

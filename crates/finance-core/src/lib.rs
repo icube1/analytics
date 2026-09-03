@@ -16,7 +16,17 @@
 pub mod compound;
 pub mod date;
 pub mod debt;
+#[allow(clippy::too_many_lines)]
 pub mod dto;
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_precision_loss,
+    clippy::cast_sign_loss,
+    clippy::float_cmp,
+    clippy::missing_panics_doc,
+    clippy::must_use_candidate
+)]
+pub mod money;
 pub mod resilience;
 
 pub use compound::{
@@ -25,3 +35,7 @@ pub use compound::{
     UNSUPPORTED_COMPOUND_FIELDS,
 };
 pub use date::CivilDate;
+pub use money::{
+    add_money, interest_money, money_from_major, money_from_minor, money_major, CurrencyCode,
+    Money, MoneyError, RoundingMode,
+};

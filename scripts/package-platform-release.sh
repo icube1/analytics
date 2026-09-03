@@ -118,13 +118,16 @@ mkdir -p \
   "$RELEASE_DIR/web" \
   "$RELEASE_DIR/site" \
   "$RELEASE_DIR/metrics-dashboard" \
-  "$RELEASE_DIR/next"
+  "$RELEASE_DIR/next" \
+  "$RELEASE_DIR/nginx"
 
 install -m 755 "$FINANCE_API_BIN" "$RELEASE_DIR/finance-api/bin/finance-api"
 install -m 755 "$MIGRATE_BIN" "$RELEASE_DIR/finance-api/bin/finance-api-migrate"
 cp -a "$WEB_DIST/." "$RELEASE_DIR/web/dist/"
 cp -a "$SITE_DIST/." "$RELEASE_DIR/site/dist/"
 cp -a "$METRICS_DIST/." "$RELEASE_DIR/metrics-dashboard/dist/"
+install -m 644 "$ROOT/deploy/blue-green/nginx-loopback-staging.conf" \
+  "$RELEASE_DIR/nginx/nginx-loopback-staging.conf"
 
 (
   shopt -s dotglob

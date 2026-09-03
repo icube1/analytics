@@ -38,6 +38,14 @@ Versioned import pipeline for brokerage reports. Production adapters require san
 |----|--------|----------|
 | `sber-html-v1` | Sber Investments HTML | `public/portfolio.html`, `__tests__/fixtures/sber-t1-report.html` |
 | `manual-csv-v1` | Manual CSV template | generated via `buildManualCsvTemplate()` |
+| `tbank-xlsx` | T-Bank CSV/TSV text export | `__tests__/fixtures/tbank-report.csv` |
+| `vtb-xls` | VTB CSV/TSV text export | `__tests__/fixtures/vtb-report.csv` |
+| `alfa-xml` | Alfa-Investments XML | `__tests__/fixtures/alfa-report.xml` |
+| `finam-xml` | Finam XML | `__tests__/fixtures/finam-report.xml` |
+| `bcs-xls` | BCS CSV/TSV text export | `__tests__/fixtures/bcs-report.csv` |
+
+Shared parsers live in `lib/broker-adapters/tabular.ts` and `xml.ts`.
+Binary Excel workbooks are **not** unzipped; save/export as CSV or XML.
 
 ## Import safety limits
 
@@ -65,64 +73,12 @@ See [broker-fixture-sanitization.md](./broker-fixture-sanitization.md).
 
 Read-only brokerage API sync is implemented separately in `lib/broker-connectors/`. See [broker-connectors.md](./broker-connectors.md). File adapters below remain the production import path.
 
-## Planned adapters (fixtures required)
+## Planned adapters (live broker samples)
 
-No production parser is registered until sanitized sample files exist in `__tests__/fixtures/`.
-
-### T-Bank (`tbank-xlsx`)
-
-**Need:** period portfolio XLSX export (positions + cash + trades sheets).
-
-| Field | Requirement |
-|-------|-------------|
-| Positions | ISIN or ticker, quantity end, price end, market value |
-| Cash | currency, end balance |
-| Trades | trade date, settlement date, side, qty, price, amount, fees |
-| Meta | investor label (sanitized), contract/account id (sanitized), period dates |
-
-### VTB (`vtb-xls` / `vtb-xlsx`)
-
-**Need:** VTB brokerage report `.xls` or `.xlsx` with portfolio and movement sections.
-
-| Field | Requirement |
-|-------|-------------|
-| Securities table | name, ISIN, venue, opening/closing qty and value |
-| Cash | RUB and FX balances |
-| Trades | dated deals with settlement column |
-| Meta | report period header |
-
-### Alfa (`alfa-xml`)
-
-**Need:** Alfa-Direct / Alfa-Investments XML broker statement.
-
-| Field | Requirement |
-|-------|-------------|
-| Root | identifiable Alfa XML namespace or root element |
-| Positions | `isin`, `quantity`, `price`, `value` nodes |
-| Cash | per-currency balances |
-| Operations | trades and cash movements with dates |
-
-### Finam (`finam-xml`)
-
-**Need:** Finam Trade XML export or documented API JSON sample (sanitized).
-
-| Field | Requirement |
-|-------|-------------|
-| Positions | ticker, qty, market value |
-| Cash | account balance |
-| Trades | execution records with fees |
-| Meta | account id (sanitized), as-of date |
-
-### BCS (`bcs-xls`)
-
-**Need:** BCS brokerage Excel report with standard section headings.
-
-| Field | Requirement |
-|-------|-------------|
-| Portfolio | securities with ISIN and end-of-period metrics |
-| Money | cash lines per currency |
-| Deals | buy/sell grid |
-| Meta | client code (sanitized), period |
+Text CSV/XML fixtures above are synthetic and sanitized. Binary `.xlsx`/`.xls`
+from T-Bank, VTB, and BCS still need a live anonymized sample before a native
+workbook parser is registered. Until then the tabular adapters accept the
+CSV/TSV export of those reports.
 
 ## Adding a new adapter
 

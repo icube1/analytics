@@ -159,14 +159,34 @@ jobs:
               exit 1
             fi
             COOKIE_JAR="$(mktemp)"
-            LOGIN_JSON="$(
-              ANALYTICS_ADMIN_LOGIN="${ANALYTICS_ADMIN_LOGIN:-admin}" \
-              ANALYTICS_AUTH_PASSWORD="$ANALYTICS_AUTH_PASSWORD" \
-              python3 -c 'import json,os; print(json.dumps({"login": os.environ.get("ANALYTICS_ADMIN_LOGIN") or "admin", "password": os.environ["ANALYTICS_AUTH_PASSWORD"]}))'
-            )"
-            if ! curl -fsS -c "$COOKIE_JAR" -H 'Content-Type: application/json' \
-              -d "$LOGIN_JSON" http://127.0.0.1:3000/api/auth/login >/dev/null; then
+            LOGIN_JSON="$(python3 - <<'PY'
+from pathlib import Path
+import json
+vals = {}
+for raw in Path("/etc/analytics-auth.env").read_text(encoding="utf-8").splitlines():
+    line = raw.strip()
+    if not line or line.startswith("#") or "=" not in line:
+        continue
+    key, _, value = line.partition("=")
+    vals[key.strip()] = value.strip().strip("'\"")
+print(json.dumps({
+    "login": vals.get("ANALYTICS_ADMIN_LOGIN") or "admin",
+    "password": vals["ANALYTICS_AUTH_PASSWORD"],
+}))
+PY
+)"
+            login_ok=0
+            for _ in 1 2 3 4 5; do
+              if curl -fsS -c "$COOKIE_JAR" -H 'Content-Type: application/json' \
+                -d "$LOGIN_JSON" http://127.0.0.1:3000/api/auth/login >/dev/null; then
+                login_ok=1
+                break
+              fi
+              sleep 1
+            done
+            if [[ "$login_ok" -ne 1 ]]; then
               rm -f "$COOKIE_JAR"
+              echo "Owner login verify failed" >&2
               journalctl -u analytics -n 80 --no-pager || true
               exit 1
             fi

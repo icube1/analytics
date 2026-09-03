@@ -34,6 +34,7 @@ impl From<BoundaryError> for FinanceFfiError {
             }
             BoundaryError::InvalidDate { .. } => "INVALID_DATE".to_owned(),
             BoundaryError::CompoundEvaluation { .. } => "COMPOUND_EVALUATION_FAILED".to_owned(),
+            BoundaryError::MoneyEvaluation { .. } => "MONEY_EVALUATION_FAILED".to_owned(),
         };
         Self::EvaluationFailed { code }
     }

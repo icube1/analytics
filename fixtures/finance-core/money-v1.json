@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "operation": "moneyRound",
+      "id": "rub-half-away-tie",
+      "major": 10.125,
+      "currency": "rub",
+      "mode": "halfAwayFromZero"
+    },
+    {
+      "operation": "moneyRound",
+      "id": "rub-half-even-tie",
+      "major": 10.125,
+      "currency": "RUB",
+      "mode": "halfEven"
+    },
+    {
+      "operation": "moneyRound",
+      "id": "rub-toward-zero-negative",
+      "major": -10.129,
+      "currency": "RUB",
+      "mode": "towardZero"
+    },
+    {
+      "operation": "moneyRound",
+      "id": "jpy-zero-exponent",
+      "major": 100.4,
+      "currency": "JPY",
+      "mode": "halfAwayFromZero"
+    },
+    {
+      "operation": "moneyAdd",
+      "id": "rub-add-kopecks",
+      "leftMinor": 1013,
+      "rightMinor": 7,
+      "currency": "RUB"
+    },
+    {
+      "operation": "moneyInterest",
+      "id": "rub-actual-365",
+      "principalMinor": 100000,
+      "annualRatePercent": 20,
+      "periodDays": 31,
+      "yearDays": 365,
+      "currency": "RUB",
+      "mode": "halfAwayFromZero"
+    }
+  ]
+}

@@ -11,6 +11,9 @@ No UI code calls Rust yet.
   leap/month handling without host time-zone behavior.
 - `debt`: payment-period boundaries, actual/365 interest, monthly
   amortization, and payoff estimation.
+- `money`: integer minor-unit amounts, ISO currency exponents, and explicit
+  rounding (`halfAwayFromZero`, `halfEven`, `towardZero`) for balances, fees,
+  and tax line items. Compound / Monte Carlo remain on `f64`.
 - `resilience`: layered operational buffer, starter emergency fund, core and
   extended reserves, sinking funds, experiences fund, household/debt risk
   scoring, stress scenarios, and descriptive (non-advisory) notes.
@@ -118,6 +121,9 @@ functions in `lib/debt-amortization.ts`. Rust intentionally preserves:
 `fixtures/finance-core/v1.json` covers bank-schedule examples and edge cases.
 The differential command evaluates every fixture through both implementations
 and compares integer/string/null values exactly and finite floating-point
+
+Money rounding uses `fixtures/finance-core/money-v1.json` and
+`npm run compare:finance-core:money`.
 values with a `1e-10` relative tolerance.
 
 ## Commands

@@ -99,4 +99,25 @@ describe("broker adapter platform", () => {
     expect(result.errors[0]?.code).toBe("NO_ADAPTER_MATCH");
     expect(result.report).toBeNull();
   });
+
+  it.each([
+    ["tbank-xlsx", "tbank-report.csv", "tbank.csv"],
+    ["vtb-xls", "vtb-report.csv", "vtb.csv"],
+    ["bcs-xls", "bcs-report.csv", "bcs.csv"],
+    ["alfa-xml", "alfa-report.xml", "alfa.xml"],
+    ["finam-xml", "finam-report.xml", "finam.xml"],
+  ] as const)("imports sanitized %s fixture", (adapterId, fileName, uploadName) => {
+    const content = fs.readFileSync(
+      path.join(process.cwd(), "__tests__", "fixtures", fileName),
+      "utf8",
+    );
+    const result = importBrokerReport({ content, fileName: uploadName });
+
+    expect(result.ok).toBe(true);
+    expect(result.provenance.adapterId).toBe(adapterId);
+    expect(result.report?.investor).toBe(SANITIZED_INVESTOR);
+    expect(result.report?.contract).toBe(SANITIZED_CONTRACT);
+    expect(result.coverage?.securities).toBe(true);
+    expect(result.reconciliation?.withinTolerance).toBe(true);
+  });
 });

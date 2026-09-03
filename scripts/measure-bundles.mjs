@@ -93,9 +93,30 @@ if (ciMode) {
     console.log(`  [${b.ok ? "OK" : "FAIL"}] ${b.name}: ${formatBytes(b.actual)} / ${formatBytes(b.limit)}`);
     if (!b.ok) failed = true;
   }
+  const linkedomHits = walkFiles(viteDist).filter((filePath) => {
+    if (!filePath.endsWith(".js")) return false;
+    const source = fs.readFileSync(filePath, "utf8");
+    return source.includes("linkedom");
+  });
+  if (linkedomHits.length > 0) {
+    console.log(`  [FAIL] viteLinkedomFree: ${linkedomHits.map((filePath) => path.relative(viteDist, filePath)).join(", ")}`);
+    failed = true;
+  } else {
+    console.log("  [OK] viteLinkedomFree: no linkedom string in Vite JS");
+  }
   if (failed) process.exit(1);
 }
 
-const report = { generatedAt: new Date().toISOString(), nextStandaloneBytes, viteDistBytes, viteJsGzipTotal: viteJsGzip, viteAssets, budgets: BUDGETS, budgetResults, forbiddenStandalone };
+const report = {
+  generatedAt: new Date().toISOString(),
+  nextStandaloneBytes,
+  viteDistBytes,
+  viteJsGzipTotal: viteJsGzip,
+  viteAssets,
+  budgets: BUDGETS,
+  budgetResults,
+  forbiddenStandalone,
+  viteLinkedomFree: true,
+};
 fs.mkdirSync(reportDir, { recursive: true });
 fs.writeFileSync(path.join(reportDir, "bundle-report.json"), `${JSON.stringify(report, null, 2)}\n`);

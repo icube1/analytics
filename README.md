@@ -126,7 +126,7 @@ analytics/
 | Язык | TypeScript 5 |
 | Стили | Tailwind CSS 4 |
 | Графики | Recharts |
-| HTML-парсинг | linkedom |
+| HTML-парсинг | DOMParser в браузере, linkedom только на сервере |
 | Тесты | Jest, ts-jest |
 
 ---

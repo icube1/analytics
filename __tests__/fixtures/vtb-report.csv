@@ -1,0 +1,14 @@
+# analytics-vtb-v1
+# VTB / sanitized synthetic fixture
+
+[meta]
+period_start,period_end,created_at,investor,contract
+01.01.2025,31.01.2025,01.02.2025,Тестовый Инвестор,SANITIZED-CONTRACT
+
+[securities]
+наименование,isin,валюта,количество,цена,стоимость
+Example Bond,RU000A0JX0J2,RUB,5,200,1000
+
+[cash]
+площадка,валюта,end
+ВТБ RUB,RUB,50

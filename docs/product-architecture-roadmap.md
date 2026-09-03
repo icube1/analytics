@@ -186,10 +186,13 @@ crates/
 Язык и математическую модель нельзя менять одновременно.
 
 Первый Rust-порт повторяет текущую семантику на `f64` и проверяется
-дифференциальными тестами TypeScript ↔ Rust. После достижения совместимости:
+дифференциальными тестами TypeScript ↔ Rust. После достижения совместимости
+добавлен модуль точных остатков (`lib/money.ts` / `finance_core::money`):
 
 - точные денежные остатки хранятся в минимальных единицах валюты;
-- долги, комиссии и налоги получают явно описанные правила округления;
+- долги, комиссии и налоги получают явно описанные правила округления
+  (`halfAwayFromZero`, `halfEven`, `towardZero`) через DTO `moneyRound` /
+  `moneyAdd` / `moneyInterest`;
 - вероятностные прогнозы, IRR и волатильность остаются на `f64`;
 - даты передаются как явные civil dates без скрытого `new Date()`;
 - seed Monte Carlo является частью входного контракта.
@@ -760,7 +763,7 @@ Webhook:
 - server/client/product metrics;
 - bundle-size budgets;
 - Lighthouse и load scenarios;
-- убрать `linkedom` из browser graph;
+- убрать `linkedom` из browser graph (клиент: `DOMParser`; Node/Jest: `linkedom`; Vite/Next client alias на stub);
 - lazy-load вкладки и графики;
 - измерить TypeScript calculations в Worker.
 
@@ -806,11 +809,14 @@ Webhook:
 
 - строгий Sber adapter;
 - общий tabular/XML layer;
-- T‑Bank и ВТБ;
-- Альфа и Финам;
-- БКС и остальные по спросу;
+- T‑Bank и ВТБ (CSV/text export, sanitized fixtures);
+- Альфа и Финам (XML fixtures);
+- БКС tabular;
 - reconciliation dashboard;
 - fixture contribution и sanitization pipeline.
+
+Двоичный Excel `.xlsx`/`.xls` по-прежнему требует живой образец: текущие
+адаптеры принимают текстовый CSV/TSV/XML с теми же идентификаторами.
 
 ### Phase 7. Mobile
 

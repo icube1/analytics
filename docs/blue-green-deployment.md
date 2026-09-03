@@ -26,6 +26,11 @@ for future cutover. Public site/app/api vhosts use application sessions, **not**
 HTTP Basic. Metrics keeps Basic (`htpasswd` must be `root:www-data` mode `640`
 so nginx workers can read it). They are **not** enabled until `PLATFORM_CUTOVER=1`.
 
+Staging also installs a **loopback-only** preview (`nginx-loopback-staging.conf`)
+on `127.0.0.1:9080-9083` (site / app / api / metrics). It does not need
+`app.`/`api.` DNS and does not bind public interfaces. Smoke serves the same
+static trees via Python even when nginx is absent.
+
 ## Commands
 
 ```bash
@@ -90,6 +95,8 @@ Migrations run automatically on startup (`sqlx::migrate` in `finance-api`).
 2. `GET http://127.0.0.1:8080/health` returns `"database":"ok"` (migration + DB)
 3. Artifact sizes from `manifest.json`
 4. finance-api RSS (KiB) when running under systemd or local smoke
+5. Vite/Astro/metrics `index.html` over loopback HTTP (Python server; nginx `:908x` when present)
+6. Staged Vite JS must not contain `linkedom`
 
 ## Workflow gates
 

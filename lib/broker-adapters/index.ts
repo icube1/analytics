@@ -28,6 +28,10 @@ export {
   buildManualCsvTemplate,
   MANUAL_CSV_MAGIC,
 } from "./adapters/manual-csv";
+export { tbankTabularAdapter, TBANK_CSV_MAGIC } from "./adapters/tbank-tabular";
+export { vtbTabularAdapter, VTB_CSV_MAGIC } from "./adapters/vtb-tabular";
+export { bcsTabularAdapter, BCS_CSV_MAGIC } from "./adapters/bcs-tabular";
+export { alfaXmlAdapter, finamXmlAdapter } from "./adapters/xml-brokers";
 export type {
   BrokerAdapter,
   BrokerAdapterId,

@@ -85,10 +85,9 @@ impl MigrationRunner {
 
         let fingerprint = fingerprint_backup_sources(&backup_bytes, &statement_files);
         if options.checksum_only {
-            let scope = self.resolve_scope(&options).await?;
             return Ok(self.build_report(
                 None,
-                scope.household_id(),
+                options.household_id.unwrap_or(Uuid::nil()),
                 fingerprint.hex,
                 &options,
                 &validated,
