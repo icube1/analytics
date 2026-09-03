@@ -88,4 +88,19 @@ describe("AppRoutes", () => {
     );
     expect(screen.getByTestId("dashboard-page")).toBeInTheDocument();
   });
+
+  it("renders the cloud login form on /login", () => {
+    render(
+      <MemoryRouter initialEntries={["/login"]}>
+        <AppRoutes />
+      </MemoryRouter>,
+    );
+    expect(
+      screen.getByRole("heading", { name: "Вход в аналитику" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Войти" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Продолжить локально без входа" }),
+    ).toBeInTheDocument();
+  });
 });

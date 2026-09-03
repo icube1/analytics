@@ -1,7 +1,14 @@
 import {
   MAX_PRIVATE_REQUEST_BYTES,
+  SESSION_COOKIE_NAME,
+  acceptedAdminLogins,
+  createSessionToken,
   rejectOversizedPrivateRequest,
   requireServerAuth,
+  resolveOwnerSession,
+  safeNextPath,
+  verifyOwnerCredentials,
+  wantsHtmlResponse,
 } from "@/lib/server-auth";
 
 const originalEnv = { ...process.env };
@@ -14,13 +21,25 @@ function setNodeEnv(value: string): void {
   (process.env as unknown as Record<string, string>).NODE_ENV = value;
 }
 
-function request(authorization?: string): Request {
-  return new Request("https://gala-soft.ru/api/portfolio", {
-    headers: authorization ? { authorization } : undefined,
-  });
+function request(init?: {
+  authorization?: string;
+  cookie?: string;
+  accept?: string;
+}): Request {
+  const headers = new Headers();
+  if (init?.authorization) headers.set("authorization", init.authorization);
+  if (init?.cookie) headers.set("cookie", init.cookie);
+  if (init?.accept) headers.set("accept", init.accept);
+  return new Request("https://gala-soft.ru/api/portfolio", { headers });
 }
 
-describe("temporary server authentication", () => {
+function configureOwner(): void {
+  process.env.ANALYTICS_AUTH_USER = "owner";
+  process.env.ANALYTICS_AUTH_PASSWORD = "correct horse battery staple";
+  process.env.ANALYTICS_SESSION_SECRET = "test-session-secret";
+}
+
+describe("owner session authentication", () => {
   it("allows local development when credentials are absent", () => {
     setNodeEnv("development");
     delete process.env.ANALYTICS_AUTH_USER;
@@ -37,19 +56,84 @@ describe("temporary server authentication", () => {
     expect(requireServerAuth(request())?.status).toBe(503);
   });
 
-  it("challenges invalid credentials and accepts valid credentials", () => {
+  it("rejects invalid credentials without a browser Basic challenge", () => {
     setNodeEnv("production");
-    process.env.ANALYTICS_AUTH_USER = "owner";
-    process.env.ANALYTICS_AUTH_PASSWORD = "correct horse battery staple";
+    configureOwner();
 
-    const rejected = requireServerAuth(request("Basic bm90OnRoZS1wYXNzd29yZA=="));
+    const rejected = requireServerAuth(
+      request({ authorization: "Basic bm90OnRoZS1wYXNzd29yZA==" }),
+    );
     expect(rejected?.status).toBe(401);
-    expect(rejected?.headers.get("www-authenticate")).toContain("Basic");
+    expect(rejected?.headers.get("www-authenticate")).toBeNull();
+    expect(rejected?.headers.get("content-type")).toContain("json");
+  });
+
+  it("rejects Basic credentials so browsers never see a native challenge", () => {
+    setNodeEnv("production");
+    configureOwner();
 
     const valid = Buffer.from("owner:correct horse battery staple").toString(
       "base64",
     );
-    expect(requireServerAuth(request(`Basic ${valid}`))).toBeNull();
+    const rejected = requireServerAuth(request({ authorization: `Basic ${valid}` }));
+    expect(rejected?.status).toBe(401);
+    expect(rejected?.headers.get("www-authenticate")).toBeNull();
+    expect(resolveOwnerSession(request({ authorization: `Basic ${valid}` }))).toBeNull();
+  });
+
+  it("accepts admin login aliases and a signed session cookie", () => {
+    setNodeEnv("production");
+    configureOwner();
+
+    expect(acceptedAdminLogins("owner")).toEqual(
+      expect.arrayContaining(["owner", "admin", "admin@gala-soft.ru"]),
+    );
+    expect(
+      verifyOwnerCredentials("admin", "correct horse battery staple")?.displayName,
+    ).toBe("Администратор");
+    expect(verifyOwnerCredentials("admin", "wrong")).toBeNull();
+
+    const token = createSessionToken("owner");
+    expect(token).toBeTruthy();
+    const authed = requireServerAuth(
+      request({ cookie: `${SESSION_COOKIE_NAME}=${token}` }),
+    );
+    expect(authed).toBeNull();
+    expect(
+      resolveOwnerSession(request({ cookie: `${SESSION_COOKIE_NAME}=${token}` }))
+        ?.login,
+    ).toBe("admin");
+    expect(
+      verifyOwnerCredentials("admin", "correct horse battery staple")?.login,
+    ).toBe("admin");
+  });
+
+  it("rejects tampered session cookies", () => {
+    setNodeEnv("production");
+    configureOwner();
+
+    const token = createSessionToken("owner");
+    const tampered = `${token}x`;
+    const rejected = requireServerAuth(
+      request({ cookie: `${SESSION_COOKIE_NAME}=${tampered}` }),
+    );
+    expect(rejected?.status).toBe(401);
+  });
+
+  it("treats HTML navigations as document requests for login redirects", () => {
+    expect(
+      wantsHtmlResponse(
+        request({ accept: "text/html,application/xhtml+xml;q=0.9" }),
+      ),
+    ).toBe(true);
+    expect(wantsHtmlResponse(request({ accept: "*/*" }))).toBe(false);
+  });
+
+  it("keeps redirect targets on-site", () => {
+    expect(safeNextPath("https://evil.example")).toBe("/");
+    expect(safeNextPath("//evil.example")).toBe("/");
+    expect(safeNextPath("/investments")).toBe("/investments");
+    expect(safeNextPath("/login?next=/")).toBe("/");
   });
 
   it("rejects oversized private requests before reading the body", () => {

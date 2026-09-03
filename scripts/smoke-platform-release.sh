@@ -91,7 +91,7 @@ if ! wait_for_health "$HEALTH_URL"; then
 fi
 
 health_json="$(curl -fsS "$HEALTH_URL")"
-echo "$health_json" | rg -q '"database"\s*:\s*"ok"' || {
+echo "$health_json" | jq -e '.database == "ok"' >/dev/null || {
   echo "Migration/DB check failed: $health_json" >&2
   exit 1
 }

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { DataBackupMenu } from "@/components/data-backup-menu";
+import { OwnerAccountMenu } from "@/components/owner-account-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 const links = [
@@ -14,6 +15,16 @@ const links = [
 
 export function AppNav() {
   const pathname = usePathname();
+
+  if (pathname === "/login") {
+    return (
+      <nav className="border-b border-zinc-200 bg-white/80 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/80">
+        <div className="mx-auto flex max-w-7xl items-center justify-end px-4 py-3 sm:px-6">
+          <ThemeToggle />
+        </div>
+      </nav>
+    );
+  }
 
   return (
     <nav className="border-b border-zinc-200 bg-white/80 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/80">
@@ -41,6 +52,7 @@ export function AppNav() {
         </div>
         <div className="flex items-center gap-2">
           <DataBackupMenu />
+          <OwnerAccountMenu />
           <ThemeToggle />
         </div>
       </div>

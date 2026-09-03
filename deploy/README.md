@@ -48,22 +48,31 @@ scp deploy.tar.gz root@5.253.30.126:/tmp/
 ssh root@5.253.30.126 'mkdir -p /opt/analytics/data/backups /opt/analytics/statements && tar -xzf /tmp/deploy.tar.gz -C /opt/analytics && systemctl restart analytics'
 ```
 
-## 5. Доступ и временная авторизация
+## 5. Доступ и авторизация
 
 Production доступен по адресу **https://gala-soft.ru**. Nginx использует HTTP/2
 и TLS 1.2 для совместимости с российскими сетями.
 
-До появления multi-user auth весь сайт закрыт HTTP Basic Authentication.
-При первом деплое workflow автоматически создаёт:
+Вход — форма `/login` и httpOnly cookie сессии администратора.
+Системное окно HTTP Basic браузера больше не используется.
 
-- `/etc/analytics-auth.env` — credentials для приложения;
-- `/etc/nginx/.htpasswd-analytics` — hash пароля для Nginx.
+При первом деплое workflow создаёт `/etc/analytics-auth.env`:
 
-Оба файла доступны только `root`. Посмотреть первоначальные credentials:
+- `ANALYTICS_AUTH_USER` / `ANALYTICS_AUTH_PASSWORD` — секрет админа (пароль);
+- `ANALYTICS_ADMIN_LOGIN` — публичный логин (`admin`);
+- `ANALYTICS_SESSION_SECRET` — подпись cookie;
+- `ANALYTICS_AUTH_DISPLAY_NAME` — подпись в интерфейсе.
+
+Файл доступен только `root`. Посмотреть credentials:
 
 ```bash
 sudo cat /etc/analytics-auth.env
 ```
+
+Вход на сайте: логин `admin` (также `owner` и `admin@gala-soft.ru`) и пароль из `ANALYTICS_AUTH_PASSWORD`.
+Сайт больше не использует HTTP Basic и не отдаёт `WWW-Authenticate`, поэтому браузер не показывает системное окно логина.
+
+Для Axum при первом деплое создаётся `/etc/analytics-finance-api.env` с bootstrap-аккаунтом `admin@gala-soft.ru` и тем же паролем.
 
 Приложение:
 

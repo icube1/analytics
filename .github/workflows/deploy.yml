@@ -107,19 +107,37 @@ jobs:
               useradd --system --home-dir "$APP_DIR" --shell /usr/sbin/nologin analytics
             fi
             AUTH_ENV=/etc/analytics-auth.env
-            AUTH_FILE=/etc/nginx/.htpasswd-analytics
+            umask 077
             if [ ! -s "$AUTH_ENV" ]; then
               ANALYTICS_AUTH_USER=owner
               ANALYTICS_AUTH_PASSWORD="$(openssl rand -base64 24 | tr -d '\n')"
-              umask 077
               printf 'ANALYTICS_AUTH_USER=%s\nANALYTICS_AUTH_PASSWORD=%s\n' \
                 "$ANALYTICS_AUTH_USER" "$ANALYTICS_AUTH_PASSWORD" > "$AUTH_ENV"
             fi
+            if ! grep -q '^ANALYTICS_SESSION_SECRET=' "$AUTH_ENV"; then
+              printf 'ANALYTICS_SESSION_SECRET=%s\n' "$(openssl rand -hex 32)" >> "$AUTH_ENV"
+            fi
+            if ! grep -q '^ANALYTICS_AUTH_DISPLAY_NAME=' "$AUTH_ENV"; then
+              printf 'ANALYTICS_AUTH_DISPLAY_NAME=%s\n' 'Администратор' >> "$AUTH_ENV"
+            fi
+            if ! grep -q '^ANALYTICS_ADMIN_LOGIN=' "$AUTH_ENV"; then
+              printf 'ANALYTICS_ADMIN_LOGIN=admin\n' >> "$AUTH_ENV"
+            fi
+            chmod 600 "$AUTH_ENV"
+            if [ -f /etc/nginx/.htpasswd-analytics ]; then
+              chown root:www-data /etc/nginx/.htpasswd-analytics || true
+              chmod 640 /etc/nginx/.htpasswd-analytics
+            fi
             . "$AUTH_ENV"
-            if [ ! -s "$AUTH_FILE" ]; then
-              AUTH_HASH="$(openssl passwd -apr1 "$ANALYTICS_AUTH_PASSWORD")"
-              printf '%s:%s\n' "$ANALYTICS_AUTH_USER" "$AUTH_HASH" > "$AUTH_FILE"
-              chmod 600 "$AUTH_FILE"
+            API_ENV=/etc/analytics-finance-api.env
+            if [ ! -s "$API_ENV" ]; then
+              {
+                printf '%s\n' "FINANCE_API_BOOTSTRAP_EMAIL=admin@gala-soft.ru"
+                printf '%s\n' "FINANCE_API_BOOTSTRAP_PASSWORD=$ANALYTICS_AUTH_PASSWORD"
+                printf '%s\n' "FINANCE_API_BOOTSTRAP_DISPLAY_NAME=Администратор"
+                printf '%s\n' "FINANCE_API_BOOTSTRAP_HOUSEHOLD_NAME=Household"
+              } > "$API_ENV"
+              chmod 600 "$API_ENV"
             fi
             install -d -o analytics -g analytics -m 700 \
               "$APP_DIR/data" "$APP_DIR/data/backups" "$APP_DIR/statements"
@@ -136,8 +154,28 @@ jobs:
             systemctl enable nginx
             systemctl reload nginx
             sleep 2
-            curl -fsS -u "$ANALYTICS_AUTH_USER:$ANALYTICS_AUTH_PASSWORD" \
-              -o /dev/null http://127.0.0.1:3000/
+            if ! curl -fsS -o /dev/null http://127.0.0.1:3000/login; then
+              journalctl -u analytics -n 80 --no-pager || true
+              exit 1
+            fi
+            COOKIE_JAR="$(mktemp)"
+            LOGIN_JSON="$(
+              ANALYTICS_ADMIN_LOGIN="${ANALYTICS_ADMIN_LOGIN:-admin}" \
+              ANALYTICS_AUTH_PASSWORD="$ANALYTICS_AUTH_PASSWORD" \
+              python3 -c 'import json,os; print(json.dumps({"login": os.environ.get("ANALYTICS_ADMIN_LOGIN") or "admin", "password": os.environ["ANALYTICS_AUTH_PASSWORD"]}))'
+            )"
+            if ! curl -fsS -c "$COOKIE_JAR" -H 'Content-Type: application/json' \
+              -d "$LOGIN_JSON" http://127.0.0.1:3000/api/auth/login >/dev/null; then
+              rm -f "$COOKIE_JAR"
+              journalctl -u analytics -n 80 --no-pager || true
+              exit 1
+            fi
+            if ! curl -fsS -b "$COOKIE_JAR" -o /dev/null http://127.0.0.1:3000/; then
+              rm -f "$COOKIE_JAR"
+              journalctl -u analytics -n 80 --no-pager || true
+              exit 1
+            fi
+            rm -f "$COOKIE_JAR"
             echo "Deploy OK"
 
   platform-stage:

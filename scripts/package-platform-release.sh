@@ -71,7 +71,7 @@ assert_no_secrets() {
     fi
   done
   while IFS= read -r -d '' env_file; do
-    if rg -q '(?i)^(password|secret|private[_-]?key)\s*=' "$env_file"; then
+    if grep -qiE '^(password|secret|private[_-]?key)[[:space:]]*=' "$env_file"; then
       echo "Refusing to package env file with inline secrets: $env_file" >&2
       exit 1
     fi

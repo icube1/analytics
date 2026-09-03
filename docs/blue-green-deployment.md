@@ -22,7 +22,9 @@ Public traffic (unchanged)
 ```
 
 Disabled nginx vhosts in `deploy/blue-green/*.conf.disabled` mirror HTTP/2 + TLS 1.2
-+ Basic auth for future cutover. They are **not** enabled until `PLATFORM_CUTOVER=1`.
+for future cutover. Public site/app/api vhosts use application sessions, **not**
+HTTP Basic. Metrics keeps Basic (`htpasswd` must be `root:www-data` mode `640`
+so nginx workers can read it). They are **not** enabled until `PLATFORM_CUTOVER=1`.
 
 ## Commands
 
