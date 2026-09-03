@@ -1,4 +1,9 @@
-import { resolveMonteCarloPlacement, runServerMonteCarlo } from "@/lib/finance-jobs/client";
+import {
+  FinanceJobError,
+  resolveMonteCarloPlacement,
+  runServerMonteCarlo,
+  shouldFallbackToLocalWorker,
+} from "@/lib/finance-jobs/client";
 import { DEFAULT_DOCUMENT } from "@/lib/portfolio-types";
 
 describe("finance jobs client", () => {
@@ -136,6 +141,21 @@ describe("finance jobs client", () => {
         seed: 3,
         asOf: "2026-01-15",
       }),
-    ).rejects.toThrow(/enqueue failed/);
+    ).rejects.toBeInstanceOf(FinanceJobError);
+    await expect(
+      runServerMonteCarlo({
+        params: DEFAULT_DOCUMENT.compoundParams,
+        simulations: 8,
+        volatilityPercent: 10,
+        seed: 3,
+        asOf: "2026-01-15",
+      }),
+    ).rejects.toMatchObject({ status: 403 });
+    expect(shouldFallbackToLocalWorker(new FinanceJobError(403, "nope"))).toBe(
+      false,
+    );
+    expect(shouldFallbackToLocalWorker(new FinanceJobError(503, "busy"))).toBe(
+      true,
+    );
   });
 });

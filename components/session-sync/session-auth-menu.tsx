@@ -84,6 +84,14 @@ export function SessionAuthMenu() {
                 <p className="text-xs text-zinc-500">
                   Роль: {me.role} · ID {me.householdId.slice(0, 8)}…
                 </p>
+                {me.plan ? (
+                  <p className="mt-1 text-xs text-zinc-500">
+                    Тариф: {me.plan}
+                    {me.features?.length
+                      ? ` · ${me.features.join(", ")}`
+                      : ""}
+                  </p>
+                ) : null}
               </div>
               <button
                 type="button"

@@ -6,6 +6,24 @@ import type { CompoundParams } from "../portfolio-types";
 import { readCachedMe } from "../session-sync/auth-client";
 import { authenticatedFetch } from "../session-sync/transport";
 
+export class FinanceJobError extends Error {
+  readonly status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "FinanceJobError";
+    this.status = status;
+  }
+
+  get isAuthFailure(): boolean {
+    return this.status === 401 || this.status === 403;
+  }
+}
+
+export function shouldFallbackToLocalWorker(error: unknown): boolean {
+  return !(error instanceof FinanceJobError && error.isAuthFailure);
+}
+
 export function isServerFinanceJobsEnabled(): boolean {
   return (
     process.env.NEXT_PUBLIC_SERVER_FINANCE_JOBS === "1" ||
@@ -74,7 +92,10 @@ export async function runServerMonteCarlo(input: {
     }),
   });
   if (!create.ok) {
-    throw new Error(`finance.evaluate enqueue failed (${create.status})`);
+    throw new FinanceJobError(
+      create.status,
+      `finance.evaluate enqueue failed (${create.status})`,
+    );
   }
   const created = (await create.json()) as {
     id?: string;
@@ -98,7 +119,10 @@ async function waitForMonteCarloJob(
   while (Date.now() < deadline) {
     const response = await authenticatedFetch(`/jobs/${jobId}`);
     if (!response.ok) {
-      throw new Error(`finance.evaluate poll failed (${response.status})`);
+      throw new FinanceJobError(
+        response.status,
+        `finance.evaluate poll failed (${response.status})`,
+      );
     }
     const body = (await response.json()) as {
       status?: string;

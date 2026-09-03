@@ -12,6 +12,7 @@ import {
 import {
   resolveMonteCarloPlacement,
   runServerMonteCarlo,
+  shouldFallbackToLocalWorker,
 } from "../finance-jobs/client";
 import { createFinanceWorker } from "./browser-worker";
 import {
@@ -90,8 +91,20 @@ export function useMonteCarloWorker({
           });
           if (active) setState({ result, isLoading: false, error: null });
           return;
-        } catch {
-          // Fall back to the local Worker; production flags stay off.
+        } catch (error) {
+          if (!shouldFallbackToLocalWorker(error)) {
+            if (active) {
+              setState({
+                result: null,
+                isLoading: false,
+                error:
+                  error instanceof Error
+                    ? error.message
+                    : "Server Monte Carlo is not entitled",
+              });
+            }
+            return;
+          }
         }
       }
 
