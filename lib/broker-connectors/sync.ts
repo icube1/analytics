@@ -34,7 +34,7 @@ export function syncBrokerConnector(
       errors: [
         brokerConnectorError(
           BrokerConnectorErrorCode.FEATURE_DISABLED,
-          `Broker connector ${input.connectorId} is ${featureStatus}; set BROKER_CONNECTOR_TBANK_ENABLED=true to enable`,
+          `Broker connector ${input.connectorId} is ${featureStatus}; set BROKER_CONNECTOR_TBANK_ENABLED=true or NEXT_PUBLIC_BROKER_CONNECTOR_TBANK=1 to enable`,
         ),
       ],
     });

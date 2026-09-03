@@ -13,8 +13,11 @@ import {
   addForecastPlan,
   removeForecastPlan,
   uploadBrokerReport,
+  applyBrokerConnectorReport,
   type BrokerUploadResult,
 } from "@/lib/portfolio-storage";
+import { TbankConnectorPanel } from "@/components/investments/tbank-connector-panel";
+import type { BrokerConnectorSyncResult } from "@/lib/broker-connectors";
 import { BROKER_TEXT_UPLOAD_EXTENSIONS } from "@/lib/broker-adapters";
 import { FileDropOverlay } from "@/components/file-drop-overlay";
 import { usePageFileDrop } from "@/lib/use-page-file-drop";
@@ -223,6 +226,35 @@ export function InvestmentsDashboard() {
     }
   }, []);
 
+  const handleConnectorSync = useCallback(
+    async (result: BrokerConnectorSyncResult) => {
+      setSaveState("saving");
+      try {
+        const data = await applyBrokerConnectorReport(result);
+        setReport(data.report);
+        setFileName(data.fileName);
+        setLastImport({
+          provenance: data.provenance,
+          warnings: data.warnings,
+          reconciliation: data.reconciliation,
+        });
+        const doc = await fetchPortfolioDocument();
+        setBrokerSnapshots(doc.brokerSnapshots);
+        setDebtBalanceHistory(doc.debtBalanceHistory ?? []);
+        setLastSavedAt(doc.updatedAt);
+        setSaveState("saved");
+        setError(null);
+      } catch (err) {
+        setSaveState("error");
+        setError(
+          err instanceof Error ? err.message : "Не удалось сохранить снимок Т‑Банка",
+        );
+        throw err;
+      }
+    },
+    [],
+  );
+
   const handleSavePlan = useCallback(async (plan: SavedForecastPlan) => {
     setSaveState("saving");
     try {
@@ -426,6 +458,9 @@ export function InvestmentsDashboard() {
             onUpload={handleUpload}
             brokerSnapshots={brokerSnapshots}
             lastImport={lastImport}
+            connectorPanel={
+              <TbankConnectorPanel onSynced={handleConnectorSync} />
+            }
           />
         </Suspense>
       )}

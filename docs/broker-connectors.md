@@ -8,7 +8,10 @@ Read-only brokerage API connectors live in `lib/broker-connectors/`. They are **
 |--------------|--------|--------------|
 | `tbank-invest-api-v1` | **experimental** | `BROKER_CONNECTOR_TBANK_ENABLED=true` |
 
-Connectors are disabled by default. The library boundary is UI-neutral — no React components or routes consume these APIs yet.
+Connectors are disabled by default. The experimental T-Bank panel on
+`/investments` (portfolio tab) appears only when the flag is on. The token is
+held in component state for one request and cleared afterwards — never written
+to IndexedDB, backups, or provenance.
 
 ## Public API
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, type ReactNode } from "react";
 import { BrokerImportSummary } from "@/components/investments/broker-import-summary";
 import { BrokerReportDiffPanel } from "@/components/investments/broker-report-diff-panel";
 import { BROKER_TEXT_UPLOAD_ACCEPT } from "@/lib/broker-adapters";
@@ -32,6 +32,7 @@ interface PortfolioTabProps {
     BrokerUploadResult,
     "provenance" | "warnings" | "reconciliation"
   > | null;
+  connectorPanel?: ReactNode;
 }
 
 export function PortfolioTab({
@@ -40,10 +41,12 @@ export function PortfolioTab({
   fileName,
   brokerSnapshots,
   lastImport,
+  connectorPanel,
 }: PortfolioTabProps) {
   if (!report) {
     return (
-      <div className="rounded-2xl border border-dashed border-zinc-300 p-8 text-center dark:border-zinc-700">
+      <div className="flex flex-col gap-4">
+        <div className="rounded-2xl border border-dashed border-zinc-300 p-8 text-center dark:border-zinc-700">
         <p className="text-zinc-500 dark:text-zinc-400">
           Загрузите отчёт брокера: HTML Сбера, CSV/TSV или XML
         </p>
@@ -64,6 +67,8 @@ export function PortfolioTab({
           />
           Выбрать файл
         </label>
+        </div>
+        {connectorPanel}
       </div>
     );
   }
@@ -176,6 +181,7 @@ export function PortfolioTab({
           reconciliation={lastImport.reconciliation}
         />
       )}
+      {connectorPanel}
       <BrokerReportDiffPanel snapshots={brokerSnapshots} />
 
       <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">

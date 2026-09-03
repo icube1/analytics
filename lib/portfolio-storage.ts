@@ -17,6 +17,7 @@ import {
   type BrokerImportResult,
   type BrokerImportWarning,
 } from "./broker-adapters";
+import type { BrokerConnectorSyncResult } from "./broker-connectors";
 import { apiFetch } from "./api-base";
 import { readPortfolioFromDb, writePortfolioToDb } from "./browser-idb";
 import { schedulePortfolioPersistence } from "./session-sync/backup-adapter";
@@ -225,6 +226,53 @@ export async function uploadBrokerReport(
     provenance: imported.provenance,
     warnings: imported.warnings,
     reconciliation: imported.reconciliation,
+  };
+}
+
+export async function applyBrokerConnectorReport(
+  result: BrokerConnectorSyncResult,
+): Promise<BrokerUploadResult> {
+  if (!result.ok || !result.report) {
+    const detail = result.errors[0]?.message ?? "Broker connector sync failed";
+    throw new Error(detail);
+  }
+
+  const report = result.report;
+  const fileName = `tbank-invest-api:${result.provenance.accountId ?? "account"}`;
+  const current = await fetchPortfolioDocument();
+  const snapshot = createBrokerSnapshot(
+    report,
+    fileName,
+    current.customAssets,
+  );
+  const debtBalanceHistory = appendDebtBalanceIfChanged(
+    current.debtBalanceHistory ?? [],
+    getTotalDebtBalance(current.customAssets),
+    "broker-upload",
+  );
+
+  await savePortfolioDocument({
+    lastBrokerFileName: fileName,
+    brokerReport: report,
+    brokerSnapshots: [...current.brokerSnapshots, snapshot],
+    debtBalanceHistory,
+  });
+
+  return {
+    report,
+    fileName,
+    provenance: {
+      adapterId: "tbank-xlsx",
+      adapterVersion: result.provenance.connectorVersion,
+      adapterLabel: result.provenance.connectorLabel,
+      fileName,
+      mimeType: "application/json",
+      contentBytes: 0,
+      sanitized: true,
+      detectedAt: result.provenance.syncedAt,
+    },
+    warnings: result.warnings,
+    reconciliation: result.reconciliation,
   };
 }
 

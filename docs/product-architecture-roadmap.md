@@ -838,6 +838,10 @@ Webhook:
 - Газпромбанк и Открытие (CSV/text export, sanitized fixtures: buy, empty,
   year-boundary);
 - reconciliation dashboard;
+- T‑Bank Invest API connector (`tbank-invest-api-v1`) has an experimental
+  `/investments` panel gated by `NEXT_PUBLIC_BROKER_CONNECTOR_TBANK` /
+  `VITE_BROKER_CONNECTOR_TBANK` / `BROKER_CONNECTOR_TBANK_ENABLED`; the token
+  is never persisted;
 - fixture contribution и sanitization pipeline;
 - UI загрузки принимает HTML/CSV/TSV/XML и показывает сверку импорта;
 - разбор HTML/CSV/XML идёт в broker Worker, с синхронным fallback.

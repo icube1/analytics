@@ -9,6 +9,7 @@ export {
   BROKER_CONNECTOR_FEATURE_FLAGS,
   getBrokerConnectorFeatureStatus,
   isBrokerConnectorEnabled,
+  readTbankConnectorEnvEnabled,
 } from "./feature-flags";
 export { moneyValueToNumber, quotationToNumber } from "./decimal";
 export { INVEST_API_CONTRACT_VERSION } from "./contracts/invest-api-v1";

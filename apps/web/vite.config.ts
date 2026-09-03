@@ -19,6 +19,9 @@ export default defineConfig(({ mode }) => {
     define: {
       __VITE_API_BASE__: JSON.stringify(env.VITE_API_BASE ?? ""),
       __VITE_WEB_SESSION_SYNC__: JSON.stringify(env.VITE_WEB_SESSION_SYNC ?? ""),
+      __VITE_BROKER_CONNECTOR_TBANK__: JSON.stringify(
+        env.VITE_BROKER_CONNECTOR_TBANK ?? "",
+      ),
     },
     resolve: {
       alias: {
