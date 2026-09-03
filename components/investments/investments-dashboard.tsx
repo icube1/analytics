@@ -13,7 +13,9 @@ import {
   addForecastPlan,
   removeForecastPlan,
   uploadBrokerReport,
+  type BrokerUploadResult,
 } from "@/lib/portfolio-storage";
+import { BROKER_TEXT_UPLOAD_EXTENSIONS } from "@/lib/broker-adapters";
 import { FileDropOverlay } from "@/components/file-drop-overlay";
 import { usePageFileDrop } from "@/lib/use-page-file-drop";
 import { getTotalWealth } from "@/lib/portfolio-wealth";
@@ -57,13 +59,13 @@ function TabLoadingFallback() {
 
 const tabs: { id: TabId; label: string }[] = [
   { id: "summary", label: "Сводка" },
-  { id: "portfolio", label: "Портфель Сбера" },
+  { id: "portfolio", label: "Портфель" },
   { id: "assets", label: "Другие активы" },
   { id: "calculator", label: "Сложный процент" },
   { id: "tracking", label: "Трекинг" },
 ];
 
-const BROKER_HTML_ACCEPT = [".html", ".htm"];
+const BROKER_UPLOAD_ACCEPT = [...BROKER_TEXT_UPLOAD_EXTENSIONS];
 
 export function InvestmentsDashboard() {
   const [activeTab, setActiveTab] = useState<TabId>("summary");
@@ -84,6 +86,10 @@ export function InvestmentsDashboard() {
   const [debtBalanceHistory, setDebtBalanceHistory] = useState<
     DebtBalanceEntry[]
   >([]);
+  const [lastImport, setLastImport] = useState<Pick<
+    BrokerUploadResult,
+    "provenance" | "warnings" | "reconciliation"
+  > | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>("idle");
@@ -198,6 +204,11 @@ export function InvestmentsDashboard() {
       const data = await uploadBrokerReport(file);
       setReport(data.report);
       setFileName(data.fileName);
+      setLastImport({
+        provenance: data.provenance,
+        warnings: data.warnings,
+        reconciliation: data.reconciliation,
+      });
       const doc = await fetchPortfolioDocument();
       setBrokerSnapshots(doc.brokerSnapshots);
       setDebtBalanceHistory(doc.debtBalanceHistory ?? []);
@@ -278,7 +289,7 @@ export function InvestmentsDashboard() {
 
   const { isDragging: isBrokerDragging } = usePageFileDrop({
     enabled: !loading && saveState !== "saving",
-    accept: BROKER_HTML_ACCEPT,
+    accept: BROKER_UPLOAD_ACCEPT,
     onDrop: handleBrokerDrop,
     onReject: (reason) => setError(reason),
   });
@@ -337,7 +348,7 @@ export function InvestmentsDashboard() {
       <FileDropOverlay
         visible={isBrokerDragging}
         title="Импорт отчёта брокера"
-        acceptLabel="HTML-файл СберИнвестиций"
+        acceptLabel="HTML, CSV/TSV или XML отчёт брокера"
         hint="Сохранится в браузере (IndexedDB)"
       />
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-8 sm:px-6">
@@ -357,7 +368,7 @@ export function InvestmentsDashboard() {
                 · отчёт: <span className="font-mono">{fileName}</span>
               </>
             ) : (
-              <> · отчёт брокера не загружен · перетащите HTML в окно</>
+              <> · отчёт брокера не загружен · перетащите HTML, CSV или XML</>
             )}
           </p>
         </div>
@@ -414,6 +425,7 @@ export function InvestmentsDashboard() {
             fileName={fileName}
             onUpload={handleUpload}
             brokerSnapshots={brokerSnapshots}
+            lastImport={lastImport}
           />
         </Suspense>
       )}

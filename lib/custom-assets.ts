@@ -1,6 +1,11 @@
 import { ASSUMED_RETURNS } from "./portfolio-assumptions";
 import { randomId } from "./random-id";
-import { getDepositDisplayValue, isDepositActive, isDepositItem } from "./term-deposits";
+import {
+  getDepositDisplayValue,
+  isDepositActive,
+  isDepositItem,
+  normalizeDepositInterestMode,
+} from "./term-deposits";
 import type {
   ApartmentAsset,
   CustomAssetItem,
@@ -42,7 +47,7 @@ export function createCustomAsset(
     generatesDividendTax: partial.generatesDividendTax ?? false,
     depositTermMonths: partial.depositTermMonths,
     depositOpenedAt: partial.depositOpenedAt,
-    depositInterestMode: partial.depositInterestMode ?? "at_maturity",
+    depositInterestMode: normalizeDepositInterestMode(partial.depositInterestMode),
     notes: partial.notes ?? "",
   };
 }
@@ -185,7 +190,9 @@ export function getAssetCapitalGrowthPercent(
 ): number {
   if (isDepositItem(item)) {
     if (!isDepositActive(item)) return 0;
-    if (item.depositInterestMode === "at_maturity") return 0;
+    if (normalizeDepositInterestMode(item.depositInterestMode) === "at_maturity") {
+      return 0;
+    }
     return item.annualReturnPercent;
   }
   if (item.growsWithInflation) return inflationPercent;

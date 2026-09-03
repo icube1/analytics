@@ -5,6 +5,7 @@ import {
   formatDepositMaturityDate,
   getDepositMonthsRemaining,
   isDepositActive,
+  normalizeDepositInterestMode,
 } from "@/lib/term-deposits";
 
 describe("term deposits", () => {
@@ -12,6 +13,19 @@ describe("term deposits", () => {
     expect(
       estimateDepositMaturityValue(1_000_000, 25, 6, "at_maturity", "simple"),
     ).toBeCloseTo(1_125_000, 0);
+  });
+
+  it("accepts finance-core camelCase deposit interest aliases", () => {
+    expect(normalizeDepositInterestMode("monthlyCapitalized")).toBe(
+      "monthly_capitalized",
+    );
+    expect(normalizeDepositInterestMode("atMaturity")).toBe("at_maturity");
+    expect(
+      estimateDepositMaturityValue(1_000_000, 25, 12, "monthlyCapitalized", "simple"),
+    ).toBeCloseTo(1_000_000 * (1 + 0.25 / 12) ** 12, 0);
+    expect(
+      estimateDepositMaturityValue(1_000_000, 25, 12, "atMaturity", "simple"),
+    ).toBeCloseTo(1_250_000, 0);
   });
 
   it("tracks maturity date and remaining months", () => {

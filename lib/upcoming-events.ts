@@ -6,6 +6,7 @@ import {
   getDepositMonthsRemaining,
   isDepositActive,
   isDepositItem,
+  normalizeDepositInterestMode,
 } from "./term-deposits";
 import type { CustomAssets } from "./portfolio-types";
 import { formatMoney } from "./portfolio-wealth";
@@ -108,7 +109,7 @@ export function collectUpcomingEvents(
               item.value,
               item.annualReturnPercent,
               termMonths,
-              item.depositInterestMode ?? "at_maturity",
+              normalizeDepositInterestMode(item.depositInterestMode),
             )
           : item.value;
 

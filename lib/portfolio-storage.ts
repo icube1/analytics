@@ -9,7 +9,13 @@ import { getTotalDebtBalance } from "./debt-amortization";
 import { mergePortfolioStorage, isEmptyDocument } from "./merge-portfolio-storage";
 import { enrichBrokerReport } from "./broker-positions";
 import { normalizeCompoundParams } from "./normalize-compound-params";
-import { parsePortfolioHtml } from "./parse-portfolio-html";
+import {
+  describeBrokerUploadError,
+  importUploadedBrokerFile,
+  type BrokerImportProvenance,
+  type BrokerImportReconciliation,
+  type BrokerImportWarning,
+} from "./broker-adapters";
 import { apiFetch } from "./api-base";
 import { readPortfolioFromDb, writePortfolioToDb } from "./browser-idb";
 import { schedulePortfolioPersistence } from "./session-sync/backup-adapter";
@@ -169,17 +175,26 @@ export async function removeForecastPlan(
   });
 }
 
+export interface BrokerUploadResult {
+  report: PortfolioDocument["brokerReport"];
+  fileName: string;
+  provenance: BrokerImportProvenance;
+  warnings: BrokerImportWarning[];
+  reconciliation: BrokerImportReconciliation | null;
+}
+
 export async function uploadBrokerReport(
   file: File,
-): Promise<{ report: PortfolioDocument["brokerReport"]; fileName: string }> {
-  const html = await file.text();
-  const report = parsePortfolioHtml(html);
+): Promise<BrokerUploadResult> {
+  const content = await file.text();
+  const fileName = file.name || "broker-report.html";
+  const imported = importUploadedBrokerFile(content, fileName, file.type || undefined);
 
-  if (report.securities.length === 0 && report.assetsEnd === 0) {
-    throw new Error("Не удалось распознать данные в отчёте");
+  if (!imported.ok || !imported.report) {
+    throw new Error(describeBrokerUploadError(imported, fileName));
   }
 
-  const fileName = file.name || "broker-report.html";
+  const report = imported.report;
   const current = await fetchPortfolioDocument();
   const snapshot = createBrokerSnapshot(
     report,
@@ -199,7 +214,13 @@ export async function uploadBrokerReport(
     debtBalanceHistory,
   });
 
-  return { report, fileName };
+  return {
+    report,
+    fileName,
+    provenance: imported.provenance,
+    warnings: imported.warnings,
+    reconciliation: imported.reconciliation,
+  };
 }
 
 export function readLegacyLocalStorage(): Partial<PortfolioDocument> | null {

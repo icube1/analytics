@@ -21,6 +21,12 @@ export {
   detectBrokerAdapters,
   importBrokerReport,
 } from "./import";
+export {
+  BROKER_TEXT_UPLOAD_ACCEPT,
+  BROKER_TEXT_UPLOAD_EXTENSIONS,
+  describeBrokerUploadError,
+  importUploadedBrokerFile,
+} from "./upload";
 export { sanitizeBrokerFixture } from "../broker-fixture-sanitize";
 export { sberHtmlAdapter, parseSberPortfolioHtml } from "./adapters/sber-html";
 export {

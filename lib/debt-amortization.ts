@@ -8,6 +8,7 @@ import {
   estimateDepositMaturityValue,
   isDepositActive,
   isDepositItem,
+  normalizeDepositInterestMode,
 } from "./term-deposits";
 import {
   currentPaymentPeriodDays,
@@ -378,7 +379,7 @@ export function growCustomAssets(
       ) {
         const principal = sim.depositPrincipal ?? sim.grossValue;
         const termMonths = item.depositTermMonths ?? 0;
-        const mode = item.depositInterestMode ?? "at_maturity";
+        const mode = normalizeDepositInterestMode(item.depositInterestMode);
         const payout = estimateDepositMaturityValue(
           principal,
           item.annualReturnPercent,

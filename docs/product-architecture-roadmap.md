@@ -815,7 +815,8 @@ Webhook:
 - Альфа и Финам (XML fixtures);
 - БКС tabular;
 - reconciliation dashboard;
-- fixture contribution и sanitization pipeline.
+- fixture contribution и sanitization pipeline;
+- UI загрузки принимает HTML/CSV/TSV/XML и показывает сверку импорта.
 
 Двоичный Excel `.xlsx`/`.xls` по-прежнему требует живой образец: текущие
 адаптеры принимают текстовый CSV/TSV/XML с теми же идентификаторами.

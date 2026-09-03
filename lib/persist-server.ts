@@ -36,7 +36,7 @@ export function readPortfolioDocument(): PortfolioDocument {
     const brokerSnapshots = parsed.brokerSnapshots ?? [];
     const html = readBrokerHtml();
     const brokerReport = html
-      ? parsePortfolioHtml(html)
+      ? parsePortfolioHtml(html, parsed.lastBrokerFileName)
       : enrichBrokerReport(parsed.brokerReport ?? null);
     return {
       ...merged,

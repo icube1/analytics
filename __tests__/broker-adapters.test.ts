@@ -2,8 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   buildManualCsvTemplate,
+  describeBrokerUploadError,
   detectBrokerAdapters,
   importBrokerReport,
+  importUploadedBrokerFile,
   parseBrokerNumber,
   parseSberPortfolioHtml,
 } from "@/lib/broker-adapters";
@@ -119,5 +121,24 @@ describe("broker adapter platform", () => {
     expect(result.report?.contract).toBe(SANITIZED_CONTRACT);
     expect(result.coverage?.securities).toBe(true);
     expect(result.reconciliation?.withinTolerance).toBe(true);
+  });
+
+  it("uses the uploaded file name to choose a tabular adapter", () => {
+    const content = fs.readFileSync(
+      path.join(process.cwd(), "__tests__", "fixtures", "tbank-report.csv"),
+      "utf8",
+    );
+    const result = importUploadedBrokerFile(content, "tbank-export.csv");
+    expect(result.ok).toBe(true);
+    expect(result.provenance.adapterId).toBe("tbank-xlsx");
+    expect(result.provenance.fileName).toBe("tbank-export.csv");
+  });
+
+  it("explains that binary Excel still needs a CSV export", () => {
+    const result = importBrokerReport({
+      content: "not a workbook",
+      fileName: "report.xlsx",
+    });
+    expect(describeBrokerUploadError(result, "report.xlsx")).toMatch(/CSV/);
   });
 });

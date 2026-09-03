@@ -9,17 +9,24 @@ import {
   Tooltip,
 } from "recharts";
 import { ChartMoneyTooltip } from "@/components/chart-money-tooltip";
+import { BrokerImportSummary } from "@/components/investments/broker-import-summary";
 import { BrokerReportDiffPanel } from "@/components/investments/broker-report-diff-panel";
+import { BROKER_TEXT_UPLOAD_ACCEPT } from "@/lib/broker-adapters";
 import { getEffectivePortfolioTotals, resolveCashPosition, resolveSecurityPosition } from "@/lib/broker-positions";
 import { CHART_COLORS } from "@/lib/stats";
 import { formatMoney } from "@/lib/portfolio-wealth";
 import type { BrokerBalanceSnapshot, BrokerReport } from "@/lib/portfolio-types";
+import type { BrokerUploadResult } from "@/lib/portfolio-storage";
 
 interface PortfolioTabProps {
   report: BrokerReport | null;
   onUpload: (file: File) => void;
   fileName: string;
   brokerSnapshots: BrokerBalanceSnapshot[];
+  lastImport?: Pick<
+    BrokerUploadResult,
+    "provenance" | "warnings" | "reconciliation"
+  > | null;
 }
 
 export function PortfolioTab({
@@ -27,20 +34,22 @@ export function PortfolioTab({
   onUpload,
   fileName,
   brokerSnapshots,
+  lastImport,
 }: PortfolioTabProps) {
   if (!report) {
     return (
       <div className="rounded-2xl border border-dashed border-zinc-300 p-8 text-center dark:border-zinc-700">
         <p className="text-zinc-500 dark:text-zinc-400">
-          Загрузите отчёт брокера СберИнвестиций (HTML)
+          Загрузите отчёт брокера: HTML Сбера, CSV/TSV или XML
         </p>
         <p className="mt-2 text-xs text-zinc-400 dark:text-zinc-500">
-          Кнопка ниже или перетащите файл в окно браузера
+          Т‑Банк, ВТБ, БКС — текстовый CSV; Альфа и Финам — XML. Двоичный Excel пока
+          не читается.
         </p>
         <label className="mt-4 inline-flex cursor-pointer rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white">
           <input
             type="file"
-            accept=".html,.htm"
+            accept={BROKER_TEXT_UPLOAD_ACCEPT}
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0];
@@ -82,7 +91,7 @@ export function PortfolioTab({
         <label className="inline-flex cursor-pointer rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-medium dark:border-zinc-700 dark:bg-zinc-900">
           <input
             type="file"
-            accept=".html,.htm"
+            accept={BROKER_TEXT_UPLOAD_ACCEPT}
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0];
@@ -183,6 +192,13 @@ export function PortfolioTab({
         </div>
       </div>
 
+      {lastImport && (
+        <BrokerImportSummary
+          provenance={lastImport.provenance}
+          warnings={lastImport.warnings}
+          reconciliation={lastImport.reconciliation}
+        />
+      )}
       <BrokerReportDiffPanel snapshots={brokerSnapshots} />
 
       <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">

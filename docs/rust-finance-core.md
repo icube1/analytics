@@ -142,6 +142,8 @@ cargo test -p finance-core -p finance-wasm -p finance-ffi --all-features
 cargo run --release -p finance-core --bench resilience
 npm run compare:finance-core
 npm run compare:finance-core:resilience
+npm run compare:finance-core:compound
+npm run compare:finance-core:money
 npm test -- --runTestsByPath __tests__/debt-daycount.test.ts __tests__/upcoming-events.test.ts __tests__/resilience-plan.test.ts
 npx tsc --noEmit
 ```

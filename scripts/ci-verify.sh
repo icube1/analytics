@@ -64,6 +64,7 @@ step "cargo test" cargo test --workspace
 step "finance-core differential" npm run compare:finance-core
 step "finance-core resilience differential" npm run compare:finance-core:resilience
 step "finance-core money differential" npm run compare:finance-core:money
+step "finance-core compound differential" npm run compare:finance-core:compound
 step "jest" npm test
 step "root typecheck" npx tsc --noEmit
 step "broker fixture privacy (sanitizer --check)" npm run sanitize:broker-fixtures -- --check
