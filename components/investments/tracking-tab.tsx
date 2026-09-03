@@ -19,14 +19,14 @@ import {
 } from "@/lib/tracking";
 import { resolvePlanParams } from "@/lib/forecast-plans";
 import { getMonthlyDebtService } from "@/lib/debt-amortization";
-import { calculateCompoundInterest } from "@/lib/compound-interest";
-import { useCompoundWorker } from "@/lib/finance-worker/use-compound-worker";
+import { useLiveTrackingWorker } from "@/lib/finance-worker/use-live-tracking-worker";
 import {
   FORECAST_HORIZONS,
   averageRecentBrokerDeposits,
   buildHybridForecastParams,
-  liveForecastFromProjection,
+  buildLiveTrackingForecast,
   resolveForecastHorizonMonths,
+  scenarioWithdrawCalendarMonth,
   type ForecastHorizonId,
 } from "@/lib/tracking-forecast";
 
@@ -251,49 +251,56 @@ export function TrackingTab({
     }),
     [currentCustomAssets, currentBrokerTotal],
   );
+  const liveTrackingInput = useMemo(
+    () => ({
+      horizonMonths: forecastHorizonMonths,
+      currentGrandTotal,
+      monthlyContribution: effectiveContribution,
+      suggestedFromScenario: scenarioContribution,
+      depositsByMonth: Object.fromEntries(depositsByMonth),
+      withdrawCalendarMonth: basePlan
+        ? scenarioWithdrawCalendarMonth(basePlan)
+        : null,
+      withdrawAfterYears: hybridParams.withdrawAfterYears,
+      basePlanId: basePlan?.id ?? "",
+      basePlanName: basePlan?.name ?? "",
+    }),
+    [
+      forecastHorizonMonths,
+      currentGrandTotal,
+      effectiveContribution,
+      scenarioContribution,
+      depositsByMonth,
+      basePlan,
+      hybridParams.withdrawAfterYears,
+    ],
+  );
   const {
-    result: workerProjection,
+    result: workerForecast,
     error: liveForecastError,
-  } = useCompoundWorker({
+  } = useLiveTrackingWorker({
     enabled: liveForecastEnabled,
     params: hybridParams,
     context: forecastContext,
     asOf: forecastAsOf,
-    allMonths: true,
+    tracking: liveTrackingInput,
   });
-  const [seedProjection] = useState(() => {
+  const [seedForecast] = useState(() => {
     if (!basePlan || currentGrandTotal <= 0) return null;
-    return calculateCompoundInterest(hybridParams, forecastContext, {
-      allMonths: true,
-      asOf: forecastAsOfDate,
-    });
-  });
-  const lastProjectionRef = useRef(seedProjection);
-  if (workerProjection) lastProjectionRef.current = workerProjection;
-  const projection = workerProjection ?? lastProjectionRef.current;
-
-  const liveForecast = useMemo(() => {
-    if (!basePlan || currentGrandTotal <= 0 || !projection) return null;
-    return liveForecastFromProjection({
-      result: projection,
+    return buildLiveTrackingForecast({
       basePlan,
+      currentBrokerTotal,
+      currentCustomAssets,
       currentGrandTotal,
+      depositsByMonth,
       horizonMonths: forecastHorizonMonths,
       monthlyContribution: effectiveContribution,
-      depositsByMonth,
       asOf: forecastAsOfDate,
-      params: hybridParams,
     });
-  }, [
-    basePlan,
-    currentGrandTotal,
-    projection,
-    forecastHorizonMonths,
-    effectiveContribution,
-    depositsByMonth,
-    forecastAsOfDate,
-    hybridParams,
-  ]);
+  });
+  const lastForecastRef = useRef(seedForecast);
+  if (workerForecast) lastForecastRef.current = workerForecast;
+  const liveForecast = workerForecast ?? lastForecastRef.current;
 
   const rows = useMemo(
     () =>

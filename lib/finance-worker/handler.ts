@@ -6,11 +6,24 @@ import {
   evaluateSafeWithdrawalWithOptionalWasm,
 } from "../compound-wasm";
 import { computeSafeWithdrawalAdvice } from "../safe-withdrawal";
+import { mapLiveForecastFromProjection } from "../tracking-forecast";
 import {
   FINANCE_WORKER_PROTOCOL_VERSION,
   isFinanceWorkerRequest,
   type FinanceWorkerResponse,
 } from "./contract";
+
+function parseWorkerAsOf(value: string): Date {
+  const civil = /^(-?\d+)-(\d{2})-(\d{2})$/.exec(value);
+  if (civil) {
+    return new Date(
+      Number(civil[1]),
+      Number(civil[2]) - 1,
+      Number(civil[3]),
+    );
+  }
+  return new Date(value);
+}
 
 function requestIdFrom(value: unknown): string {
   if (
@@ -51,7 +64,7 @@ export async function handleFinanceWorkerRequest(
     );
   }
 
-  const asOf = new Date(request.payload.options.asOf);
+  const asOf = parseWorkerAsOf(request.payload.options.asOf);
   if (Number.isNaN(asOf.getTime())) {
     return invalidRequest(requestId, "asOf must be a valid ISO-8601 timestamp");
   }
@@ -80,6 +93,37 @@ export async function handleFinanceWorkerRequest(
         payload: evaluation.result,
         engine: evaluation.engine,
         parityVerified: evaluation.parityVerified,
+      };
+    }
+
+    if (request.type === "live-tracking.run") {
+      const result = calculateCompoundInterest(
+        request.payload.params,
+        request.payload.context,
+        { allMonths: true, asOf },
+      );
+      const forecast = mapLiveForecastFromProjection({
+        result,
+        asOf,
+        horizonMonths: request.payload.tracking.horizonMonths,
+        currentGrandTotal: request.payload.tracking.currentGrandTotal,
+        monthlyContribution: request.payload.tracking.monthlyContribution,
+        suggestedFromScenario: request.payload.tracking.suggestedFromScenario,
+        depositsByMonth: new Map(
+          Object.entries(request.payload.tracking.depositsByMonth),
+        ),
+        withdrawAfterYears: request.payload.tracking.withdrawAfterYears,
+        withdrawCalendarMonth: request.payload.tracking.withdrawCalendarMonth,
+        basePlanId: request.payload.tracking.basePlanId,
+        basePlanName: request.payload.tracking.basePlanName,
+      });
+      return {
+        version: FINANCE_WORKER_PROTOCOL_VERSION,
+        requestId,
+        type: "live-tracking.result",
+        payload: forecast,
+        engine: "typescript",
+        parityVerified: null,
       };
     }
 

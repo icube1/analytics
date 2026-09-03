@@ -4,6 +4,7 @@ import type {
 import type { CompoundContext, CompoundResult } from "../compound-interest/types";
 import type { CompoundParams } from "../portfolio-types";
 import type { SafeWithdrawalAdvice } from "../safe-withdrawal";
+import type { LiveForecastResult } from "../tracking-forecast";
 
 export const FINANCE_WORKER_PROTOCOL_VERSION = 1 as const;
 
@@ -54,6 +55,25 @@ export interface CompoundProjectionWorkerRequest {
   };
 }
 
+export interface LiveTrackingWorkerOptions {
+  /** ISO-8601 timestamp or YYYY-MM-DD; dates are never inferred inside the worker. */
+  asOf: string;
+  preferWasm?: boolean;
+  checkParity?: boolean;
+}
+
+export interface LiveTrackingWorkerInput {
+  horizonMonths: number;
+  currentGrandTotal: number;
+  monthlyContribution: number;
+  suggestedFromScenario: number;
+  depositsByMonth: Record<string, number>;
+  withdrawCalendarMonth: string | null;
+  withdrawAfterYears: number | null;
+  basePlanId: string;
+  basePlanName: string;
+}
+
 export interface SafeWithdrawalWorkerRequest {
   version: typeof FINANCE_WORKER_PROTOCOL_VERSION;
   requestId: string;
@@ -65,10 +85,23 @@ export interface SafeWithdrawalWorkerRequest {
   };
 }
 
+export interface LiveTrackingWorkerRequest {
+  version: typeof FINANCE_WORKER_PROTOCOL_VERSION;
+  requestId: string;
+  type: "live-tracking.run";
+  payload: {
+    params: CompoundParams;
+    context?: CompoundContext;
+    options: LiveTrackingWorkerOptions;
+    tracking: LiveTrackingWorkerInput;
+  };
+}
+
 export type FinanceWorkerRequest =
   | MonteCarloWorkerRequest
   | CompoundProjectionWorkerRequest
-  | SafeWithdrawalWorkerRequest;
+  | SafeWithdrawalWorkerRequest
+  | LiveTrackingWorkerRequest;
 
 export interface MonteCarloWorkerSuccess {
   version: typeof FINANCE_WORKER_PROTOCOL_VERSION;
@@ -105,10 +138,20 @@ export interface SafeWithdrawalWorkerSuccess {
   parityVerified?: boolean | null;
 }
 
+export interface LiveTrackingWorkerSuccess {
+  version: typeof FINANCE_WORKER_PROTOCOL_VERSION;
+  requestId: string;
+  type: "live-tracking.result";
+  payload: LiveForecastResult;
+  engine?: "typescript" | "wasm";
+  parityVerified?: boolean | null;
+}
+
 export type FinanceWorkerResponse =
   | MonteCarloWorkerSuccess
   | CompoundProjectionWorkerSuccess
   | SafeWithdrawalWorkerSuccess
+  | LiveTrackingWorkerSuccess
   | FinanceWorkerFailure;
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -139,6 +182,10 @@ export function isFinanceWorkerRequest(
     );
   }
 
+  if (value.type === "live-tracking.run") {
+    return isObject(value.payload.tracking);
+  }
+
   return (
     value.type === "compound-projection.run" ||
     value.type === "safe-withdrawal.run"
@@ -165,6 +212,10 @@ export function isFinanceWorkerResponse(
 
   if (value.type === "safe-withdrawal.result") {
     return value.payload === null || isObject(value.payload);
+  }
+
+  if (value.type === "live-tracking.result") {
+    return isObject(value.payload);
   }
 
   return (

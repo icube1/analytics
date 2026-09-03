@@ -128,4 +128,44 @@ describe("finance worker protocol v1", () => {
       expect(response.engine).toBe("typescript");
     }
   });
+
+  it("maps a live tracking forecast with an explicit asOf", async () => {
+    const input = {
+      version: FINANCE_WORKER_PROTOCOL_VERSION,
+      requestId: "live-tracking-test",
+      type: "live-tracking.run" as const,
+      payload: {
+        params: {
+          ...DEFAULT_COMPOUND_PARAMS,
+          initialCapital: 100_000,
+          monthlyContribution: 10_000,
+          years: 1,
+        },
+        options: {
+          asOf: "2026-07-19",
+        },
+        tracking: {
+          horizonMonths: 3,
+          currentGrandTotal: 100_000,
+          monthlyContribution: 10_000,
+          suggestedFromScenario: 10_000,
+          depositsByMonth: { "2026-07": 10_000 },
+          withdrawCalendarMonth: null,
+          withdrawAfterYears: null,
+          basePlanId: "plan-1",
+          basePlanName: "Базовый",
+        },
+      },
+    };
+
+    expect(isFinanceWorkerRequest(input)).toBe(true);
+    const response = await handleFinanceWorkerRequest(input);
+    expect(response.type).toBe("live-tracking.result");
+    if (response.type === "live-tracking.result") {
+      expect(response.payload.points[0]?.isStart).toBe(true);
+      expect(response.payload.points[0]?.calendarMonth).toBe("2026-07");
+      expect(response.payload.suggestedFromFact).toBe(10_000);
+      expect(response.engine).toBe("typescript");
+    }
+  });
 });

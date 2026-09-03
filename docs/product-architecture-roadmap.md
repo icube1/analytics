@@ -198,7 +198,8 @@ crates/
 - калькулятор считает прогноз, Monte Carlo и поиск безопасного вывода в
   finance Worker; живой прогноз трекинга и сохранение сценария тоже идут
   через compound Worker; календарный маппинг live forecast — DTO
-  `liveTrackingForecast` с дифференциальными тестами TS/Rust;
+  `liveTrackingForecast` и Worker `live-tracking.run`, с дифференциальными
+  тестами TS/Rust;
   WASM включается только флагом `NEXT_PUBLIC_RUST_COMPOUND_PARITY`;
 - вероятностные прогнозы, IRR и волатильность остаются на `f64`;
 - даты передаются как явные civil dates без скрытого `new Date()`;
