@@ -1,5 +1,6 @@
 import { calendarMonthFromPlanMonth, formatCalendarMonth } from "./broker-deposits";
 import { calculateCompoundInterest } from "./compound-interest";
+import type { CompoundResult } from "./compound-interest/types";
 import {
   resolvePlanParams,
   resolvePlanPointCalendarMonth,
@@ -192,9 +193,6 @@ export function buildLiveTrackingForecast(input: {
   asOf?: Date;
 }): LiveForecastResult {
   const asOf = input.asOf ?? new Date();
-  const startMonth = formatCalendarMonth(asOf);
-
-  const factAvg = averageRecentBrokerDeposits(input.depositsByMonth, asOf, 3);
   const suggestedFromScenario = resolvePlanParams(input.basePlan).monthlyContribution;
   const monthlyContribution =
     input.monthlyContribution != null && Number.isFinite(input.monthlyContribution)
@@ -215,13 +213,38 @@ export function buildLiveTrackingForecast(input: {
       customAssets: input.currentCustomAssets,
       brokerTotal: input.currentBrokerTotal,
     },
-    { allMonths: true },
+    { allMonths: true, asOf },
   );
 
-  const startIso = asOf.toISOString();
+  return liveForecastFromProjection({
+    result,
+    basePlan: input.basePlan,
+    currentGrandTotal: input.currentGrandTotal,
+    horizonMonths: input.horizonMonths,
+    monthlyContribution,
+    depositsByMonth: input.depositsByMonth,
+    asOf,
+    params,
+  });
+}
+
+export function liveForecastFromProjection(input: {
+  result: CompoundResult;
+  basePlan: SavedForecastPlan;
+  currentGrandTotal: number;
+  horizonMonths: number;
+  monthlyContribution: number;
+  depositsByMonth: Map<string, number>;
+  asOf: Date;
+  params: CompoundParams;
+}): LiveForecastResult {
+  const startMonth = formatCalendarMonth(input.asOf);
+  const startIso = input.asOf.toISOString();
+  const factAvg = averageRecentBrokerDeposits(input.depositsByMonth, input.asOf, 3);
+  const suggestedFromScenario = resolvePlanParams(input.basePlan).monthlyContribution;
   const points: LiveForecastPoint[] = [];
 
-  const startPoint = result.points.find((point) => point.month === 0);
+  const startPoint = input.result.points.find((point) => point.month === 0);
   points.push({
     calendarMonth: startMonth,
     label: formatMonthLabel(startMonth),
@@ -237,7 +260,7 @@ export function buildLiveTrackingForecast(input: {
     isStart: true,
   });
 
-  for (const point of result.points) {
+  for (const point of input.result.points) {
     if (point.month <= 0 || point.month > input.horizonMonths) continue;
     const calendarMonth = calendarMonthFromPlanMonth(startIso, point.month);
     points.push({
@@ -258,14 +281,14 @@ export function buildLiveTrackingForecast(input: {
 
   return {
     points,
-    monthlyContribution,
+    monthlyContribution: input.monthlyContribution,
     suggestedFromFact: factAvg?.average ?? null,
     factMonthsUsed: factAvg?.monthsUsed ?? 0,
     suggestedFromScenario,
     basePlanId: input.basePlan.id,
     basePlanName: input.basePlan.name,
     horizonMonths: input.horizonMonths,
-    withdrawAfterYears: params.withdrawAfterYears,
+    withdrawAfterYears: input.params.withdrawAfterYears,
     withdrawCalendarMonth: scenarioWithdrawCalendarMonth(input.basePlan),
   };
 }

@@ -15,6 +15,7 @@ import {
 } from "./client";
 
 interface UseCompoundWorkerOptions {
+  enabled?: boolean;
   params: CompoundParams;
   context: CompoundContext;
   asOf: string;
@@ -34,6 +35,7 @@ const IDLE_STATE: CompoundWorkerState = {
 };
 
 export function useCompoundWorker({
+  enabled = true,
   params,
   context,
   asOf,
@@ -42,6 +44,10 @@ export function useCompoundWorker({
   const [state, setState] = useState<CompoundWorkerState>(IDLE_STATE);
 
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
     let active = true;
     let worker;
     try {
@@ -105,7 +111,7 @@ export function useCompoundWorker({
       active = false;
       job.cancel();
     };
-  }, [params, context, asOf, allMonths]);
+  }, [enabled, params, context, asOf, allMonths]);
 
-  return state;
+  return enabled ? state : IDLE_STATE;
 }

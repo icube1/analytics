@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatMoney } from "@/lib/portfolio-wealth";
 import type {
   BrokerBalanceSnapshot,
@@ -8,6 +8,7 @@ import type {
   DebtBalanceEntry,
   SavedForecastPlan,
 } from "@/lib/portfolio-types";
+import { DEFAULT_COMPOUND_PARAMS } from "@/lib/portfolio-types";
 import { CHART_COLORS } from "@/lib/stats";
 import {
   aggregateBrokerDepositsByMonth,
@@ -18,10 +19,13 @@ import {
 } from "@/lib/tracking";
 import { resolvePlanParams } from "@/lib/forecast-plans";
 import { getMonthlyDebtService } from "@/lib/debt-amortization";
+import { calculateCompoundInterest } from "@/lib/compound-interest";
+import { useCompoundWorker } from "@/lib/finance-worker/use-compound-worker";
 import {
   FORECAST_HORIZONS,
   averageRecentBrokerDeposits,
-  buildLiveTrackingForecast,
+  buildHybridForecastParams,
+  liveForecastFromProjection,
   resolveForecastHorizonMonths,
   type ForecastHorizonId,
 } from "@/lib/tracking-forecast";
@@ -130,6 +134,14 @@ export function TrackingTab({
   const [forecastContribution, setForecastContribution] = useState<number | null>(
     null,
   );
+  const [forecastAsOf] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  });
+  const forecastAsOfDate = useMemo(() => {
+    const [year, month, day] = forecastAsOf.split("-").map(Number);
+    return new Date(year, month - 1, day);
+  }, [forecastAsOf]);
   const [brushRange, setBrushRange] = useState<{
     startIndex: number;
     endIndex: number;
@@ -186,13 +198,14 @@ export function TrackingTab({
   const forecastHorizonMonths = resolveForecastHorizonMonths(
     forecastHorizonId,
     basePlan,
+    forecastAsOfDate,
   );
 
   const currentGrandTotal = currentBrokerTotal + currentCustomAssetsTotal;
 
   const factAverage = useMemo(
-    () => averageRecentBrokerDeposits(depositsByMonth, new Date(), 3),
-    [depositsByMonth],
+    () => averageRecentBrokerDeposits(depositsByMonth, forecastAsOfDate, 3),
+    [depositsByMonth, forecastAsOfDate],
   );
 
   const monthlyDebtService = useMemo(
@@ -214,25 +227,72 @@ export function TrackingTab({
   const effectiveContribution =
     forecastContribution != null ? forecastContribution : scenarioContribution;
 
-  const liveForecast = useMemo(() => {
-    if (!basePlan || currentGrandTotal <= 0) return null;
-    return buildLiveTrackingForecast({
+  const liveForecastEnabled = Boolean(basePlan && currentGrandTotal > 0);
+  const hybridParams = useMemo(() => {
+    if (!basePlan) return DEFAULT_COMPOUND_PARAMS;
+    return buildHybridForecastParams(
       basePlan,
-      currentBrokerTotal,
-      currentCustomAssets,
+      effectiveContribution,
+      forecastHorizonMonths,
       currentGrandTotal,
-      depositsByMonth,
+      forecastAsOfDate,
+    );
+  }, [
+    basePlan,
+    effectiveContribution,
+    forecastHorizonMonths,
+    currentGrandTotal,
+    forecastAsOfDate,
+  ]);
+  const forecastContext = useMemo(
+    () => ({
+      customAssets: currentCustomAssets,
+      brokerTotal: currentBrokerTotal,
+    }),
+    [currentCustomAssets, currentBrokerTotal],
+  );
+  const {
+    result: workerProjection,
+    error: liveForecastError,
+  } = useCompoundWorker({
+    enabled: liveForecastEnabled,
+    params: hybridParams,
+    context: forecastContext,
+    asOf: forecastAsOf,
+    allMonths: true,
+  });
+  const [seedProjection] = useState(() => {
+    if (!basePlan || currentGrandTotal <= 0) return null;
+    return calculateCompoundInterest(hybridParams, forecastContext, {
+      allMonths: true,
+      asOf: forecastAsOfDate,
+    });
+  });
+  const lastProjectionRef = useRef(seedProjection);
+  if (workerProjection) lastProjectionRef.current = workerProjection;
+  const projection = workerProjection ?? lastProjectionRef.current;
+
+  const liveForecast = useMemo(() => {
+    if (!basePlan || currentGrandTotal <= 0 || !projection) return null;
+    return liveForecastFromProjection({
+      result: projection,
+      basePlan,
+      currentGrandTotal,
       horizonMonths: forecastHorizonMonths,
       monthlyContribution: effectiveContribution,
+      depositsByMonth,
+      asOf: forecastAsOfDate,
+      params: hybridParams,
     });
   }, [
     basePlan,
-    currentBrokerTotal,
-    currentCustomAssets,
     currentGrandTotal,
-    depositsByMonth,
+    projection,
     forecastHorizonMonths,
     effectiveContribution,
+    depositsByMonth,
+    forecastAsOfDate,
+    hybridParams,
   ]);
 
   const rows = useMemo(
@@ -494,6 +554,14 @@ export function TrackingTab({
           })}
         </div>
 
+        {liveForecastError && (
+          <p
+            className="mb-3 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200"
+            role="alert"
+          >
+            Живой прогноз временно недоступен: {liveForecastError}
+          </p>
+        )}
         {liveForecast && (
           <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-amber-200 bg-amber-50/60 px-3 py-2 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
             <label className="flex items-center gap-1.5">
