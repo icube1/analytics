@@ -4,6 +4,7 @@ import {
   acceptedAdminLogins,
   createSessionToken,
   rejectOversizedPrivateRequest,
+  isAuthPublicPath,
   requireServerAuth,
   resolveOwnerSession,
   safeNextPath,
@@ -128,6 +129,15 @@ describe("owner session authentication", () => {
       ),
     ).toBe(true);
     expect(wantsHtmlResponse(request({ accept: "*/*" }))).toBe(false);
+  });
+
+  it("keeps the login page and login API outside the auth gate", () => {
+    expect(isAuthPublicPath("/login")).toBe(true);
+    expect(isAuthPublicPath("/login/")).toBe(true);
+    expect(isAuthPublicPath("/api/auth/login")).toBe(true);
+    expect(isAuthPublicPath("/api/auth/logout")).toBe(true);
+    expect(isAuthPublicPath("/")).toBe(false);
+    expect(isAuthPublicPath("/investments")).toBe(false);
   });
 
   it("keeps redirect targets on-site", () => {
