@@ -4,7 +4,7 @@ import {
   extractBrokerDeposits,
   isBrokerDepositFlow,
 } from "@/lib/broker-deposits";
-import { buildForecastPlan, getPlanCalculatorSnapshot, resolvePlanParams } from "@/lib/forecast-plans";
+import { buildForecastPlan, getPlanCalculatorSnapshot, resolvePlanParams, restorePlanParamsAgainstCurrentAssets } from "@/lib/forecast-plans";
 import {
   aggregateBrokerDepositsByMonth,
   buildTrackingMonths,
@@ -384,6 +384,83 @@ describe("tracking snapshots", () => {
     expect(resolvePlanParams(legacyPlan).annualReturnPercent).toBe(
       DEFAULT_COMPOUND_PARAMS.annualReturnPercent,
     );
+  });
+
+  it("opens a saved plan against current other-asset progress instead of rewinding it", () => {
+    const savedAssets = {
+      items: [
+        {
+          id: "apt",
+          enabled: true,
+          label: "Квартира",
+          value: 1_000_000,
+          debt: 500_000,
+          monthlyDebtPayment: 30_000,
+          debtAnnualRate: 8,
+          growsWithInflation: false,
+          returnMode: "none" as const,
+          annualReturnPercent: 0,
+          incomeAmount: 0,
+          incomePeriod: "monthly" as const,
+          generatesDividendTax: false,
+          notes: "",
+        },
+      ],
+      otherDebts: [],
+    };
+    const plan = buildForecastPlan(
+      "Снимок",
+      {
+        ...DEFAULT_COMPOUND_PARAMS,
+        monthlyContribution: 45_000,
+        years: 3,
+        initialCapital: 750_000,
+      },
+      savedAssets,
+      250_000,
+    );
+    const currentAssets = {
+      ...savedAssets,
+      items: [
+        {
+          ...savedAssets.items[0],
+          debt: 350_000,
+        },
+      ],
+    };
+
+    const restored = restorePlanParamsAgainstCurrentAssets(
+      plan,
+      currentAssets,
+      plan.brokerTotal,
+    );
+    expect(restored.monthlyContribution).toBe(45_000);
+    expect(restored.years).toBe(3);
+    expect(getPlanCalculatorSnapshot(plan).customAssets.items[0]?.debt).toBe(
+      500_000,
+    );
+    expect(restored.initialCapital).toBe(900_000);
+
+    const withExtraDebt = {
+      ...currentAssets,
+      otherDebts: [
+        {
+          id: "loan",
+          enabled: true,
+          label: "Кредит",
+          balance: 50_000,
+          monthlyPayment: 5_000,
+          annualInterestRate: 12,
+        },
+      ],
+    };
+    expect(
+      restorePlanParamsAgainstCurrentAssets(
+        plan,
+        withExtraDebt,
+        plan.brokerTotal,
+      ).initialCapital,
+    ).toBe(850_000);
   });
 });
 

@@ -8,6 +8,7 @@ import type {
   SavedForecastPlan,
 } from "./portfolio-types";
 import { DEFAULT_COMPOUND_PARAMS, DEFAULT_CUSTOM_ASSETS } from "./portfolio-types";
+import { getNetWorth, initWealthSimulationState } from "./debt-amortization";
 
 export interface PlanCalculatorSnapshot {
   params: CompoundParams;
@@ -27,6 +28,24 @@ export function getPlanCalculatorSnapshot(
     params: resolvePlanParams(plan),
     customAssets: plan.customAssets ?? DEFAULT_CUSTOM_ASSETS,
     brokerTotal: plan.brokerTotal,
+  };
+}
+
+/**
+ * Open a saved scenario without rewinding live «Другие активы».
+ * Contribution/horizon stay from the plan; starting capital is rebuilt from
+ * current other-asset progress plus the broker total used for the run.
+ */
+export function restorePlanParamsAgainstCurrentAssets(
+  plan: SavedForecastPlan,
+  currentAssets: CustomAssets,
+  brokerTotal: number = plan.brokerTotal,
+): CompoundParams {
+  const params = resolvePlanParams(plan);
+  const wealthState = initWealthSimulationState(currentAssets, brokerTotal);
+  return {
+    ...params,
+    initialCapital: Math.round(getNetWorth(wealthState)),
   };
 }
 

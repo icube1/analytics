@@ -6,7 +6,7 @@ import {
   computePortfolioAnalytics,
   getCalculatorDefaultsFromPortfolio,
 } from "@/lib/portfolio-analytics";
-import { getPlanCalculatorSnapshot } from "@/lib/forecast-plans";
+import { restorePlanParamsAgainstCurrentAssets } from "@/lib/forecast-plans";
 import {
   fetchPortfolioDocument,
   savePortfolioDocument,
@@ -229,15 +229,18 @@ export function InvestmentsDashboard() {
 
   const handleRestorePlan = useCallback(
     (plan: SavedForecastPlan) => {
-      const { params, customAssets: planAssets, brokerTotal } =
-        getPlanCalculatorSnapshot(plan);
+      if (!customAssets) return;
+      const params = restorePlanParamsAgainstCurrentAssets(
+        plan,
+        customAssets,
+        plan.brokerTotal,
+      );
       setCompoundParams(params);
-      setCustomAssets(planAssets);
       setLoadedScenarioId(plan.id);
-      setScenarioBrokerTotal(brokerTotal);
-      persist({ compoundParams: params, customAssets: planAssets });
+      setScenarioBrokerTotal(plan.brokerTotal);
+      persist({ compoundParams: params });
     },
-    [persist],
+    [customAssets, persist],
   );
 
   const handleClearLoadedScenario = useCallback(() => {
