@@ -7,7 +7,6 @@ use axum_test::TestServer;
 use finance_api::migration::{MigrationOptions, MigrationRunner};
 use serde_json::json;
 use support::TestHarness;
-use uuid::Uuid;
 
 #[tokio::test]
 async fn statement_import_metadata_and_content_roundtrip() {
@@ -271,7 +270,7 @@ async fn migration_cli_checksum_is_stable() {
         .run(MigrationOptions {
             backup_path,
             statements_dir: None,
-            household_id: Some(Uuid::new_v4()),
+            household_id: None,
             bootstrap_email: None,
             bootstrap_password: None,
             bootstrap_display_name: None,

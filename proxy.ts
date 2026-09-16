@@ -7,7 +7,9 @@ import {
 } from "@/lib/server-auth";
 
 export function proxy(request: NextRequest) {
-  if (isAuthPublicPath(request.nextUrl.pathname)) {
+  const pathname = request.nextUrl.pathname;
+  const urlPath = new URL(request.url).pathname;
+  if (isAuthPublicPath(pathname) || isAuthPublicPath(urlPath)) {
     return NextResponse.next();
   }
 
