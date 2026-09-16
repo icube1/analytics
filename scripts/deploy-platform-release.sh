@@ -58,7 +58,10 @@ fi
 
 [[ -f "$TARGET/manifest.json" ]] || { echo "Invalid release (missing manifest.json): $TARGET" >&2; exit 1; }
 
-install -d -m 700 "$DATA_DIR" "$BACKUP_DIR" "$APP_ROOT/staging"
+install -d -m 700 "$DATA_DIR" "$BACKUP_DIR"
+# staging/ holds only release symlinks; 700 owned by root blocked the
+# analytics user (systemd 200/CHDIR on WorkingDirectory=.../staging/current).
+install -d -m 755 "$APP_ROOT/staging"
 if [[ -f "$DATA_DIR/finance-api.db" ]]; then
   backup_name="finance-api-$(date -u +%Y%m%dT%H%M%SZ).db"
   cp -a "$DATA_DIR/finance-api.db" "$BACKUP_DIR/$backup_name"
@@ -76,7 +79,7 @@ if [[ $LOCAL_MODE -eq 0 ]]; then
   if ! id analytics >/dev/null 2>&1; then
     useradd --system --home-dir "$APP_ROOT" --shell /usr/sbin/nologin analytics
   fi
-  chown -R analytics:analytics "$TARGET" "$DATA_DIR" "$BACKUP_DIR"
+  chown -R analytics:analytics "$TARGET" "$DATA_DIR" "$BACKUP_DIR" "$APP_ROOT/staging"
   chown -h analytics:analytics "$STAGING_LINK" "$PREVIOUS_LINK" 2>/dev/null || true
 
   service_src="$ROOT/deploy/blue-green/finance-api.service"
