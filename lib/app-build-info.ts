@@ -7,7 +7,7 @@ export type AppBuildInfo = {
 const DEFAULT_VERSION = "0.1.0";
 
 export function readAppBuildInfo(
-  env: NodeJS.ProcessEnv = process.env,
+  env: Record<string, string | undefined> = process.env,
 ): AppBuildInfo {
   const sha = (env.APP_GIT_SHA || env.GITHUB_SHA || "").trim();
   return {
