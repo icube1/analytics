@@ -1126,7 +1126,8 @@ export function CalculatorTab({
               <p className="text-xs text-indigo-700/80 dark:text-indigo-300/80">
                 Сохранён{" "}
                 {new Date(loadedPlan.savedAt).toLocaleString("ru-RU")} · брокер
-                на момент снимка {formatMoney(loadedPlan.brokerTotal)}
+                на момент снимка {formatMoney(loadedPlan.brokerTotal)} · другие
+                активы — текущие
               </p>
             </div>
             {onClearLoadedPlan && (
@@ -1144,8 +1145,8 @@ export function CalculatorTab({
           <div>
             <h3 className="text-sm font-semibold">Сценарии прогноза</h3>
             <p className="text-xs text-zinc-500">
-              Сохраните вариант для трекинга или откройте сохранённый, чтобы
-              посмотреть расчёт подробнее
+              Сохраните вариант для трекинга или откройте сохранённый: параметры
+              сценария применятся к текущим «Другим активам», без отката прогресса
             </p>
           </div>
           <button
@@ -1208,13 +1209,14 @@ export function CalculatorTab({
           <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-5 shadow-xl dark:border-zinc-700 dark:bg-zinc-900">
             <h3 className="text-lg font-semibold">Открыть сценарий</h3>
             <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
-              Загрузить «{planToRestore.name}» в калькулятор? Параметры и
-              «Другие активы» будут заменены снимком от{" "}
+              Загрузить «{planToRestore.name}» в калькулятор? Взносы, горизонт и
+              прочие параметры сценария подставятся из снимка от{" "}
               {new Date(planToRestore.savedAt).toLocaleString("ru-RU")}.
             </p>
             <p className="mt-2 text-xs text-zinc-500">
-              Графики и таблица пересчитаются с балансом брокера на момент
-              сохранения ({formatMoney(planToRestore.brokerTotal)}).
+              Вкладка «Другие активы» не откатится: расчёт скорректируется от
+              текущего прогресса. Брокер — на момент сохранения (
+              {formatMoney(planToRestore.brokerTotal)}).
             </p>
             <div className="mt-5 flex justify-end gap-2">
               <button
