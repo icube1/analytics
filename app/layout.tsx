@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AppNav } from "@/components/app-nav";
+import { AppFooter } from "@/components/app-footer";
 import { TestEnvBanner } from "@/components/test-env-banner";
 import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
@@ -35,7 +36,8 @@ export default function RootLayout({
         <ThemeProvider>
           <TestEnvBanner />
           <AppNav />
-          {children}
+          <div className="flex flex-1 flex-col">{children}</div>
+          <AppFooter />
         </ThemeProvider>
       </body>
     </html>
