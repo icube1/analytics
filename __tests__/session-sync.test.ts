@@ -242,6 +242,7 @@ describe("session-sync portfolio conflicts and offline replay", () => {
         customAssets: { items: [], otherDebts: [] },
         compoundParams: {} as never,
         brokerReport: null,
+        brokerAccounts: [],
         brokerSnapshots: [],
         debtBalanceHistory: [],
         forecastPlans: [],

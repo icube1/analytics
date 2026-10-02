@@ -13,6 +13,7 @@ import {
   addForecastPlan,
   removeForecastPlan,
   uploadBrokerReport,
+  removeBrokerAccount,
 } from "@/lib/portfolio-storage";
 import { FileDropOverlay } from "@/components/file-drop-overlay";
 import { usePageFileDrop } from "@/lib/use-page-file-drop";
@@ -20,6 +21,7 @@ import { getTotalWealth } from "@/lib/portfolio-wealth";
 import { getTotalDebtBalance } from "@/lib/debt-amortization";
 import {
   DEFAULT_COMPOUND_PARAMS,
+  type BrokerAccountSource,
   type BrokerReport,
   type BrokerBalanceSnapshot,
   type CompoundParams,
@@ -68,6 +70,9 @@ const BROKER_HTML_ACCEPT = [".html", ".htm"];
 export function InvestmentsDashboard() {
   const [activeTab, setActiveTab] = useState<TabId>("summary");
   const [report, setReport] = useState<BrokerReport | null>(null);
+  const [brokerAccounts, setBrokerAccounts] = useState<BrokerAccountSource[]>(
+    [],
+  );
   const [fileName, setFileName] = useState("portfolio.html");
   const [customAssets, setCustomAssets] = useState<CustomAssets | null>(null);
   const [compoundParams, setCompoundParams] = useState<CompoundParams | null>(
@@ -123,6 +128,7 @@ export function InvestmentsDashboard() {
         });
         setFileName(doc.lastBrokerFileName);
         setReport(doc.brokerReport);
+        setBrokerAccounts(doc.brokerAccounts ?? []);
         setForecastPlans(doc.forecastPlans);
         setBrokerSnapshots(doc.brokerSnapshots);
         setDebtBalanceHistory(doc.debtBalanceHistory ?? []);
@@ -198,6 +204,7 @@ export function InvestmentsDashboard() {
       const data = await uploadBrokerReport(file);
       setReport(data.report);
       setFileName(data.fileName);
+      setBrokerAccounts(data.brokerAccounts);
       const doc = await fetchPortfolioDocument();
       setBrokerSnapshots(doc.brokerSnapshots);
       setDebtBalanceHistory(doc.debtBalanceHistory ?? []);
@@ -208,6 +215,24 @@ export function InvestmentsDashboard() {
       setSaveState("error");
       setError(
         err instanceof Error ? err.message : "Не удалось сохранить отчёт",
+      );
+    }
+  }, []);
+
+  const handleRemoveBrokerAccount = useCallback(async (accountId: string) => {
+    setSaveState("saving");
+    try {
+      const doc = await removeBrokerAccount(accountId);
+      setReport(doc.brokerReport);
+      setBrokerAccounts(doc.brokerAccounts);
+      setFileName(doc.lastBrokerFileName);
+      setLastSavedAt(doc.updatedAt);
+      setSaveState("saved");
+      setError(null);
+    } catch (err) {
+      setSaveState("error");
+      setError(
+        err instanceof Error ? err.message : "Не удалось удалить договор",
       );
     }
   }, []);
@@ -416,6 +441,8 @@ export function InvestmentsDashboard() {
             report={report}
             fileName={fileName}
             onUpload={handleUpload}
+            brokerAccounts={brokerAccounts}
+            onRemoveAccount={handleRemoveBrokerAccount}
             brokerSnapshots={brokerSnapshots}
           />
         </Suspense>

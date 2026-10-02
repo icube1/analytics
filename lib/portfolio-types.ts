@@ -75,6 +75,14 @@ export interface BrokerReport {
   cashFlows: CashFlow[];
 }
 
+/** One uploaded brokerage / IIS account. Combined into `brokerReport`. */
+export interface BrokerAccountSource {
+  id: string;
+  fileName: string;
+  uploadedAt: string;
+  report: BrokerReport;
+}
+
 export interface DebtObligation {
   id: string;
   enabled: boolean;
@@ -210,6 +218,8 @@ export interface PortfolioDocument extends PortfolioStorage {
   version: 1;
   updatedAt: string;
   brokerReport: BrokerReport | null;
+  /** Отдельные договоры (ИИС + брокерский). `brokerReport` — их сумма. */
+  brokerAccounts: BrokerAccountSource[];
   /** История загрузок отчётов брокера для трекинга */
   brokerSnapshots: BrokerBalanceSnapshot[];
   /** История остатка долга для расчёта погашенного тела */
@@ -330,6 +340,7 @@ export const DEFAULT_DOCUMENT: PortfolioDocument = {
   updatedAt: new Date(0).toISOString(),
   ...DEFAULT_STORAGE,
   brokerReport: null,
+  brokerAccounts: [],
   brokerSnapshots: [],
   debtBalanceHistory: [],
   forecastPlans: [],

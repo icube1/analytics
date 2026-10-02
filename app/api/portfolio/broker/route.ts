@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { importBrokerReport } from "@/lib/broker-adapters";
+import { combinedReportFromAccounts, upsertBrokerAccount } from "@/lib/merge-broker-reports";
 import { recordBrokerImportOutcome } from "@/lib/observability/runtime-metrics";
 import {
   readPortfolioDocument,
@@ -67,15 +68,23 @@ export async function POST(request: Request) {
     writeBrokerHtml(html);
 
     const current = readPortfolioDocument();
+    const brokerAccounts = upsertBrokerAccount(
+      current.brokerAccounts,
+      report,
+      fileName,
+    );
+    const combined = combinedReportFromAccounts(brokerAccounts);
     writePortfolioDocument({
       ...current,
       lastBrokerFileName: fileName,
-      brokerReport: report,
+      brokerReport: combined,
+      brokerAccounts,
     });
 
     return NextResponse.json({
-      report,
+      report: combined,
       fileName,
+      brokerAccounts,
       provenance: imported.provenance,
       warnings: imported.warnings,
       reconciliation: imported.reconciliation,

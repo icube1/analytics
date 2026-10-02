@@ -13,12 +13,14 @@ import { BrokerReportDiffPanel } from "@/components/investments/broker-report-di
 import { getEffectivePortfolioTotals, resolveCashPosition, resolveSecurityPosition } from "@/lib/broker-positions";
 import { CHART_COLORS } from "@/lib/stats";
 import { formatMoney } from "@/lib/portfolio-wealth";
-import type { BrokerBalanceSnapshot, BrokerReport } from "@/lib/portfolio-types";
+import type { BrokerAccountSource, BrokerBalanceSnapshot, BrokerReport } from "@/lib/portfolio-types";
 
 interface PortfolioTabProps {
   report: BrokerReport | null;
   onUpload: (file: File) => void;
   fileName: string;
+  brokerAccounts?: BrokerAccountSource[];
+  onRemoveAccount?: (accountId: string) => void;
   brokerSnapshots: BrokerBalanceSnapshot[];
 }
 
@@ -26,6 +28,8 @@ export function PortfolioTab({
   report,
   onUpload,
   fileName,
+  brokerAccounts = [],
+  onRemoveAccount,
   brokerSnapshots,
 }: PortfolioTabProps) {
   if (!report) {
@@ -35,7 +39,8 @@ export function PortfolioTab({
           Загрузите отчёт брокера СберИнвестиций (HTML)
         </p>
         <p className="mt-2 text-xs text-zinc-400 dark:text-zinc-500">
-          Кнопка ниже или перетащите файл в окно браузера
+          Кнопка ниже или перетащите файл. Отчёты с разными договорами (ИИС и
+          брокерский) складываются в один портфель.
         </p>
         <label className="mt-4 inline-flex cursor-pointer rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white">
           <input
@@ -76,7 +81,13 @@ export function PortfolioTab({
             {report.investor} · договор {report.contract}
           </p>
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            Период {report.periodStart} — {report.periodEnd} · файл: {fileName}
+            Период {report.periodStart} — {report.periodEnd}
+            {brokerAccounts.length > 1
+              ? ` · ${brokerAccounts.length} счёта`
+              : ` · файл: ${fileName}`}
+          </p>
+          <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
+            Другой договор добавит позиции, тот же договор обновит счёт.
           </p>
         </div>
         <label className="inline-flex cursor-pointer rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-medium dark:border-zinc-700 dark:bg-zinc-900">
@@ -93,6 +104,40 @@ export function PortfolioTab({
           Загрузить отчёт
         </label>
       </div>
+
+      {brokerAccounts.length > 0 && (
+        <section className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            Счета в сумме
+          </h3>
+          <ul className="mt-3 space-y-2">
+            {brokerAccounts.map((account) => (
+              <li
+                key={account.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-zinc-50 px-3 py-2 text-sm dark:bg-zinc-950"
+              >
+                <div>
+                  <p className="font-medium text-zinc-800 dark:text-zinc-200">
+                    {account.report.contract || account.fileName}
+                  </p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                    {account.fileName} · {formatMoney(account.report.assetsEnd)}
+                  </p>
+                </div>
+                {onRemoveAccount && (
+                  <button
+                    type="button"
+                    className="text-xs text-zinc-500 underline-offset-2 hover:text-rose-600 hover:underline dark:text-zinc-400 dark:hover:text-rose-400"
+                    onClick={() => onRemoveAccount(account.id)}
+                  >
+                    Убрать
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {[

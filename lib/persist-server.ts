@@ -2,6 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { backfillDebtHistoryFromSnapshots } from "./debt-history";
 import { enrichBrokerReport } from "./broker-positions";
+import {
+  combinedReportFromAccounts,
+  normalizeBrokerAccounts,
+} from "./merge-broker-reports";
 import { mergePortfolioStorage } from "./merge-portfolio-storage";
 import { parsePortfolioHtml } from "./parse-portfolio-html";
 import {
@@ -33,14 +37,30 @@ export function readPortfolioDocument(): PortfolioDocument {
     const parsed = JSON.parse(raw) as Partial<PortfolioDocument>;
     const merged = mergePortfolioStorage(parsed);
     const brokerSnapshots = parsed.brokerSnapshots ?? [];
-    const html = readBrokerHtml();
-    const brokerReport = html
-      ? parsePortfolioHtml(html)
-      : enrichBrokerReport(parsed.brokerReport ?? null);
+    const lastFileName =
+      parsed.lastBrokerFileName ?? DEFAULT_DOCUMENT.lastBrokerFileName;
+    let brokerAccounts = normalizeBrokerAccounts(
+      parsed.brokerAccounts,
+      enrichBrokerReport(parsed.brokerReport ?? null),
+      lastFileName,
+    );
+    if (!Array.isArray(parsed.brokerAccounts) && brokerAccounts.length === 0) {
+      const html = readBrokerHtml();
+      const fromHtml = html ? parsePortfolioHtml(html, lastFileName) : null;
+      brokerAccounts = normalizeBrokerAccounts(undefined, fromHtml, lastFileName);
+    }
+    const brokerReport = combinedReportFromAccounts(
+      brokerAccounts.map((account) => ({
+        ...account,
+        report: enrichBrokerReport(account.report) ?? account.report,
+      })),
+    );
     return {
       ...merged,
       version: 1,
       updatedAt: parsed.updatedAt ?? merged.updatedAt,
+      lastBrokerFileName: lastFileName,
+      brokerAccounts,
       brokerReport,
       brokerSnapshots,
       debtBalanceHistory: backfillDebtHistoryFromSnapshots(

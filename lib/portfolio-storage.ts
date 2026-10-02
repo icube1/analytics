@@ -8,6 +8,12 @@ import {
 import { getTotalDebtBalance } from "./debt-amortization";
 import { mergePortfolioStorage, isEmptyDocument } from "./merge-portfolio-storage";
 import { enrichBrokerReport } from "./broker-positions";
+import {
+  combinedReportFromAccounts,
+  normalizeBrokerAccounts,
+  removeBrokerAccount as removeBrokerAccountFromList,
+  upsertBrokerAccount,
+} from "./merge-broker-reports";
 import { normalizeCompoundParams } from "./normalize-compound-params";
 import { parsePortfolioHtml } from "./parse-portfolio-html";
 import { apiFetch } from "./api-base";
@@ -27,6 +33,16 @@ function normalizeDocument(data: Partial<PortfolioDocument>): PortfolioDocument 
     data.debtBalanceHistory ?? [],
     brokerSnapshots,
   );
+  const lastBrokerFileName =
+    data.lastBrokerFileName ?? DEFAULT_DOCUMENT.lastBrokerFileName;
+  const brokerAccounts = normalizeBrokerAccounts(
+    data.brokerAccounts,
+    enrichBrokerReport(data.brokerReport ?? null),
+    lastBrokerFileName,
+  ).map((account) => ({
+    ...account,
+    report: enrichBrokerReport(account.report) ?? account.report,
+  }));
 
   return {
     ...DEFAULT_DOCUMENT,
@@ -37,12 +53,12 @@ function normalizeDocument(data: Partial<PortfolioDocument>): PortfolioDocument 
       ...DEFAULT_DOCUMENT.compoundParams,
       ...data.compoundParams,
     }),
-    brokerReport: enrichBrokerReport(data.brokerReport ?? null),
+    brokerAccounts,
+    brokerReport: combinedReportFromAccounts(brokerAccounts),
     brokerSnapshots,
     debtBalanceHistory,
     forecastPlans: data.forecastPlans ?? [],
-    lastBrokerFileName:
-      data.lastBrokerFileName ?? DEFAULT_DOCUMENT.lastBrokerFileName,
+    lastBrokerFileName,
     updatedAt: data.updatedAt ?? DEFAULT_DOCUMENT.updatedAt,
   };
 }
@@ -102,14 +118,6 @@ export async function fetchPortfolioDocument(): Promise<PortfolioDocument> {
   }
 
   const normalized = doc ?? { ...DEFAULT_DOCUMENT };
-  const enrichedReport = enrichBrokerReport(normalized.brokerReport);
-  if (enrichedReport !== normalized.brokerReport) {
-    return writeStoredDocument({
-      ...normalized,
-      brokerReport: enrichedReport,
-    });
-  }
-
   return normalized;
 }
 
@@ -129,6 +137,10 @@ export async function savePortfolioDocument(
       patch.brokerReport !== undefined
         ? patch.brokerReport
         : current.brokerReport,
+    brokerAccounts:
+      patch.brokerAccounts !== undefined
+        ? patch.brokerAccounts
+        : current.brokerAccounts,
     brokerSnapshots:
       patch.brokerSnapshots !== undefined
         ? patch.brokerSnapshots
@@ -171,18 +183,31 @@ export async function removeForecastPlan(
 
 export async function uploadBrokerReport(
   file: File,
-): Promise<{ report: PortfolioDocument["brokerReport"]; fileName: string }> {
+): Promise<{
+  report: PortfolioDocument["brokerReport"];
+  fileName: string;
+  brokerAccounts: PortfolioDocument["brokerAccounts"];
+}> {
   const html = await file.text();
-  const report = parsePortfolioHtml(html);
+  const fileName = file.name || "broker-report.html";
+  const report = parsePortfolioHtml(html, fileName);
 
   if (report.securities.length === 0 && report.assetsEnd === 0) {
     throw new Error("Не удалось распознать данные в отчёте");
   }
 
-  const fileName = file.name || "broker-report.html";
   const current = await fetchPortfolioDocument();
-  const snapshot = createBrokerSnapshot(
+  const brokerAccounts = upsertBrokerAccount(
+    current.brokerAccounts,
     report,
+    fileName,
+  );
+  const combined = combinedReportFromAccounts(brokerAccounts);
+  if (!combined) {
+    throw new Error("Не удалось распознать данные в отчёте");
+  }
+  const snapshot = createBrokerSnapshot(
+    combined,
     fileName,
     current.customAssets,
   );
@@ -194,12 +219,27 @@ export async function uploadBrokerReport(
 
   await savePortfolioDocument({
     lastBrokerFileName: fileName,
-    brokerReport: report,
+    brokerReport: combined,
+    brokerAccounts,
     brokerSnapshots: [...current.brokerSnapshots, snapshot],
     debtBalanceHistory,
   });
 
-  return { report, fileName };
+  return { report: combined, fileName, brokerAccounts };
+}
+
+export async function removeBrokerAccount(
+  accountId: string,
+): Promise<PortfolioDocument> {
+  const current = await fetchPortfolioDocument();
+  const brokerAccounts = removeBrokerAccountFromList(
+    current.brokerAccounts,
+    accountId,
+  );
+  return savePortfolioDocument({
+    brokerAccounts,
+    brokerReport: combinedReportFromAccounts(brokerAccounts),
+  });
 }
 
 export function readLegacyLocalStorage(): Partial<PortfolioDocument> | null {

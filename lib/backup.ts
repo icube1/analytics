@@ -11,6 +11,10 @@ import {
   type AnalyticsBackup,
 } from "./backup-types";
 import { normalizeCustomAssets } from "./custom-assets";
+import {
+  combinedReportFromAccounts,
+  normalizeBrokerAccounts,
+} from "./merge-broker-reports";
 import { normalizeCompoundParams } from "./normalize-compound-params";
 import {
   DEFAULT_DOCUMENT,
@@ -20,6 +24,13 @@ import {
 function normalizePortfolioDocument(
   data: Partial<PortfolioDocument>,
 ): PortfolioDocument {
+  const lastBrokerFileName =
+    data.lastBrokerFileName ?? DEFAULT_DOCUMENT.lastBrokerFileName;
+  const brokerAccounts = normalizeBrokerAccounts(
+    data.brokerAccounts,
+    data.brokerReport ?? null,
+    lastBrokerFileName,
+  );
   return {
     ...DEFAULT_DOCUMENT,
     ...data,
@@ -29,12 +40,12 @@ function normalizePortfolioDocument(
       ...DEFAULT_DOCUMENT.compoundParams,
       ...data.compoundParams,
     }),
-    brokerReport: data.brokerReport ?? null,
+    brokerAccounts,
+    brokerReport: combinedReportFromAccounts(brokerAccounts),
     brokerSnapshots: data.brokerSnapshots ?? [],
     debtBalanceHistory: data.debtBalanceHistory ?? [],
     forecastPlans: data.forecastPlans ?? [],
-    lastBrokerFileName:
-      data.lastBrokerFileName ?? DEFAULT_DOCUMENT.lastBrokerFileName,
+    lastBrokerFileName,
     updatedAt: data.updatedAt ?? new Date().toISOString(),
   };
 }
