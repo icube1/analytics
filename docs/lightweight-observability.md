@@ -56,10 +56,26 @@ npm run build:metrics-dashboard
 
 ## Deployment gaps (intentional)
 
-- No DNS for `metrics.gala-soft.ru`
 - Nginx vhost/timing snippets ship as `*.disabled`
 - Collector systemd units disabled until `OBSERVABILITY_CUTOVER=1`
-- TLS for metrics host not provisioned
-- No production routing changes in this branch
+- No production routing changes until that cutover
+
+### `metrics.gala-soft.ru` currently serves the Next.js app
+
+DNS for `metrics.gala-soft.ru` already points at the VPS (`5.253.30.126`), but
+the metrics vhost is still disabled. Production `deploy/nginx-analytics.conf`
+listens on port 80 as `default_server`, so HTTP for any hostname — including
+`metrics.` — 301s to HTTPS. The only TLS server is `gala-soft.ru` /
+`www.gala-soft.ru`, which nginx uses as the default 443 vhost. Result:
+`https://metrics.gala-soft.ru` is the ordinary Next.js site (login / 401), not
+the static metrics dashboard.
+
+The Let's Encrypt certificate SAN is only `gala-soft.ru` and `www.gala-soft.ru`.
+There is no `metrics.gala-soft.ru` name, so browsers also show a certificate
+warning. Enabling the dashboard needs a dedicated vhost (see
+`deploy/observability/nginx-metrics-site.conf.disabled` or
+`deploy/blue-green/nginx-metrics-staging.conf.disabled`), a matching
+certificate, and `OBSERVABILITY_CUTOVER=1` / `PLATFORM_CUTOVER=1` — not a
+silent fallback to the public app.
 
 See `deploy/observability/README.md`.
