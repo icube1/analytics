@@ -47,6 +47,10 @@ export async function PUT(request: Request) {
       }),
       brokerReport:
         body.brokerReport !== undefined ? body.brokerReport : current.brokerReport,
+      brokerAccounts:
+        body.brokerAccounts !== undefined
+          ? body.brokerAccounts
+          : current.brokerAccounts,
       brokerSnapshots:
         body.brokerSnapshots !== undefined
           ? body.brokerSnapshots

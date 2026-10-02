@@ -10,10 +10,13 @@ import {
  * Legacy compatibility facade for Sber HTML portfolio reports.
  * Prefer `importBrokerReport` for detection, warnings, and reconciliation.
  */
-export function parsePortfolioHtml(html: string): BrokerReport {
+export function parsePortfolioHtml(
+  html: string,
+  fileName = "portfolio.html",
+): BrokerReport {
   const imported = importBrokerReport({
     content: html,
-    fileName: "portfolio.html",
+    fileName: fileName || "portfolio.html",
   });
 
   if (imported.report) {

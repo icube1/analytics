@@ -21,6 +21,8 @@ export function mergePortfolioStorage(
       partial.lastBrokerFileName ?? DEFAULT_STORAGE.lastBrokerFileName,
     brokerReport:
       "brokerReport" in partial ? (partial.brokerReport ?? null) : null,
+    brokerAccounts:
+      "brokerAccounts" in partial ? (partial.brokerAccounts ?? []) : [],
     brokerSnapshots:
       "brokerSnapshots" in partial ? (partial.brokerSnapshots ?? []) : [],
     debtBalanceHistory:
@@ -37,5 +39,5 @@ export function isEmptyDocument(doc: PortfolioDocument): boolean {
     JSON.stringify(doc.compoundParams) !==
     JSON.stringify(DEFAULT_STORAGE.compoundParams);
 
-  return !doc.brokerReport && !hasCustom && !paramsChanged;
+  return !doc.brokerReport && !doc.brokerAccounts?.length && !hasCustom && !paramsChanged;
 }
