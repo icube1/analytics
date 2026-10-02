@@ -19,13 +19,10 @@ pub async fn connect(config: &Config) -> ApiResult<SqlitePool> {
         .connect_with(connect_options)
         .await?;
 
-    let migrations = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("migrations");
-    let migrator = sqlx::migrate::Migrator::new(migrations.as_path())
-        .await
-        .map_err(|error| ApiError::Config {
-            message: format!("failed to load migrations: {error}"),
-        })?;
-    migrator
+    // Embed migrations at compile time. Reading them from the crate source
+    // path at runtime only works on the build machine; the VPS does not have
+    // that tree, so finance-api.service exited status=1 after staging.
+    sqlx::migrate!("./migrations")
         .run(&pool)
         .await
         .map_err(|error| ApiError::Config {

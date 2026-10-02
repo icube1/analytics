@@ -80,7 +80,8 @@ Tarball components:
 - `MemoryMax=192M`, `ProtectSystem=strict`, `NoNewPrivileges=true`
 - SQLite data under `/opt/analytics-platform/data`
 
-Migrations run automatically on startup (`sqlx::migrate` in `finance-api`).
+Migrations are embedded in the `finance-api` binary (`sqlx::migrate!("./migrations")`)
+and applied automatically on startup. The VPS does not need the crate source tree.
 
 ## Smoke checks
 
