@@ -12,6 +12,8 @@ export function mergePortfolioStorage(
   return {
     version: 1,
     updatedAt: new Date().toISOString(),
+    id: partial.id ?? "default",
+    groupId: partial.groupId ?? undefined,
     customAssets: normalizeCustomAssets(partial.customAssets),
     compoundParams: normalizeCompoundParams({
       ...DEFAULT_STORAGE.compoundParams,
