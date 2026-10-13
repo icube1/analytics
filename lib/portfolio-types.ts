@@ -215,6 +215,7 @@ export interface PortfolioStorage {
 }
 
 export interface PortfolioDocument extends PortfolioStorage {
+  id: string;
   version: 1;
   updatedAt: string;
   brokerReport: BrokerReport | null;
@@ -226,6 +227,8 @@ export interface PortfolioDocument extends PortfolioStorage {
   debtBalanceHistory: DebtBalanceEntry[];
   /** Сохранённые сценарии прогноза */
   forecastPlans: SavedForecastPlan[];
+  /** ID родительской группы портфеля (для сводных портфелей). null = независимый портфель */
+  groupId?: string;
 }
 
 /** Запись остатка долга (при изменении активов или загрузке отчёта) */
@@ -336,6 +339,7 @@ export const DEFAULT_STORAGE: PortfolioStorage = {
 };
 
 export const DEFAULT_DOCUMENT: PortfolioDocument = {
+  id: "default",
   version: 1,
   updatedAt: new Date(0).toISOString(),
   ...DEFAULT_STORAGE,

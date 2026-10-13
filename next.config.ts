@@ -55,4 +55,14 @@ const nextConfig: NextConfig = {
   },
 };
 
+nextConfig.rewrites = async () => {
+  // Принудительная инвалидация кэша API routes после изменения файлов
+  return [
+    {
+      source: '/api/:path*',
+      destination: '/api/:path*',
+    },
+  ];
+};
+
 export default nextConfig;

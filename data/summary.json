@@ -1,0 +1,13 @@
+{
+  "id": "summary",
+  "groupId": "all",
+  "brokerReport": null,
+  "brokerAccounts": [],
+  "brokerSnapshots": [],
+  "debtBalanceHistory": [],
+  "forecastPlans": [],
+  "customAssets": {
+    "items": [],
+    "otherDebts": []
+  }
+}
