@@ -57,9 +57,9 @@
     "recharts": "^3.8.1"
   },
   "devDependencies": {
-    "@babel/core": "^8.0.7",
-    "@babel/preset-env": "^8.0.7",
-    "@babel/preset-typescript": "^8.0.7",
+    "@babel/core": "^7.29.7",
+    "@babel/preset-env": "^7.29.7",
+    "@babel/preset-typescript": "^7.29.7",
     "@tailwindcss/postcss": "^4",
     "@types/jest": "^30.0.0",
     "@types/node": "^20",
