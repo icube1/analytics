@@ -9,28 +9,33 @@ import {
 export function mergePortfolioStorage(
   partial: Partial<PortfolioDocument> | Partial<PortfolioStorage>,
 ): PortfolioDocument {
-  return {
+  const base: any = {
     version: 1,
     updatedAt: new Date().toISOString(),
-    id: partial.id ?? "default",
-    groupId: partial.groupId ?? undefined,
-    customAssets: normalizeCustomAssets(partial.customAssets),
+    ...partial,
+  };
+
+  return {
+    ...base,
+    id: base.id ?? "default",
+    groupId: base.groupId ?? undefined,
+    customAssets: normalizeCustomAssets(base.customAssets),
     compoundParams: normalizeCompoundParams({
       ...DEFAULT_STORAGE.compoundParams,
-      ...partial.compoundParams,
+      ...base.compoundParams,
     }),
     lastBrokerFileName:
-      partial.lastBrokerFileName ?? DEFAULT_STORAGE.lastBrokerFileName,
+      base.lastBrokerFileName ?? DEFAULT_STORAGE.lastBrokerFileName,
     brokerReport:
-      "brokerReport" in partial ? (partial.brokerReport ?? null) : null,
+      "brokerReport" in base ? (base.brokerReport ?? null) : null,
     brokerAccounts:
-      "brokerAccounts" in partial ? (partial.brokerAccounts ?? []) : [],
+      "brokerAccounts" in base ? (base.brokerAccounts ?? []) : [],
     brokerSnapshots:
-      "brokerSnapshots" in partial ? (partial.brokerSnapshots ?? []) : [],
+      "brokerSnapshots" in base ? (base.brokerSnapshots ?? []) : [],
     debtBalanceHistory:
-      "debtBalanceHistory" in partial ? (partial.debtBalanceHistory ?? []) : [],
+      "debtBalanceHistory" in base ? (base.debtBalanceHistory ?? []) : [],
     forecastPlans:
-      "forecastPlans" in partial ? (partial.forecastPlans ?? []) : [],
+      "forecastPlans" in base ? (base.forecastPlans ?? []) : [],
   };
 }
 
