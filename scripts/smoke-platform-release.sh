@@ -87,6 +87,7 @@ fi
 if ! wait_for_health "$HEALTH_URL"; then
   echo "Health check timed out: $HEALTH_URL" >&2
   systemctl status "$SERVICE_NAME" --no-pager 2>/dev/null || true
+  journalctl -u "$SERVICE_NAME" -n 80 --no-pager 2>/dev/null || true
   exit 1
 fi
 
