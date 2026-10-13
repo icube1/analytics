@@ -12,17 +12,17 @@ import {
   DEFAULT_DOCUMENT,
   type PortfolioDocument,
 } from "./portfolio-types";
-import { ensureDataDir, getDataDir } from "./project-paths";
+import { ensureDataDir, dataDir } from "./project-paths";
 
 const DOC_FILE = "portfolio.json";
 const BROKER_HTML = "broker-report.html";
 
 function getDocPath(): string {
-  return path.join(getDataDir(), DOC_FILE);
+  return path.join(dataDir(), DOC_FILE);
 }
 
 export function getBrokerHtmlPath(): string {
-  return path.join(getDataDir(), BROKER_HTML);
+  return path.join(dataDir(), BROKER_HTML);
 }
 
 export function readPortfolioDocument(): PortfolioDocument {

@@ -11,7 +11,7 @@ export async function GET(request: Request) {
   try {
     const allPortfolios = listPortfolios();
 
-    // Сводный портфель: объединяем все активы и параметры из всех портфелей
+    // Сводный портфель: объединяем все активы и параметры from all portfolios
     const summary: PortfolioDocument = {
       id: "summary",
       groupId: "all",
@@ -36,7 +36,7 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Не удалось получить сводку";
+      error instanceof Error ? error.message : "Не удалось получить свodка";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
