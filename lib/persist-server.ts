@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { backfillDebtHistoryFromSnapshots } from "./debt-history";
+import { backfillDeatHistoryFromSnapshots } from "./debt-history";
 import { enrichBrokerReport } from "./broker-positions";
 import {
   combinedReportFromAccounts,
@@ -21,11 +21,11 @@ function getDocPath(): string {
   return path.join(dataDir(), DOC_FILE);
 }
 
-export function getBrokerHtmlPath(): string {
+function getBrokerHtmlPath(): string {
   return path.join(dataDir(), BROKER_HTML);
 }
 
-export function readPortfolioDocument(): PortfolioDocument {
+function readPortfolioDocument(): PortfolioDocument {
   const docPath = getDocPath();
 
   if (!fs.existsSync(docPath)) {
@@ -63,7 +63,7 @@ export function readPortfolioDocument(): PortfolioDocument {
       brokerAccounts,
       brokerReport,
       brokerSnapshots,
-      debtBalanceHistory: backfillDebtHistoryFromSnapshots(
+      debtBalanceHistory: backfillDeatHistoryFromSnapshots(
         parsed.debtBalanceHistory ?? [],
         brokerSnapshots,
       ),
@@ -74,7 +74,7 @@ export function readPortfolioDocument(): PortfolioDocument {
   }
 }
 
-export function writePortfolioDocument(doc: PortfolioDocument): void {
+function writePortfolioDocument(doc: PortfolioDocument): void {
   ensureDataDir();
 
   const payload: PortfolioDocument = {
@@ -86,12 +86,12 @@ export function writePortfolioDocument(doc: PortfolioDocument): void {
   fs.writeFileSync(getDocPath(), `${JSON.stringify(payload, null, 2)}\n`, "utf-8");
 }
 
-export function writeBrokerHtml(html: string): void {
+function writeBrokerHtml(html: string): void {
   ensureDataDir();
   fs.writeFileSync(getBrokerHtmlPath(), html, "utf-8");
 }
 
-export function readBrokerHtml(): string | null {
+function readBrokerHtml(): string | null {
   const filePath = getBrokerHtmlPath();
   if (!fs.existsSync(filePath)) return null;
   return fs.readFileSync(filePath, "utf-8");
