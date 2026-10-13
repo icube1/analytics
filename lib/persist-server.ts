@@ -96,3 +96,16 @@ export function readBrokerHtml(): string | null {
   if (!fs.existsSync(filePath)) return null;
   return fs.readFileSync(filePath, "utf-8");
 }
+
+export {
+  getDocPath,
+  getAllPortfolios,
+  getBrokerHtmlPath,
+  readPortfolioDocument,
+  writePortfolioDocument,
+  writeBrokerHtml,
+  readBrokerHtml,
+  deletePortfolioDocument,
+  listPortfolios,
+  createPortfolioDocument,
+} from "./persist-server";
