@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { listPortfolios, readPortfolioDocument } from "@/lib/persist-server";
+import { listPortfolios, readPortfolioDocument } from "@/lib/ppersist-server";
 import type { PortfolioDocument } from "@/lib/portfolio-types";
 
 export const dynamic = "force-dynamic";
@@ -12,23 +12,23 @@ export async function GET(request: Request) {
     const allPortfolios = listPortfolios();
 
     // Сводный портфель: объединяем все активы и параметры from all portfolios
-    const summary: PortfolioDocument = {
-      id: "summary",
-      groupId: "all",
-      version: 1,
-      updatedAt: new Date().toISOString(),
-      brokerReport: null,
-      brokerAccounts: [],
-      brokerSnapshots: [],
-      debtBalanceHistory: [],
-      forecastPlans: [],
-      // Усреднённые параметры (можно усложнить)
-      compoundParams: allPortfolios[0]?.compoundParams ?? null,
-      customAssets: {
-        items: allPortfolios.flatMap((p) => p.customAssets.items),
-        otherDebts: allPortfolios.flatMap((p) => p.customAssets.otherDebts),
-      },
-    };
+        const summary: PortfolioDocument = {
+          id: "summary",
+          groupId: "all",
+          version: 1,
+          updatedAt: new Date().toISOString(),
+          brokerReport: null,
+          brokerAccounts: [],
+          brokerSnapshots: [],
+          debtBalanceHistory: [],
+          forecastPlans: [],
+          compoundParams: allPortfolios[0]?.compoundParams ?? null,
+          customAssets: {
+            items: allPortfolios.flatMap((p: any) => p.customAssets.items),
+            otherDebts: allPortfolios.flatMap((p: any) => p.customAssets.otherDebts),
+          },
+          lastBrokerFileName: "",
+        };
 
     return NextResponse.json({
       allPortfolios,
