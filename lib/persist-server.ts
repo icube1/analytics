@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { backfillDeatHistoryFromSnapshots } from "./debt-history";
+import { backfillDebtHistoryFromSnapshots } from "./debt-history";
 import { enrichBrokerReport } from "./broker-positions";
 import {
   combinedReportFromAccounts,
@@ -9,7 +9,7 @@ import {
 import { mergePortfolioStorage } from "./merge-portfolio-storage";
 import { parsePortfolioHtml } from "./parse-portfolio-html";
 import {
-  DEFAULT_DOCUMENT,
+  DEFAULTDocument,
   type PortfolioDocument,
 } from "./portfolio-types";
 import { ensureDataDir } from "./project-paths";
@@ -29,7 +29,7 @@ function readPortfolioDocument(): PortfolioDocument {
   const docPath = getDocPath();
 
   if (!fs.existsSync(docPath)) {
-    return { ...DEFAULT_DOCUMENT };
+    return { ...DEFAULTDocument };
   }
 
   try {
@@ -38,7 +38,7 @@ function readPortfolioDocument(): PortfolioDocument {
     const merged = mergePortfolioStorage(parsed);
     const brokerSnapshots = parsed.brokerSnapshots ?? [];
     const lastFileName =
-      parsed.lastBrokerFileName ?? DEFAULT_DOCUMENT.lastBrokerFileName;
+      parsed.lastBrokerFileName ?? DEFAULTDocument.lastBrokerFileName;
     let brokerAccounts = normalizeBrokerAccounts(
       parsed.brokerAccounts,
       enrichBrokerReport(parsed.brokerReport ?? null),
@@ -63,14 +63,14 @@ function readPortfolioDocument(): PortfolioDocument {
       brokerAccounts,
       brokerReport,
       brokerSnapshots,
-      debtBalanceHistory: backfillDeatHistoryFromSnapshots(
+      debtBalanceHistory: backfillDebtHistoryFromSnapshots(
         parsed.debtBalanceHistory ?? [],
         brokerSnapshots,
       ),
       forecastPlans: parsed.forecastPlans ?? [],
     };
   } catch {
-    return { ...DEFAULT_DOCUMENT };
+    return { ...DEFAULTDocument };
   }
 }
 
@@ -99,7 +99,6 @@ function readBrokerHtml(): string | null {
 
 export {
   getDocPath,
-  getAllPortfolios,
   getBrokerHtmlPath,
   readPortfolioDocument,
   writePortfolioDocument,
@@ -108,4 +107,5 @@ export {
   deletePortfolioDocument,
   listPortfolios,
   createPortfolioDocument,
+  getAllPortfolios,
 } from "./persist-server";

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { listPortfolios, readPortfolioDocument } from "@/lib/ppersist-server";
+import { listPortfolios, readPortfolioDocument } from "@/lib/persist-server";
 import type { PortfolioDocument } from "@/lib/portfolio-types";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +27,7 @@ export async function GET(request: Request) {
             items: allPortfolios.flatMap((p: any) => p.customAssets.items),
             otherDebts: allPortfolios.flatMap((p: any) => p.customAssets.otherDebts),
           },
+          lastBrokerFileName: "",
           lastBrokerFileName: "",
         };
 
