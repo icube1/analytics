@@ -30,7 +30,7 @@ import {
   type SavedForecastPlan,
 } from "@/lib/portfolio-types";
 
-type TabId = "summary" | "portfolio" | "assets" | "calculator" | "tracking";
+type TabId = "summary" | "portfolio" | "accounts" | "assets" | "calculator" | "tracking";
 type SaveState = "idle" | "saving" | "saved" | "error";
 
 const SummaryTab = lazy(() =>
@@ -41,6 +41,9 @@ const PortfolioTab = lazy(() =>
 );
 const AssetsTab = lazy(() =>
   import("./assets-tab").then((module) => ({ default: module.AssetsTab })),
+);
+const AccountsTab = lazy(() =>
+  import("./accounts-tax-tab").then((module) => ({ default: module.AccountsTaxTab })),
 );
 const CalculatorTab = lazy(() =>
   import("./calculator-tab").then((module) => ({ default: module.CalculatorTab })),
@@ -60,6 +63,7 @@ function TabLoadingFallback() {
 const tabs: { id: TabId; label: string }[] = [
   { id: "summary", label: "Сводка" },
   { id: "portfolio", label: "Портфель Сбера" },
+  { id: "accounts", label: "Счета и налоги" },
   { id: "assets", label: "Другие активы" },
   { id: "calculator", label: "Сложный процент" },
   { id: "tracking", label: "Трекинг" },
@@ -445,6 +449,11 @@ export function InvestmentsDashboard() {
             onRemoveAccount={handleRemoveBrokerAccount}
             brokerSnapshots={brokerSnapshots}
           />
+        </Suspense>
+      )}
+      {activeTab === "accounts" && (
+        <Suspense fallback={<TabLoadingFallback />}>
+          <AccountsTab />
         </Suspense>
       )}
       {activeTab === "assets" && (

@@ -4,6 +4,7 @@ import { combinedReportFromAccounts, upsertBrokerAccount } from "@/lib/merge-bro
 import { recordBrokerImportOutcome } from "@/lib/observability/runtime-metrics";
 import {
   readPortfolioDocument,
+  sanitizePortfolioId,
   writeBrokerHtml,
   writePortfolioDocument,
 } from "@/lib/persist-server";
@@ -14,12 +15,19 @@ import {
 
 export const dynamic = "force-dynamic";
 
+/** Импорт идёт в конкретный портфель: `?portfolio=<id>` (по умолчанию "default"). */
+function portfolioIdFrom(request: Request): string {
+  const raw = new URL(request.url).searchParams.get("portfolio");
+  return sanitizePortfolioId(raw?.trim() || "default");
+}
+
 export async function POST(request: Request) {
   const rejected =
     requireServerAuth(request) ?? rejectOversizedPrivateRequest(request);
   if (rejected) return rejected;
 
   try {
+    const portfolioId = portfolioIdFrom(request);
     const contentType = request.headers.get("content-type") ?? "";
     let html = "";
     let fileName = "broker-report.html";
@@ -65,9 +73,9 @@ export async function POST(request: Request) {
     const report = imported.report;
     recordBrokerImportOutcome(true);
 
-    writeBrokerHtml(html);
+    writeBrokerHtml(html, portfolioId);
 
-    const current = readPortfolioDocument();
+    const current = readPortfolioDocument(portfolioId);
     const brokerAccounts = upsertBrokerAccount(
       current.brokerAccounts,
       report,
@@ -76,6 +84,7 @@ export async function POST(request: Request) {
     const combined = combinedReportFromAccounts(brokerAccounts);
     writePortfolioDocument({
       ...current,
+      id: portfolioId,
       lastBrokerFileName: fileName,
       brokerReport: combined,
       brokerAccounts,
@@ -84,11 +93,19 @@ export async function POST(request: Request) {
     return NextResponse.json({
       report: combined,
       fileName,
+      portfolioId,
       brokerAccounts,
       provenance: imported.provenance,
       warnings: imported.warnings,
       reconciliation: imported.reconciliation,
-      savedTo: ["data/portfolio.json", "data/broker-report.html"],
+      savedTo: [
+        portfolioId === "default"
+          ? "data/portfolio.json"
+          : `data/portfolios/${portfolioId}.json`,
+        portfolioId === "default"
+          ? "data/broker-report.html"
+          : `data/broker-report.${portfolioId}.html`,
+      ],
     });
   } catch (error) {
     const message =

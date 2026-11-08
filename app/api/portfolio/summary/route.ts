@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
-import { listPortfolios, readPortfolioDocument } from "@/lib/persist-server";
-import type { PortfolioDocument } from "@/lib/portfolio-types";
+import {
+  listPortfolioSummaries,
+  listPortfolios,
+} from "@/lib/persist-server";
+import { combineBrokerReports } from "@/lib/merge-broker-reports";
+import { DEFAULT_COMPOUND_PARAMS, type PortfolioDocument } from "@/lib/portfolio-types";
+import { requireServerAuth } from "@/lib/server-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -9,40 +14,43 @@ export async function GET(request: Request) {
   if (rejected) return rejected;
 
   try {
-    const allPortfolios = listPortfolios();
+    const groupId = new URL(request.url).searchParams.get("groupId");
+    const portfolios = listPortfolios().filter((doc) =>
+      groupId ? doc.groupId === groupId : true,
+    );
 
-    // Сводный портфель: объединяем все активы и параметры from all portfolios
-        const summary: PortfolioDocument = {
-          id: "summary",
-          groupId: "all",
-          version: 1,
-          updatedAt: new Date().toISOString(),
-          brokerReport: null,
-          brokerAccounts: [],
-          brokerSnapshots: [],
-          debtBalanceHistory: [],
-          forecastPlans: [],
-          compoundParams: allPortfolios[0]?.compoundParams ?? null,
-          customAssets: {
-            items: allPortfolios.flatMap((p: any) => p.customAssets.items),
-            otherDebts: allPortfolios.flatMap((p: any) => p.customAssets.otherDebts),
-          },
-          lastBrokerFileName: "",
-          lastBrokerFileName: "",
-        };
+    // Сводный портфель: счета всех портфелей как есть, комбинированный отчёт считается на лету
+    const brokerAccounts = portfolios.flatMap((doc) => doc.brokerAccounts ?? []);
+    const summary: PortfolioDocument = {
+      id: "summary",
+      title: groupId ? `Сводный: ${groupId}` : "Сводный по всем портфелям",
+      groupId: groupId ?? "all",
+      taxProfile: portfolios[0]?.taxProfile,
+      version: 1,
+      updatedAt: new Date().toISOString(),
+      brokerReport: combineBrokerReports(brokerAccounts.map((account) => account.report)),
+      brokerAccounts,
+      brokerSnapshots: portfolios.flatMap((doc) => doc.brokerSnapshots ?? []),
+      debtBalanceHistory: portfolios.flatMap((doc) => doc.debtBalanceHistory ?? []),
+      forecastPlans: [],
+      compoundParams: portfolios[0]?.compoundParams ?? DEFAULT_COMPOUND_PARAMS,
+      customAssets: {
+        items: portfolios.flatMap((doc) => doc.customAssets?.items ?? []),
+        otherDebts: portfolios.flatMap((doc) => doc.customAssets?.otherDebts ?? []),
+      },
+      lastBrokerFileName: portfolios
+        .map((doc) => doc.lastBrokerFileName)
+        .filter(Boolean)
+        .join(", "),
+    };
 
     return NextResponse.json({
-      allPortfolios,
+      portfolios: listPortfolioSummaries(),
       summary,
     });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Не удалось получить свodка";
+      error instanceof Error ? error.message : "Не удалось получить сводку";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
-
-import {
-  rejectOversizedPrivateRequest,
-  requireServerAuth,
-} from "@/lib/server-auth";

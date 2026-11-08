@@ -135,6 +135,55 @@ function prefixId<T extends { id: string }>(item: T, prefix: string, index: numb
   return { ...item, id: `${prefix}:${item.id || index}` };
 }
 
+function mergeDeposits(reports: BrokerReport[]) {
+  return reports.flatMap((report) => report.deposits ?? []);
+}
+
+function mergeTaxSummaries(reports: BrokerReport[]) {
+  const withTax = reports.filter((report) => report.tax);
+  if (withTax.length === 0) return undefined;
+  if (withTax.length === 1) return withTax[0].tax;
+
+  const rows = withTax.flatMap((report) => report.tax?.rows ?? []);
+  const income = withTax.reduce((sum, report) => sum + (report.tax?.income ?? 0), 0);
+  const expense = withTax.reduce((sum, report) => sum + (report.tax?.expense ?? 0), 0);
+  const lossCarry = withTax.reduce(
+    (sum, report) => sum + Math.abs(report.tax?.lossCarry ?? 0),
+    0,
+  );
+  const taxDue = withTax.reduce((sum, report) => sum + (report.tax?.taxDue ?? 0), 0);
+
+  const bands = new Map<number, { rate: number; base: number; tax: number }>();
+  for (const report of withTax) {
+    for (const band of report.tax?.rateBands ?? []) {
+      const current = bands.get(band.rate) ?? { rate: band.rate, base: 0, tax: 0 };
+      current.base += band.base;
+      current.tax += band.tax;
+      bands.set(band.rate, current);
+    }
+  }
+
+  return {
+    year: withTax[0].tax?.year ?? "",
+    rows,
+    income,
+    expense,
+    realized: income - expense,
+    rateBands: [...bands.values()].sort((a, b) => a.rate - b.rate),
+    taxDue,
+    lossCarry,
+  };
+}
+
+/** Тип счёта объединённого отчёта: единый, если у всех счетов он одинаковый. */
+function mergeAccountKind(reports: BrokerReport[]) {
+  const kinds = new Set(
+    reports.map((report) => report.accountKind).filter(Boolean) as string[],
+  );
+  if (kinds.size === 1) return reports[0].accountKind;
+  return undefined;
+}
+
 export function combineBrokerReports(reports: BrokerReport[]): BrokerReport | null {
   const present = reports.filter(Boolean);
   if (present.length === 0) return null;
@@ -194,6 +243,9 @@ export function combineBrokerReports(reports: BrokerReport[]): BrokerReport | nu
     cash,
     trades,
     cashFlows,
+    accountKind: mergeAccountKind(present),
+    deposits: mergeDeposits(present),
+    tax: mergeTaxSummaries(present),
   };
 }
 

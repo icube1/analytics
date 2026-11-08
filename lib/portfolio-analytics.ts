@@ -10,7 +10,7 @@ import {
   sumEffectiveCashRub,
   sumEffectiveSecuritiesValue,
 } from "./broker-positions";
-import { ASSUMED_RETURNS } from "./portfolio-assumptions";
+import { ASSUMED_RETURNS, INCOME_YIELD } from "./portfolio-assumptions";
 import type {
   BrokerReport,
   CompoundParams,
@@ -86,10 +86,10 @@ function buildSlices(
       id: "stocks",
       label: "Акции (брокер)",
       value: wealth.brokerSecurities,
-      capitalReturn: ASSUMED_RETURNS.stocks,
-      incomeReturn: 0,
+      capitalReturn: ASSUMED_RETURNS.stocks - INCOME_YIELD.stocks,
+      incomeReturn: INCOME_YIELD.stocks,
       assumedReturn: ASSUMED_RETURNS.stocks,
-      note: "Историческая доходность Мосбиржи",
+      note: "Историческая доходность Мосбиржи: рост + дивиденды",
       generatesDividendTax: true,
     });
   }
@@ -111,10 +111,10 @@ function buildSlices(
       id: "cash",
       label: "Денежные средства",
       value: wealth.brokerCashRub,
-      capitalReturn: ASSUMED_RETURNS.cash,
-      incomeReturn: 0,
+      capitalReturn: 0,
+      incomeReturn: ASSUMED_RETURNS.cash,
       assumedReturn: ASSUMED_RETURNS.cash,
-      note: "Ориентир: инфляция / депозит",
+      note: "Проценты на остаток / депозит",
     });
   }
 

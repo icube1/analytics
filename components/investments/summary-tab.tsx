@@ -33,6 +33,67 @@ interface SummaryTabProps {
   brokerSnapshots: BrokerBalanceSnapshot[];
 }
 
+/**
+ * Подсказка «из чего складывается ожидаемый доход»: показывает каждый актив
+ * отдельной строкой и разделяет рост стоимости и денежный доход
+ * (дивиденды, купоны, проценты, аренда).
+ */
+function IncomeBreakdown({ analytics }: { analytics: PortfolioAnalytics }) {
+  const rows = analytics.slices
+    .map((slice) => ({
+      id: slice.id,
+      label: slice.label,
+      capitalRub: (slice.value * slice.capitalReturn) / 100,
+      incomeRub: (slice.value * slice.incomeReturn) / 100,
+      totalRub: slice.expectedReturnRub,
+      assumedReturn: slice.assumedReturn,
+      note: slice.note,
+    }))
+    .filter((row) => row.totalRub > 0)
+    .sort((a, b) => b.totalRub - a.totalRub);
+
+  const capitalTotal = rows.reduce((sum, row) => sum + row.capitalRub, 0);
+  const incomeTotal = rows.reduce((sum, row) => sum + row.incomeRub, 0);
+
+  return (
+    <div className="pointer-events-none absolute left-0 top-full z-30 mt-2 hidden w-[22rem] max-w-[90vw] rounded-xl border border-zinc-200 bg-white p-3 text-xs shadow-xl group-hover:block group-focus-within:block dark:border-zinc-700 dark:bg-zinc-900">
+      <p className="mb-2 font-semibold text-zinc-900 dark:text-zinc-100">
+        Из чего складывается доход за год
+      </p>
+      <div className="space-y-1">
+        {rows.map((row) => (
+          <div key={row.id} className="flex items-baseline justify-between gap-3">
+            <span className="truncate text-zinc-600 dark:text-zinc-300" title={row.note}>
+              {row.label}
+              <span className="ml-1 text-zinc-400">· {row.assumedReturn.toFixed(1)}%</span>
+            </span>
+            <span className="shrink-0 tabular-nums text-zinc-900 dark:text-zinc-100">
+              {formatMoney(row.totalRub)}
+            </span>
+          </div>
+        ))}
+        {rows.length === 0 && (
+          <p className="text-zinc-500">Пока нет активов с заданной доходностью</p>
+        )}
+      </div>
+      <div className="mt-2 space-y-1 border-t border-zinc-200 pt-2 dark:border-zinc-700">
+        <div className="flex justify-between gap-3 text-zinc-600 dark:text-zinc-300">
+          <span>Рост стоимости</span>
+          <span className="tabular-nums">{formatMoney(capitalTotal)}</span>
+        </div>
+        <div className="flex justify-between gap-3 text-zinc-600 dark:text-zinc-300">
+          <span>Дивиденды, купоны, проценты, аренда</span>
+          <span className="tabular-nums">{formatMoney(incomeTotal)}</span>
+        </div>
+      </div>
+      <p className="mt-2 text-[11px] leading-snug text-zinc-500 dark:text-zinc-400">
+        Оценка по допущениям. Дивиденды акций — ~6% годовых внутри общей ставки.
+        Налоговый вычет по ИИС сюда не входит: это возврат уплаченного НДФЛ.
+      </p>
+    </div>
+  );
+}
+
 export function SummaryTab({
   analytics,
   report,
@@ -65,16 +126,19 @@ export function SummaryTab({
           hint="Взвешенная по классам активов"
           tone="income"
         />
-        <StatCard
-          label="Ожидаемый доход / год"
-          value={formatMoney(analytics.expectedAnnualIncome)}
-          hint={
-            analytics.customMonthlyIncome > 0
-              ? `В т.ч. ${formatMoney(analytics.customMonthlyIncome)}/мес от активов`
-              : "По индивидуальным настройкам"
-          }
-          tone="income"
-        />
+        <div
+          className="group relative"
+          tabIndex={0}
+          aria-describedby="income-breakdown"
+        >
+          <StatCard
+            label="Ожидаемый доход / год"
+            value={formatMoney(analytics.expectedAnnualIncome)}
+            hint="Наведи — разбивка по активам и источникам"
+            tone="income"
+          />
+          <IncomeBreakdown analytics={analytics} />
+        </div>
         <StatCard
           label="Прогноз через 1 год"
           value={formatMoney(analytics.projectedValue1Y)}

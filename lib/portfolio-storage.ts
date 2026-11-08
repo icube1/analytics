@@ -192,7 +192,12 @@ export async function uploadBrokerReport(
   const fileName = file.name || "broker-report.html";
   const report = parsePortfolioHtml(html, fileName);
 
-  if (report.securities.length === 0 && report.assetsEnd === 0) {
+  if (
+    report.securities.length === 0 &&
+    report.assetsEnd === 0 &&
+    !report.tax &&
+    !(report.deposits && report.deposits.length > 0)
+  ) {
     throw new Error("Не удалось распознать данные в отчёте");
   }
 
@@ -236,6 +241,16 @@ export async function removeBrokerAccount(
     current.brokerAccounts,
     accountId,
   );
+  // Удаление на сервере — отдельным вызовом: сохранение документа объединяет
+  // счета, поэтому без него удалённый счёт вернулся бы обратно.
+  try {
+    await apiFetch(
+      `/api/portfolio/account?portfolio=${encodeURIComponent(current.id ?? "default")}&account=${encodeURIComponent(accountId)}`,
+      { method: "DELETE" },
+    );
+  } catch {
+    // офлайн — удаление применится при следующей синхронизации
+  }
   return savePortfolioDocument({
     brokerAccounts,
     brokerReport: combinedReportFromAccounts(brokerAccounts),

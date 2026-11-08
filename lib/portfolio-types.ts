@@ -16,6 +16,47 @@ export interface SecurityPosition {
   plannedDebits?: number;
   /** Плановый исходящий остаток с учётом нерасчитанных сделок, шт */
   quantityPlanned?: number;
+  /** Номинал (для облигаций), ₽ */
+  nominal?: number;
+  /** НКД на начало периода, ₽ — входит в оценку ЦБ по отчёту */
+  nkdStart?: number;
+  /** НКД на конец периода, ₽ — входит в оценку ЦБ по отчёту */
+  nkdEnd?: number;
+}
+
+/** Тип счёта: обычный брокерский или ИИС */
+export type BrokerAccountKind = "broker" | "iis1" | "iis2" | "iis3";
+
+/** Строка таблицы «Информация о зачислениях денежных средств на ИИС» */
+export interface BrokerDeposit {
+  year: string;
+  date: string;
+  amount: number;
+  basis: string;
+  limit: string;
+}
+
+/** Строка налогового блока отчёта (код дохода / код расхода) */
+export interface TaxCodeRow {
+  code: string;
+  income: number;
+  taxable: number;
+  expenseCode?: string;
+  expense: number;
+}
+
+/** Налоговый блок отчёта: «РАСЧЕТ И УДЕРЖАНИЕ НАЛОГА» */
+export interface TaxSummary {
+  year: string;
+  rows: TaxCodeRow[];
+  income: number;
+  expense: number;
+  /** Реализованный финансовый результат: income − expense */
+  realized: number;
+  rateBands: { rate: number; base: number; tax: number }[];
+  taxDue: number;
+  /** Убыток к переносу на будущие периоды (10 лет, ст. 220.1 НК РФ) */
+  lossCarry: number;
 }
 
 export interface CashPosition {
@@ -73,6 +114,12 @@ export interface BrokerReport {
   cash: CashPosition[];
   trades: BrokerTrade[];
   cashFlows: CashFlow[];
+  /** Тип счёта (автоопределение парсером, правится вручную) */
+  accountKind?: BrokerAccountKind;
+  /** Зачисления на ИИС из официальной таблицы отчёта */
+  deposits?: BrokerDeposit[];
+  /** Налоговый блок отчёта, если он есть */
+  tax?: TaxSummary;
 }
 
 /** One uploaded brokerage / IIS account. Combined into `brokerReport`. */
@@ -81,6 +128,12 @@ export interface BrokerAccountSource {
   fileName: string;
   uploadedAt: string;
   report: BrokerReport;
+  /** Тип счёта: определяется из отчёта, может быть переопределён пользователем */
+  kind?: BrokerAccountKind;
+  /** Человеческая метка, например «ИИС-3 у Сбера» */
+  label?: string;
+  /** Номер договора (S259RFF, 4259RFF…) */
+  contract?: string;
 }
 
 export interface DebtObligation {
@@ -214,8 +267,20 @@ export interface PortfolioStorage {
   lastBrokerFileName: string;
 }
 
+/** Данные пользователя для налогового блока (ставка НДФЛ считается сама). */
+export interface TaxProfile {
+  /** Годовой доход, облагаемый НДФЛ: зарплата, ГПХ, прочее */
+  annualIncome?: number;
+  /** Фактически уплаченный за год НДФЛ, если известен точно */
+  paidNdfl?: number;
+}
+
 export interface PortfolioDocument extends PortfolioStorage {
   id: string;
+  /** Человеческое имя портфеля для селектора в UI */
+  title?: string;
+  /** Налоговый профиль пользователя: доход для расчёта ставки и вычетов */
+  taxProfile?: TaxProfile;
   version: 1;
   updatedAt: string;
   brokerReport: BrokerReport | null;
