@@ -19,13 +19,15 @@ export function emptyReconciliation(): BrokerImportReconciliation {
 export function reconcileBrokerLedger(
   ledger: BrokerNormalizedLedger,
 ): BrokerImportReconciliation {
+  // В строке рейтинга Сбера стоимость ЦБ указана вместе с НКД, а в таблице
+  // портфеля — «без НКД», поэтому НКД на конец периода прибавляем при сверке.
   const securitiesEndComputed = ledger.securities.reduce(
-    (sum, position) => sum + position.valueEnd,
+    (sum, position) => sum + position.valueEnd + (position.nkdEnd ?? 0),
     0,
   );
   const cashEndComputed = ledger.cash
     .filter((item) => item.currency === "RUB")
-    .reduce((sum, item) => sum + item.end, ledger.cashEnd);
+    .reduce((sum, item) => sum + item.end, 0);
 
   const assetsEndComputed = securitiesEndComputed + cashEndComputed;
   const tolerance = BROKER_IMPORT_LIMITS.reconciliationToleranceRub;

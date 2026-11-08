@@ -8,6 +8,7 @@ import type {
   BrokerDetectionResult,
   BrokerImportInput,
   BrokerImportResult,
+  BrokerNormalizedLedger,
 } from "./types";
 
 function prepareContent(input: BrokerImportInput): {
@@ -54,8 +55,24 @@ function chooseAdapter(
   return BROKER_ADAPTERS.find((adapter) => adapter.id === chosen.adapterId) ?? null;
 }
 
-function isRecognized(ledger: ReturnType<BrokerAdapter["parse"]>["ledger"]): boolean {
-  return ledger.securities.length > 0 || ledger.assetsEnd > 0;
+/**
+ * Отчёт считается распознанным, если в нём есть портфель, но также и тогда,
+ * когда брокер прислал пустой счёт: тип счёта (ИИС) или налоговый блок —
+ * достаточный признак, что это отчёт брокера, а не случайный HTML.
+ */
+function isRecognized(ledger: BrokerNormalizedLedger): boolean {
+  if (ledger.securities.length > 0 || ledger.assetsEnd > 0) return true;
+  if (ledger.tax) return true;
+  if (ledger.deposits && ledger.deposits.length > 0) return true;
+  return ledger.accountKind != null && ledger.accountKind !== "broker";
+}
+
+function isEmptyPortfolio(ledger: BrokerNormalizedLedger): boolean {
+  return (
+    ledger.securities.length === 0 &&
+    Math.abs(ledger.assetsEnd) < 0.01 &&
+    ledger.trades.length === 0
+  );
 }
 
 export function importBrokerReport(
@@ -165,6 +182,15 @@ export function importBrokerReport(
 
     const report = ledgerToBrokerReport(parsed.ledger);
     const ok = isRecognized(parsed.ledger);
+
+    if (ok && isEmptyPortfolio(parsed.ledger)) {
+      warnings.push({
+        code: "EMPTY_PORTFOLIO",
+        message:
+          "Broker report recognized, but the portfolio is empty: no securities, zero assets",
+        path: "portfolio",
+      });
+    }
 
     return {
       ok,

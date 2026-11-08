@@ -18,12 +18,19 @@ const EMPTY_MARKERS = new Set(["", "—", "-", "–", "−", "n/a", "N/A"]);
 
 /** Parses broker numeric cells; empty markers become zero, malformed text does not. */
 export function parseBrokerNumber(raw: string): BrokerNumberParseResult {
-  const cleaned = raw.replace(/\s/g, "").replace(",", ".").trim();
+  const cleaned = raw
+    .replace(/\s/g, "")
+    .replace(/\u00a0/g, "")
+    .replace(/,/, ".")
+    .replace(/^\u2212/, "-") // типографский минус
+    .replace(/^−/, "-")
+    .trim();
   if (EMPTY_MARKERS.has(cleaned) || EMPTY_MARKERS.has(raw.trim())) {
     return { ok: true, parsed: { value: 0, empty: true } };
   }
 
-  if (!/^-?\d+(?:\.\d+)?$/.test(cleaned)) {
+  // Знак «+» у роста активов в отчётах Сбера: "+427 490.83"
+  if (!/^[+-]?\d+(?:\.\d+)?$/.test(cleaned)) {
     return { ok: false, error: { raw, reason: "malformed" } };
   }
 

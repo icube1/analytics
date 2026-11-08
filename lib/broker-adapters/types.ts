@@ -48,6 +48,12 @@ export interface BrokerImportCoverage {
   cashCount: number;
   cashFlowCount: number;
   tradeCount: number;
+  /** Тип счёта определён (broker / iis1 / iis2 / iis3) */
+  accountKind?: boolean;
+  /** Число распознанных зачислений на ИИС */
+  depositCount?: number;
+  /** Налоговый блок «РАСЧЕТ И УДЕРЖАНИЕ НАЛОГА» распознан */
+  tax?: boolean;
 }
 
 export type BrokerWarningCode =
@@ -57,6 +63,7 @@ export type BrokerWarningCode =
   | "MISSING_META"
   | "RECONCILIATION_MISMATCH"
   | "PARTIAL_PARSE"
+  | "EMPTY_PORTFOLIO"
   | "SANITIZED_INPUT";
 
 export interface BrokerImportWarning {
@@ -86,6 +93,8 @@ export interface BrokerNormalizedLedger {
   createdAt: string;
   investor: string;
   contract: string;
+  /** Тип счёта: broker | iis1 | iis2 | iis3 */
+  accountKind?: BrokerReport["accountKind"];
   assetsStart: number;
   assetsEnd: number;
   assetsChange: number;
@@ -97,6 +106,10 @@ export interface BrokerNormalizedLedger {
   cash: BrokerReport["cash"];
   trades: BrokerReport["trades"];
   cashFlows: BrokerReport["cashFlows"];
+  /** Зачисления на ИИС из официальной таблицы отчёта */
+  deposits?: BrokerReport["deposits"];
+  /** Налоговый блок отчёта, если он есть */
+  tax?: BrokerReport["tax"];
 }
 
 export interface BrokerAdapterParseResult {

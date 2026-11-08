@@ -28,14 +28,24 @@ export function sanitizeBrokerFixture(input: string): string {
     .replace(/<meta\b[^>]*>/giu, "")
     .replace(/(<title\b[^>]*>)[\s\S]*?(<\/title>)/giu, "$1Sanitized broker fixture$2");
 
+  // Инвестор — значение в пределах строки (переносы и отступы не трогаем).
   html = html.replace(
-    /(Инвестор:\s*)([\s\S]*?)(\s*<br\b[^>]*>\s*Договор(?:\s|&nbsp;)+)([^\s<]+)/giu,
-    `$1${SANITIZED_INVESTOR}$3${SANITIZED_CONTRACT}`,
+    new RegExp("(Инвестор:[\t ]*)([^<\r\n]*)", "giu"),
+    (match: string, lead: string, value: string) =>
+      value.trim() ? `${lead}${SANITIZED_INVESTOR}` : match,
   );
-  html = html.replace(
-    /(Договор(?:\s|&nbsp;)+)(?!SANITIZED-CONTRACT\b)([^\s<]+)/giu,
-    `$1${SANITIZED_CONTRACT}`,
-  );
+
+  // Код договора — первый ASCII-токен с цифрой в сегменте «Договор … <».
+  // Так «Договор на ведение … счета S259RFF» даёт S259RFF, а не слово «на»,
+  // а уже обезличенный SANITIZED-CONTRACT не переписывается повторно.
+  html = html.replace(/Договор[^<]{0,200}/giu, (segment) => {
+    if (/SANITIZED-CONTRACT/.test(segment)) return segment;
+    const token = segment.match(/(?=[A-Za-z0-9-]*\d)[A-Za-z0-9][A-Za-z0-9-]{3,}/u);
+    if (!token || token.index === undefined) return segment;
+    return `${segment.slice(0, token.index)}${SANITIZED_CONTRACT}${segment.slice(
+      token.index + token[0].length,
+    )}`;
+  });
 
   html = html.replace(
     /((?:Номер|№)\s+(?:(?:брокерского|торгового|лицевого)\s+)?сч[её]та\s*(?::|№|-)?\s*)([^<\s]+)/giu,

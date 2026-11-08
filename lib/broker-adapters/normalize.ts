@@ -22,6 +22,13 @@ export function ledgerToBrokerReport(ledger: BrokerNormalizedLedger): BrokerRepo
     cashFlows: ledger.cashFlows,
   };
 
+  // Необязательные блоки переносим только когда они есть в отчёте.
+  if (ledger.accountKind) report.accountKind = ledger.accountKind;
+  if (ledger.deposits && ledger.deposits.length > 0) {
+    report.deposits = ledger.deposits;
+  }
+  if (ledger.tax) report.tax = ledger.tax;
+
   return enrichBrokerReport(report) ?? report;
 }
 
