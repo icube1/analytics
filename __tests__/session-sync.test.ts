@@ -238,6 +238,7 @@ describe("session-sync portfolio conflicts and offline replay", () => {
 
     const outcome = await pushPortfolio(
       {
+        id: "test-doc",
         version: 1,
         customAssets: { items: [], otherDebts: [] },
         compoundParams: {} as never,

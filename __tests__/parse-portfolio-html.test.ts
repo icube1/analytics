@@ -19,6 +19,10 @@ describe("parsePortfolioHtml", () => {
     if (!fs.existsSync(htmlPath)) return;
 
     const html = fs.readFileSync(htmlPath, "utf-8");
+    // Локальный data/broker-report.html — пользовательская фикстура и может быть
+    // заменена другим отчётом. Тест применим только к отчёту с бумагой SBER.
+    if (!html.includes("RU0009029540")) return;
+
     const report = parsePortfolioHtml(html);
     const sber = report.securities.filter((s) => s.isin === "RU0009029540");
 

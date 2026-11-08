@@ -50,8 +50,13 @@ next-env.d.ts
 # персональные данные (хранятся локально в data/ и statements/)
 /data/portfolio.json
 /data/broker-report.html
+/data/broker-report.*.html
+/data/portfolios/
+/data/backups/
 /statements/*.csv
 /statements/*.CSV
+# черновики агента: планы и заметки не часть продукта
+/.hermes/
 apps/web/node_modules
 /ci-reports/
 deploy.tar.gz

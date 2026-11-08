@@ -1,20 +1,21 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import { AppNav } from "@/components/app-nav";
 import { AppFooter } from "@/components/app-footer";
 import { TestEnvBanner } from "@/components/test-env-banner";
 import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+/**
+ * Шрифты держим локальным стеком, а не next/font/google: сборка не должна
+ * зависеть от доступности fonts.googleapis.com (офлайн/корпоративный прокси).
+ * Имена переменных те же, что использовал Geist, чтобы стили не поехали.
+ */
+const fontVariables = {
+  "--font-geist-sans":
+    'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif',
+  "--font-geist-mono":
+    'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
+} as React.CSSProperties;
 
 export const metadata: Metadata = {
   title: "Финансовая аналитика",
@@ -30,7 +31,8 @@ export default function RootLayout({
     <html
       lang="ru"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className="h-full antialiased"
+      style={fontVariables}
     >
       <body className="flex min-h-full flex-col">
         <ThemeProvider>

@@ -59,7 +59,9 @@ describe("market data cache", () => {
 
     const cachePath = getMarketCachePathForTests();
     expect(cachePath).not.toBeNull();
-    expect(cachePath).toContain("/tmp/");
-    expect(cachePath).not.toContain("/data/");
+    // Windows отдаёт "\tmp\...", поэтому сравниваем в posix-виде
+    const normalized = String(cachePath).replace(/\\/g, "/");
+    expect(normalized).toContain("/tmp/");
+    expect(normalized).not.toContain("/data/");
   });
 });
